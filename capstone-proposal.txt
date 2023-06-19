@@ -1,0 +1,33 @@
+1. What goal will your website be designed to achieve?
+    A user will copy/paste an ingredient section from an online recipe. My app will extract the ingredients and create a shopping list accodingly. There will be an additional option to export and build a Kroger cart ready for checkout with the groccery items added.
+
+2. What kind of users will visit your site? In other words, what is the demographic of your users?
+    Anyone who meal plans online and would like an expidited process.
+
+3. What data do you plan on using? You may have not picked your actual API yet, which is fine, just outline what kind of data you would like it to contain.
+    The Kroger authentication, products, and cart API.
+
+4. In brief, outline your approach to creating your project (knowing that you may not know everything in advance and that these details might change later). Answer questions like the ones below, but feel free to add more information:
+    a. What does your database schema look like?
+        It will a one to many relationship with a table for users, recipes, and groccery lists.
+
+    b. What kinds of issues might you run into with your API?
+        Authentication issues or finding the correct item.
+
+    c. Is there any sensitive information you need to secure?
+        The password they create to log into my site as well as the authentication token given to the user from Kroger.
+
+    d. What functionality will your app include?
+        Take ingredients from online recipes and make a groccery list
+        Create account to save lists or recipes
+        Export list to Kroger and build a cart for pickup or delivery
+
+    e. Wat will the user flow look like?
+        Users will come to a landing page that houses the ingredients entry form. 
+        User will add their recipes until they have built the list that they want. 
+        User will get an opportunity to log in to save those recipes/lists. 
+        User will verify the products the groccery list has chosen in their Kroger cart. 
+        User will be redirected to Kroger site to complete payment and method of pickup
+
+    f. What features make your site more than CRUD? Do you have any stretch goals?
+        No.
