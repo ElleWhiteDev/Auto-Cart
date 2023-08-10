@@ -47,6 +47,11 @@ a:hover {
   text-align: center;
 }
 
+.sidebar {
+  padding-left: 0;
+  margin-left: 0;
+}
+
 
 /* Forms */
 

@@ -2,7 +2,7 @@ import base64
 import requests
 from urllib.parse import urlencode
 from flask import Flask, render_template, request, flash, redirect, session, g, url_for
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.exc import IntegrityError
 from flask_bcrypt import Bcrypt
 from functools import wraps
 from models import db, connect_db, User, Recipe, Ingredient, GroceryList
@@ -34,6 +34,33 @@ def require_login(func):
             return redirect(url_for('login'))
         return func(*args, **kwargs)
     return wrapper
+
+@app.context_processor
+def inject_user_data():
+    """Populate user data for homepage"""
+    if hasattr(g, 'user') and g.user:
+        print('user detected:', g.user)
+        user = g.user
+
+        recipes = Recipe.query.filter_by(user_id=user.id).all()
+        print(recipes)
+        grocery_lists = GroceryList.query.filter_by(user_id=user.id).all()
+        print(grocery_lists)
+
+        grocery_list_ingredients = []
+        for grocery_list in grocery_lists:
+            grocery_list_ingredients.extend(grocery_list.ingredients)
+
+        print('grocery list ingredients', grocery_list_ingredients)
+        return {
+            'grocery_lists': grocery_lists,
+            'recipes': recipes,
+            'grocery_list_ingredients': grocery_list_ingredients
+        }
+    else:
+        print('no user detected')
+    return {}
+
 
 #################################################
 
@@ -86,6 +113,7 @@ def kroger_authenticate():
 @require_login
 def callback():
     """Recieve bearer token from Kroger API"""
+
     authorization_code = request.args.get('code')
 
     # Prepare the authorization header
@@ -116,30 +144,23 @@ def callback():
 
     db.session.commit()
 
-    return redirect(url_for('homepage'))
+    form = AddRecipeForm()
+    return redirect(url_for('homepage', form=form))
 
 #################################################
 
 @app.route('/')
 def homepage():
     """Landing page"""
-    access_token = session.get('access_token')
-    return render_template('home.html', access_token=access_token)
 
+    form = AddRecipeForm()
 
+    return render_template('home.html', form=form)
 
 
 @app.route('/register', methods=["GET", "POST"])
 def register():
-    """Handle user signup.
-
-    Create new user and add to DB. Redirect to home page.
-
-    If form not valid, present form.
-
-    If there there already is a user with that username: flash message
-    and re-present form.
-    """
+    """Handle user signup"""
 
     form = UserAddForm()
 
@@ -168,7 +189,9 @@ def register():
 
         do_login(user)
 
-        return redirect(url_for('homepage'))
+        form = AddRecipeForm()
+
+        return redirect(url_for('homepage', form=form))
 
     else:
         return render_template('register.html', form=form)
@@ -187,7 +210,9 @@ def login():
         if user:
             do_login(user)
             flash(f"Hello, {user.username}!", "success")
-            return redirect(url_for('homepage'))
+
+            form = AddRecipeForm()
+            return redirect(url_for('homepage', form=form))
 
         flash("Invalid credentials.", 'danger')
 
@@ -211,43 +236,35 @@ def user_view(user_id):
     return render_template('profile.html', user=user_id)
 
 
-@app.route('/add_recipe', methods=["POST"])
+@app.route('/add_recipe', methods=["GET","POST"])
 def add_recipe():
-
-    # if not g.user:
-    #     create thing but don't save it to user
+    """User submits chunk of text. It's parsed into individual ingregient objects and assembled into a recipe"""
 
     form = AddRecipeForm()
 
-    # if form.validate_on_submit():
-    #     recipe = Recipe()
+    if form.validate_on_submit():
+        name = form.name.data
+        ingredients_text = form.ingredients_text.data
+        url = form.url.data
+        user_id=g.user.id
+        print(ingredients_text)
+        
+        recipe = Recipe.create_recipe(ingredients_text, url, user_id, name)
 
-    # print(form.errors)
+        print(recipe)
 
-    # if form.validate_on_submit():
-    #     recipe = User.signup(
-    #         username=form.username.data.strip(),
-    #         password=form.password.data,
-    #         email=form.email.data.strip()
-    #     )
+        try:
+            db.session.add(recipe)
+            db.session.commit()
 
-    #     try:
-    #         db.session.add(user)
-    #         db.session.commit()
+            flash('Recipe created successfully!', 'success')
+            return redirect(url_for('homepage', form=form))
+        except Exception as e:
+            db.session.rollback()
+            flash('Error Occured. Please try again', 'danger')
+            return redirect(url_for('homepage', form=form))
+    return redirect(url_for('homepage',form=form))
 
-    #     except IntegrityError as error:
-    #         print(error)
-    #         if "users_email_key" in str(error.orig):
-    #             flash("Email already taken", 'danger')
-    #         elif "users_username_key" in str(error.orig):
-    #             flash("Username already taken", 'danger')
-    #         else:
-    #             flash("An error occurred. Please try again.", 'danger')
-    #         return render_template('/register.html', form=form)
-
-    #     do_login(user)
-
-    #     return redirect(url_for('homepage'))
-
-    # else:
-    return render_template('register.html', form=form)
+@app.route('/recipe')
+def view_recipe(recipe_id):
+    return render_template('recipe.html', recipe_id=recipe_id)

@@ -29,6 +29,6 @@ class ChangePasswordForm(FlaskForm):
 class AddRecipeForm(FlaskForm):
     """Form to add recipe"""
     
-    recipe_name = StringField('Recipe Name', validators=[DataRequired()])
-    ingredients = TextAreaField('Paste Ingredients Section', validators=[DataRequired()])
-    recipe_url = StringField('Recipe URL', validators=[Optional()])
+    name = StringField('Recipe Name', validators=[DataRequired()])
+    ingredients_text = TextAreaField('Paste Ingredients Section', validators=[DataRequired()])
+    url = StringField('Recipe URL', validators=[Optional()])

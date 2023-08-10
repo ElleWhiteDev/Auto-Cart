@@ -1,3 +1,4 @@
+import re
 from flask_bcrypt import Bcrypt
 from flask_sqlalchemy import SQLAlchemy
 
@@ -5,18 +6,11 @@ bcrypt = Bcrypt()
 db = SQLAlchemy()
 
 
-# Join table for Recipe to Ingredient
-recipes_ingredients = db.Table(
-    "recipes_ingredients",
-    db.Column("recipe_id", db.Integer, db.ForeignKey("recipes.id")),
-    db.Column("ingredient_id", db.Integer, db.ForeignKey("ingredients.id")),
-)
-
 # Join table for Grocery List to Recipe
-grocery_lists_recipes = db.Table(
-    "grocery_lists_recipes",
+grocery_lists_ingredients = db.Table(
+    "grocery_lists_ingredients",
     db.Column("grocery_list_id", db.Integer, db.ForeignKey("grocery_lists.id")),
-    db.Column("recipe_id", db.Integer, db.ForeignKey("recipes.id")),
+    db.Column("ingredient_id", db.Integer, db.ForeignKey("ingredients.id")),
 )
 
 
@@ -92,23 +86,36 @@ class User(db.Model):
         return False
 
 
+class RecipeIngredient(db.Model):
+    """Association object for recipes/ingredients"""
+    __tablename__ = 'recipes_ingredients'
+    
+    recipe_id = db.Column(db.Integer, db.ForeignKey("recipes.id"), primary_key=True)
+    ingredient_id = db.Column(db.Integer, db.ForeignKey("ingredients.id"), primary_key=True)
+    
+    quantity = db.Column(db.String(40)) 
+    measurement = db.Column(db.String(40))
+    
+    ingredient = db.relationship("Ingredient", back_populates="recipe_ingredients")
+    recipe = db.relationship("Recipe", back_populates="recipe_ingredients")
+
+
 class Recipe(db.Model):
     """Recipe created by user"""
 
     __tablename__ = "recipes"
 
     id = db.Column(db.Integer, primary_key=True)
+
     user_id = db.Column(
         db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
 
-    ingredient = db.Column(db.Text, nullable=False)
+    name = db.Column(db.Text, nullable=False)
 
     url = db.Column(db.Text, nullable=False)
 
-    ingredients = db.relationship(
-        "Ingredient", secondary=recipes_ingredients, backref="recipes"
-    )
+    recipe_ingredients = db.relationship("RecipeIngredient", back_populates="recipe")
 
     
     @classmethod
@@ -119,28 +126,39 @@ class Recipe(db.Model):
         parsed_ingredients = []
 
         for ingredient in ingredients:
-            match = re.match(r'^▢([\d\s/]+)?\s*([a-zA-Z]*)?\s*(.*)', ingredient)
+            print(f"Trying to match: {ingredient}")
+            match = re.match(r'^(\S+)\s+(\S+)\s+(.*)', ingredient)
+            print(f"Match result: {match}")
             if match:
                 quantity, measurement, ingredient_name = match.groups()
+                print(ingredient_name)
                 parsed_ingredients.append({
                     "quantity": quantity.strip() if quantity else None,
                     "measurement": measurement.strip() if measurement else None,
                     "ingredient": ingredient_name.strip(),
                 })
-
+        print(parsed_ingredients)
         return parsed_ingredients
 
     @classmethod
-    def create_recipe(cls, ingredients_text, url):
+    def create_recipe(cls, ingredients_text, url, user_id, name):
+        """Takes parsed ingredients and creates a recipe object"""
+
         parsed_ingredients = cls.parse_ingredients(ingredients_text)
-        recipe = cls(url=url)
+        print(parsed_ingredients)
+        recipe = cls(url=url, user_id=user_id, name=name)
         db.session.add(recipe)
 
         for ingredient_data in parsed_ingredients:
             ingredient = Ingredient(
                 name=ingredient_data['ingredient']
             )
-            recipe.ingredients.append(ingredient)
+            recipe_ingredient = RecipeIngredient(
+                quantity=ingredient_data['quantity'],
+                measurement=ingredient_data['measurement'],
+                ingredient=ingredient
+            )
+            recipe.recipe_ingredients.append(recipe_ingredient)
 
         db.session.commit()
         return recipe
@@ -155,21 +173,26 @@ class Ingredient(db.Model):
 
     name = db.Column(db.String(40), nullable=False)
 
+    recipe_ingredients = db.relationship("RecipeIngredient", back_populates="ingredient")
+
 
 class GroceryList(db.Model):
-    """Grocery List of ingreedients"""
-
     __tablename__ = "grocery_lists"
 
     id = db.Column(db.Integer, primary_key=True)
-
     user_id = db.Column(
         db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
 
-    recipes = db.relationship(
-        "Recipe", secondary=grocery_lists_recipes, backref="grocery_lists"
-    )
+    ingredients = db.relationship("Ingredient", secondary=grocery_lists_ingredients, backref="grocery_lists")
+
+    def add_recipe_to_grocery_list(recipe, grocery_list):
+        """Insert ingredients into a grocery list"""
+        for recipe_ingredient in recipe.recipe_ingredients:
+            ingredient = recipe_ingredient.ingredient
+            grocery_list.ingredients.append(ingredient)
+        db.session.commit()
+
 
 
 def connect_db(app):
