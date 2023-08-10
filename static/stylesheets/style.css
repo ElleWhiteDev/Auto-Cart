@@ -1,0 +1,156 @@
+/* General */
+body {
+  font-family: Arimo, sans-serif;  
+}
+
+h1 {
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+h4 {
+  font-size: 1rem;
+  margin: 0;
+}
+
+h5 {
+  font-size: 0.9rem;
+  font-weight: lighter;
+}
+
+a {
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+.btn-container {
+  text-align: center;
+  margin-top: 10px;
+}
+
+.btn:hover {
+  cursor: pointer;
+}
+
+/* Site layout */
+
+.container {
+  max-width: 900px;
+  margin: 8px auto;
+  padding: 8px 7.5vw;
+  display: flex;
+  flex-direction: column;
+  align-self: center;
+  text-align: center;
+}
+
+
+/* Forms */
+
+form {
+  display: flex;
+  flex-direction: column;
+  width: 50%;
+  margin: 8px auto 0;
+}
+
+form > * {
+  margin: 5px 0;
+}
+
+form label {
+  font-size: 0.9rem;
+  font-weight: 700;
+  display: inline-block;
+  width: 3.5rem;
+  text-align: right;
+  margin-right: 5px;
+}
+
+form input {
+  font-size: 0.8rem;
+  border: none;
+  border-radius: 2px;
+  padding: 8px;
+  width: 300px;
+  box-shadow: 0 0 3px 1px lightgray;
+  margin-left: 10px;
+}
+
+form input:focus {
+  outline: none;
+  box-shadow: 0 0 4px 1px darkgray;
+}
+
+form > button:hover {
+  background-color: dimgray;
+}
+
+form > hr {
+  margin: 0;
+  border: 1px solid lightgray;
+}
+
+.login-input label {
+  width: 70px;
+}
+
+/* Navigation bar */
+
+nav {
+  display: flex;
+  background-color: #ff6404;
+  align-items: center;
+  padding: 10px 20px;
+  border-radius: 3px 3px 0 0;
+  background: #F0F2F0;  /* fallback for old browsers */
+  background: -webkit-linear-gradient(to right, #000C40, #F0F2F0);  /* Chrome 10-25, Safari 5.1-6 */
+  background: linear-gradient(to right, #000C40, #F0F2F0); /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
+
+}
+
+.navbar-brand {
+  font-weight: bold;
+  color: #F0F2F0;
+}
+
+.nav-link {
+  font-size: 0.85rem;
+  margin: 0 3px;
+}
+
+.nav-link:hover {
+  color: #FFC107;
+}
+
+.nav-right {
+  margin-left: auto;
+  text-align: right;
+}
+
+.nav-left {
+  margin: 0 10px;
+  color: #F0F2F0;
+}
+
+#nav-username {
+  font-weight: bold;
+}
+
+/* responsive queries for tightening things up for mobile. */
+
+@media screen and (max-width: 576px) {
+  body {
+    margin: 0;
+  }
+}
+
+@media screen and (min-width: 992px) {
+  .container {
+    max-width: 900px;
+    margin: 8px auto;
+  }
+}

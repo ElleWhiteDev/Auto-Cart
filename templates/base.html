@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Auto Cart</title>
+
+  <link rel="stylesheet"
+        href="https://unpkg.com/bootstrap/dist/css/bootstrap.css">
+  <script src="https://unpkg.com/jquery"></script>
+  <script src="https://unpkg.com/popper"></script>
+  <script src="https://unpkg.com/bootstrap"></script>
+  
+
+  <link rel="stylesheet"
+        href="https://use.fontawesome.com/releases/v5.3.1/css/all.css">
+  <link rel="stylesheet" href="/static/stylesheets/style.css">
+</head>
+
+<body class="{% block body_class %}{% endblock %}">
+
+<nav>
+  <div class="navbar-brand">
+    <a class="nav-link" href="{{url_for('homepage')}}" id="nav-all">Auto Cart</a>
+  </div>
+  <div class="nav-left">
+      <a class="nav-link" href="{{url_for('homepage')}}" id="nav-recipe">New Recipe</a>
+  </div>
+  <div class="nav-right">
+      {% if g.user is none %}
+        <a class="nav-link" href="{{url_for('login')}}" id="nav-login">Login</a>
+        <a class="nav-link" href="{{url_for('register')}}" id="nav-register">Register</a>
+      {% else %}
+        <a class="nav-link" href="{{url_for('user_view', user_id=g.user.id)}}" id="nav-username">{{ g.user.username }}
+        </a>
+        <a class="nav-link" id="nav-logout" href="{{url_for('logout')}}"><small>logout</small></a>
+      {% endif %}
+  </div>
+</nav>
+
+<div class="container">
+  {% for category, message in get_flashed_messages(with_categories=True) %}
+  <div class="alert alert-{{ category }}">{{ message }}</div>
+  {% endfor %}
+
+  {% block content %}
+  {% endblock %}
+
+</div>
+</body>
+</html>
