@@ -38,18 +38,17 @@ a:hover {
 /* Site layout */
 
 .container {
-  max-width: 900px;
-  margin: 8px auto;
-  padding: 8px 7.5vw;
+  margin: 8px;
+  padding: 8px;
   display: flex;
   flex-direction: column;
-  align-self: center;
   text-align: center;
 }
 
 .sidebar {
-  padding-left: 0;
-  margin-left: 0;
+  padding-left: 10px;
+  width: 15%;
+  text-align: left;
 }
 
 

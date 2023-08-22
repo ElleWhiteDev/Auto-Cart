@@ -5,22 +5,26 @@
 {% block content %}
     <h1>We're trying</h1>
     <div class="btn-container">
-        <a class="btn" href="{{url_for('kroger_authenticate')}}" id="kroger-auth">Krager</a>
+        <a class="btn btn-primary" href="{{url_for('kroger_authenticate')}}" id="kroger-auth">Krager</a>
     </div>
 <div class="container">
   <div class="row">
     <!-- Current Recipes Column -->
-    <div class="col-md-2 sidebar">
-      <h3>Your Recipes</h3>
-      <ul>
-        {% for recipe in recipes %}
-          <li><a href="{{ url_for('view_recipe', recipe_id=recipe.id) }}">{{ recipe.name }}</a></li>
-        {% endfor %}
-      </ul>
+    <div class="col-3 sidebar">
+      <form method="POST" action="{{ url_for('update_grocery_list') }}">
+        <h3>Your Recipes</h3>
+        <ul>
+          {% for recipe in recipes %}
+            <input type="checkbox" name="recipe_ids" value="{{ recipe.id }}" {% if recipe.id|string in selected_recipe_ids %}checked{% endif %}>
+            {{ recipe.name }}
+          {% endfor %}
+        </ul>
+        <button type="submit" class="btn btn-outline-warning">Update Grocery List</button>
+      </form>
     </div>
 
     <!-- New Recipe Form Column -->
-    <div class="col-md-5">
+    <div class="col-4">
       <h3>Add New Recipe</h3>
       <form method="POST" action="{{ url_for('add_recipe') }}" id="user_form">
 	{{ form.hidden_tag() }} {% for field in form if field.widget.input_type !=
@@ -32,27 +36,21 @@
 		{% endfor %}
 	</p>
 	{% endfor %}
-        <button type="submit" class="btn btn-primary">Submit</button>
+        <button type="submit" class="btn btn-outline-warning">Submit</button>
       </form>
     </div>
 
     <!-- Grocery List Column -->
-    <div class="col-md-5">
-      <h3>Your Grocery List</h3>
-      <h5>Recipes:</h5>
-      <ul>
-        {% for recipe in grocery_list_recipes %}
-          <li>{{ recipe.name }}</li>
-        {% endfor %}
-      </ul>
-      <h5>Ingredients:</h5>
-      <ul>
-        {% for ingredient in grocery_list_ingredients %}
-          <li>{{ ingredient.name }}</li>
-        {% endfor %}
-      </ul>
-    </div>
-  </div>
+<div class="col-5 grocery-list">
+  <h3>Your Grocery List</h3>
+  <ul>
+    {% for ingredient in g.grocery_list.recipe_ingredients %}
+      <li>{{ ingredient.quantity}} {{ ingredient.measurement }} {{ ingredient.ingredient_name }}</li>
+    {% endfor %}
+  </ul>
+</div>
+
+</div>
 </div>
 
 {% endblock %}

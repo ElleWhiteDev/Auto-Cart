@@ -5,11 +5,12 @@ from flask import Flask, render_template, request, flash, redirect, session, g, 
 from sqlalchemy.exc import IntegrityError
 from flask_bcrypt import Bcrypt
 from functools import wraps
-from models import db, connect_db, User, Recipe, Ingredient, GroceryList
+from models import db, connect_db, User, Recipe, GroceryList
 from forms import UserAddForm, AddRecipeForm, ChangePasswordForm, LoginForm
 from secret import CLIENT_ID, OAUTH2_BASE_URL, API_BASE_URL, REDIRECT_URL, CLIENT_SECRET
 
 CURR_USER_KEY = "curr_user"
+CURR_GROCERY_LIST_KEY = "curr_grocery_list"
 
 app = Flask(__name__)
 bcrypt = Bcrypt(app)
@@ -47,16 +48,20 @@ def inject_user_data():
         grocery_lists = GroceryList.query.filter_by(user_id=user.id).all()
         print(grocery_lists)
 
-        grocery_list_ingredients = []
+        grocery_list_recipe_ingredients = []
         for grocery_list in grocery_lists:
-            grocery_list_ingredients.extend(grocery_list.ingredients)
+            grocery_list_recipe_ingredients.extend(grocery_list.recipe_ingredients)
 
-        print('grocery list ingredients', grocery_list_ingredients)
+        selected_recipe_ids = session.get('selected_recipe_ids', [])
+
+        print('grocery list ingredients', grocery_list_recipe_ingredients)
         return {
             'grocery_lists': grocery_lists,
             'recipes': recipes,
-            'grocery_list_ingredients': grocery_list_ingredients
+            'grocery_list_recipe_ingredients': grocery_list_recipe_ingredients,
+            'selected_recipe_ids': selected_recipe_ids
         }
+
     else:
         print('no user detected')
     return {}
@@ -71,8 +76,20 @@ def add_user_to_g():
     if CURR_USER_KEY in session:
         g.user = User.query.get(session[CURR_USER_KEY])
 
+        g.grocery_list_id = session.get(CURR_GROCERY_LIST_KEY)
+
+        if g.grocery_list_id is None and request.endpoint != 'edit_grocery_list':
+            grocery_list = GroceryList(user_id=g.user.id)
+            db.session.add(grocery_list)
+            db.session.commit()
+            session[CURR_GROCERY_LIST_KEY] = grocery_list.id
+            g.grocery_list = grocery_list
+        else:
+            g.grocery_list = GroceryList.query.get(g.grocery_list_id)
+
     else:
         g.user = None
+        g.grocery_list = None
 
 
 def do_login(user):
@@ -232,7 +249,7 @@ def logout():
 @app.route('/profile')
 @require_login
 def user_view(user_id):
-    """Password update and save grocery lists/recipes"""
+    """Password update and edit user submitted recipes"""
     return render_template('profile.html', user=user_id)
 
 
@@ -259,12 +276,35 @@ def add_recipe():
 
             flash('Recipe created successfully!', 'success')
             return redirect(url_for('homepage', form=form))
-        except Exception as e:
+        except Exception as error:
             db.session.rollback()
             flash('Error Occured. Please try again', 'danger')
+            print(error)
             return redirect(url_for('homepage', form=form))
-    return redirect(url_for('homepage',form=form))
+    return redirect(url_for('homepage', form=form))
 
-@app.route('/recipe')
+
+@app.route('/recipe', methods=["GET", "POST"])
 def view_recipe(recipe_id):
+    """View/Edit a user submitted recipe"""
+
     return render_template('recipe.html', recipe_id=recipe_id)
+
+
+@app.route('/grocery_list', methods=["GET", "POST"])
+def view_gorcery_list(recipe_id):
+    """View/Edit a user built grocery list"""
+
+    return render_template('recipe.html', recipe_id=recipe_id)
+    
+
+@app.route('/update_grocery_list', methods=['POST'])
+def update_grocery_list():
+    """Add selected recipes to current grocery list"""
+
+    selected_recipe_ids = request.form.getlist('recipe_ids')
+    session['selected_recipe_ids'] = selected_recipe_ids
+
+    grocery_list = g.grocery_list
+    GroceryList.update_grocery_list(selected_recipe_ids, grocery_list=grocery_list)
+    return redirect(url_for('homepage'))

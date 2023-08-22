@@ -1,4 +1,7 @@
 import re
+from fractions import Fraction
+from collections import defaultdict
+from flask import g
 from flask_bcrypt import Bcrypt
 from flask_sqlalchemy import SQLAlchemy
 
@@ -6,11 +9,11 @@ bcrypt = Bcrypt()
 db = SQLAlchemy()
 
 
-# Join table for Grocery List to Recipe
-grocery_lists_ingredients = db.Table(
-    "grocery_lists_ingredients",
+# Join table for Grocery List to Recipe Ingredient
+grocery_lists_recipe_ingredients = db.Table(
+    "grocery_lists_recipe_ingredients",
     db.Column("grocery_list_id", db.Integer, db.ForeignKey("grocery_lists.id")),
-    db.Column("ingredient_id", db.Integer, db.ForeignKey("ingredients.id")),
+    db.Column("recipe_ingredient_id", db.Integer, db.ForeignKey("recipes_ingredients.id"))
 )
 
 
@@ -89,14 +92,17 @@ class User(db.Model):
 class RecipeIngredient(db.Model):
     """Association object for recipes/ingredients"""
     __tablename__ = 'recipes_ingredients'
-    
-    recipe_id = db.Column(db.Integer, db.ForeignKey("recipes.id"), primary_key=True)
-    ingredient_id = db.Column(db.Integer, db.ForeignKey("ingredients.id"), primary_key=True)
-    
-    quantity = db.Column(db.String(40)) 
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    recipe_id = db.Column(db.Integer, db.ForeignKey("recipes.id"))
+
+    ingredient_name = db.Column(db.String(40), nullable=False)
+
+    quantity = db.Column(db.Float(40)) 
+
     measurement = db.Column(db.String(40))
-    
-    ingredient = db.relationship("Ingredient", back_populates="recipe_ingredients")
+
     recipe = db.relationship("Recipe", back_populates="recipe_ingredients")
 
 
@@ -106,23 +112,30 @@ class Recipe(db.Model):
     __tablename__ = "recipes"
 
     id = db.Column(db.Integer, primary_key=True)
-
     user_id = db.Column(
         db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
-
     name = db.Column(db.Text, nullable=False)
-
     url = db.Column(db.Text, nullable=False)
 
     recipe_ingredients = db.relationship("RecipeIngredient", back_populates="recipe")
 
-    
+
+    @staticmethod    
+    def is_float(value):
+        """Ensure value is integer"""
+        try:
+            float(value)
+            return True
+        except ValueError:
+            return False
+
+
     @classmethod
     def parse_ingredients(cls, ingredients_text):
         """Parse ingredient text into individual objects"""
 
-        ingredients = ingredients_text.split("\n")  # Split by lines
+        ingredients = ingredients_text.split("\n")
         parsed_ingredients = []
 
         for ingredient in ingredients:
@@ -131,11 +144,12 @@ class Recipe(db.Model):
             print(f"Match result: {match}")
             if match:
                 quantity, measurement, ingredient_name = match.groups()
+                ingredient_name = ingredient_name[:40]
                 print(ingredient_name)
                 parsed_ingredients.append({
                     "quantity": quantity.strip() if quantity else None,
                     "measurement": measurement.strip() if measurement else None,
-                    "ingredient": ingredient_name.strip(),
+                    "ingredient_name": ingredient_name.strip(),
                 })
         print(parsed_ingredients)
         return parsed_ingredients
@@ -150,13 +164,19 @@ class Recipe(db.Model):
         db.session.add(recipe)
 
         for ingredient_data in parsed_ingredients:
-            ingredient = Ingredient(
-                name=ingredient_data['ingredient']
-            )
+            quantity_string = ingredient_data['quantity']
+            if '/' in quantity_string:
+                quantity = float(Fraction(quantity_string))
+            elif cls.is_float(quantity_string):
+                quantity = float(quantity_string)
+            else:
+                print(f"Skipping ingredient: {ingredient_data['ingredient_name']} - Quantity is not a number.")
+                continue
+
             recipe_ingredient = RecipeIngredient(
-                quantity=ingredient_data['quantity'],
+                quantity=quantity,
                 measurement=ingredient_data['measurement'],
-                ingredient=ingredient
+                ingredient_name=ingredient_data['ingredient_name']
             )
             recipe.recipe_ingredients.append(recipe_ingredient)
 
@@ -164,19 +184,9 @@ class Recipe(db.Model):
         return recipe
 
 
-class Ingredient(db.Model):
-    """Ingredient in a recipe"""
-
-    __tablename__ = "ingredients"
-
-    id = db.Column(db.Integer, primary_key=True)
-
-    name = db.Column(db.String(40), nullable=False)
-
-    recipe_ingredients = db.relationship("RecipeIngredient", back_populates="ingredient")
-
-
 class GroceryList(db.Model):
+    """Grocery List of ingredients"""
+
     __tablename__ = "grocery_lists"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -184,15 +194,48 @@ class GroceryList(db.Model):
         db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
 
-    ingredients = db.relationship("Ingredient", secondary=grocery_lists_ingredients, backref="grocery_lists")
+    recipe_ingredients = db.relationship("RecipeIngredient", secondary=grocery_lists_recipe_ingredients, backref="grocery_lists")
 
-    def add_recipe_to_grocery_list(recipe, grocery_list):
-        """Insert ingredients into a grocery list"""
-        for recipe_ingredient in recipe.recipe_ingredients:
-            ingredient = recipe_ingredient.ingredient
-            grocery_list.ingredients.append(ingredient)
+
+    @classmethod
+    def update_grocery_list(cls, selected_recipe_ids, grocery_list):
+        """Create grocery list that includes chosen recipes"""
+        
+        recipes = Recipe.query.filter(Recipe.id.in_(selected_recipe_ids)).all()
+        combined_ingredients = defaultdict(lambda: [])
+
+        for recipe in recipes:
+            for recipe_ingredient in recipe.recipe_ingredients:
+                ingredient_name = recipe_ingredient.ingredient_name
+                quantity = recipe_ingredient.quantity
+                measurement = recipe_ingredient.measurement
+
+                found = False
+                for entry in combined_ingredients[ingredient_name]:
+                    if entry["measurement"] == measurement:
+                        entry["quantity"] += quantity
+                        found = True
+                        break
+
+                if not found:
+                    combined_ingredients[ingredient_name].append({
+                        "quantity": quantity,
+                        "measurement": measurement,
+                    })
+
+        if grocery_list is not None:
+            grocery_list.recipe_ingredients.clear() 
+
+        for ingredient_name, entries in combined_ingredients.items():
+            for entry in entries:
+                recipe_ingredient = RecipeIngredient(
+                    ingredient_name=ingredient_name,
+                    quantity=entry["quantity"],
+                    measurement=entry["measurement"]
+                )
+                grocery_list.recipe_ingredients.append(recipe_ingredient)
+
         db.session.commit()
-
 
 
 def connect_db(app):
