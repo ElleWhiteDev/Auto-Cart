@@ -13,12 +13,12 @@
     <div class="col-3 sidebar">
       <form method="POST" action="{{ url_for('update_grocery_list') }}">
         <h3>Your Recipes</h3>
-        <ul>
           {% for recipe in recipes %}
+          <div>
             <input type="checkbox" name="recipe_ids" value="{{ recipe.id }}" {% if recipe.id|string in selected_recipe_ids %}checked{% endif %}>
             {{ recipe.name }}
+            </div>
           {% endfor %}
-        </ul>
         <button type="submit" class="btn btn-outline-warning">Update Grocery List</button>
       </form>
     </div>

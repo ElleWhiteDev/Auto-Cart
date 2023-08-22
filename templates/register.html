@@ -10,7 +10,8 @@
 </p>
 
 <form method="POST" id="user_form">
-	{{ form.hidden_tag() }} {% for field in form if field.widget.input_type !=
+	{{ form.hidden_tag() }} 
+	{% for field in form if field.widget.input_type !=
 	'hidden' %}
 	<p>
 		{{ field.label }} {{ field(class_="form-control custom-form-control") }} {% for error in

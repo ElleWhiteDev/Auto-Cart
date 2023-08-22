@@ -6,7 +6,7 @@ from sqlalchemy.exc import IntegrityError
 from flask_bcrypt import Bcrypt
 from functools import wraps
 from models import db, connect_db, User, Recipe, GroceryList
-from forms import UserAddForm, AddRecipeForm, ChangePasswordForm, LoginForm
+from forms import UserAddForm, AddRecipeForm, UpdatePasswordForm, LoginForm, UpdateEmailForm
 from secret import CLIENT_ID, OAUTH2_BASE_URL, API_BASE_URL, REDIRECT_URL, CLIENT_SECRET
 
 CURR_USER_KEY = "curr_user"
@@ -248,9 +248,69 @@ def logout():
 
 @app.route('/profile')
 @require_login
-def user_view(user_id):
-    """Password update and edit user submitted recipes"""
-    return render_template('profile.html', user=user_id)
+def user_view():
+    """View/edit recipes and grocery lists. Update account info or delete account"""
+
+    user = g.user.id
+    return render_template('profile.html', user=user)
+
+
+@app.route('/update_account', methods=["GET", "POST"])
+def update_password():
+    """Update user password"""
+
+    form = UpdatePasswordForm()
+
+    if form.validate_on_submit():
+        user = g.user
+
+        if User.authenticate(user.username, form.old_password.data):
+            user.password = bcrypt.generate_password_hash(form.new_password.data).decode('UTF-8')
+            db.session.commit()
+
+            flash('Password updated successfully!', 'success')
+            return redirect(url_for('user_view'))
+        else:
+            flash('Incorrect password', 'danger')
+            return redirect(url_for('user_view'))
+
+    return render_template('update_password.html', form=form)
+
+
+@app.route('/update_email', methods=["GET", "POST"])
+def update_email():
+    """Update user email"""
+
+    form = UpdateEmailForm()
+
+    if form.validate_on_submit():
+        user = g.user
+
+        if User.authenticate(user.username, form.password.data):
+            user.email = form.email.data
+            db.session.commit()
+
+            flash('Email updated successfully!', 'success')
+            return redirect(url_for('user_view'))
+        else:
+            flash('Incorrect password', 'danger')
+            return redirect(url_for('user_view'))
+
+    return render_template('update_email.html', form=form)
+
+
+
+@app.route('/delete_account', methods=["POST"])
+def delete_account():
+    """Delete user account"""
+
+    user = g.user
+    do_logout()
+    db.session.delete(user)
+    db.session.commit()
+
+    flash('Account deleted successfully', 'success')
+    return redirect(url_for('login'))
 
 
 @app.route('/add_recipe', methods=["GET","POST"])

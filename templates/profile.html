@@ -1,9 +1,42 @@
-{% extends 'base.html' %} 
+{% extends 'base.html' %}
 
-{% block body_class %}Profile{% endblock %}
+{% block body_class %}User Profile{% endblock %}
 
 {% block content %}
+<div class="container">
+  <h1>{{ g.user.username }}'s Dashboard</h1>
 
+  <div class="user-page">
+  <!-- User Recipes Section -->
+  <div class="user-recipes">
+    <h3>Your Recipes</h3>
+    <div class="scrollable-list">
+      {% for recipe in recipes %}
+      <div class="recipe-item">
+        <p>{{ recipe.name }}</p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
 
+  <!-- User Grocery Lists Section -->
+  <div class="user-grocery-lists">
+    <h3>Your Grocery Lists</h3>
+    <div class="scrollable-list">
+      {% for list in grocery_lists %}
+      <div class="list-item">
+        <p>{{ list.id }}</p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  </div>
 
+  <!-- Update Account Info Section -->
+  <div class="btn-container">
+    <a href="{{ url_for('update_email') }}" class="btn btn-outline-warning">Update Email Info</a>
+    <a href="{{ url_for('update_password') }}" class="btn btn-outline-warning">Update Password</a>
+    <a href="{{ url_for('delete_account') }}" class="btn btn-outline-danger">Delete Account</a>
+  </div>
+</div>
 {% endblock %}

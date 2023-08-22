@@ -31,7 +31,7 @@
         <a class="nav-link" href="{{url_for('login')}}" id="nav-login">Login</a>
         <a class="nav-link" href="{{url_for('register')}}" id="nav-register">Register</a>
       {% else %}
-        <a class="nav-link" href="{{url_for('user_view', user_id=g.user.id)}}" id="nav-username">{{ g.user.username }}
+        <a class="nav-link" href="{{url_for('user_view')}}" id="nav-username">{{ g.user.username }}
         </a>
         <a class="nav-link" id="nav-logout" href="{{url_for('logout')}}"><small>logout</small></a>
       {% endif %}

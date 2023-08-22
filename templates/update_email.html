@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+
+{% block body_class %}Update Email{% endblock %}
+
+{% block content %}
+
+<h1 class="display-1">Update Email</h1>
+<p class="lead">
+	Update your email address below. Please enter your current password to confirm the change. If you do not know your current password please contact the administrator.
+</p>
+<p class="lead">
+    Current email: {{ g.user.email }}
+</p>
+
+<form method="POST" class="justify-content-center" id="user_form">
+	{{ form.hidden_tag() }} 
+
+	<div class="container">
+		<div class="row justify-content-center">
+			<div class="col-md-8">
+				{% for field in form if field.widget.input_type != 'hidden' %}
+				<div class="form-group">
+					<label for="{{ field.id }}">{{ field.label.text }}</label>
+					{{ field(class_="form-control", placeholder=field.label.text) }}
+					{% for error in field.errors %}
+						<span class="form-text text-danger"> {{ error }} </span>
+					{% endfor %}
+				</div>
+				{% endfor %}
+			</div>
+
+
+    <div class="text-center">
+        <button class="btn btn-outline-warning">Submit</button>
+        <a class="btn btn-outline-danger" href="{{url_for('user_view')}}">Cancel</a>
+    </div>
+    </div>
+  </div>
+</form>
+
+{% endblock %}

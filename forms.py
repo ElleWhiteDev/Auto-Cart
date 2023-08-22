@@ -1,5 +1,5 @@
 from flask_wtf import FlaskForm
-from wtforms import TextAreaField, StringField, PasswordField, ValidationError
+from wtforms import TextAreaField, StringField, PasswordField
 from wtforms.validators import DataRequired, Email, Optional, Length, EqualTo
 
 
@@ -18,12 +18,19 @@ class LoginForm(FlaskForm):
     password = PasswordField('Password', validators=[Length(min=6, max=20)])
 
 
-class ChangePasswordForm(FlaskForm):
+class UpdatePasswordForm(FlaskForm):
     """Form to change password"""
 
     current_password = PasswordField('Current Password', validators=[DataRequired()])
     new_password = PasswordField('New Password', validators=[DataRequired(), EqualTo('confirm', message='Passwords must match')])
     confirm = PasswordField('Repeat New Password')
+
+
+class UpdateEmailForm(FlaskForm):
+    """Form to change email"""
+
+    email = StringField('New E-mail', validators=[DataRequired(), Email()])
+    password = PasswordField('Current Password', validators=[DataRequired()])
 
 
 class AddRecipeForm(FlaskForm):

@@ -3,11 +3,6 @@ body {
   font-family: Arimo, sans-serif;  
 }
 
-h1 {
-  font-size: 1.1rem;
-  margin: 0;
-}
-
 h4 {
   font-size: 1rem;
   margin: 0;
@@ -22,13 +17,17 @@ a {
   text-decoration: none;
 }
 
-a:hover {
-  text-decoration: underline;
-}
-
 .btn-container {
   text-align: center;
   margin-top: 10px;
+}
+
+.btn-container a{
+  margin-right: 10px;
+}
+
+btn {
+  margin-right: 10px;
 }
 
 .btn:hover {
@@ -46,9 +45,21 @@ a:hover {
 }
 
 .sidebar {
-  padding-left: 10px;
-  width: 15%;
+  padding-left: 5px;
   text-align: left;
+}
+
+.sidebar input[type="checkbox"] {
+  padding: 2px;
+  margin-right: 5px; 
+  width: auto;
+  display: inline-block; 
+}
+
+.grocery-list ul {
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
 }
 
 
@@ -61,27 +72,20 @@ form {
   margin: 8px auto 0;
 }
 
-form > * {
-  margin: 5px 0;
-}
-
 form label {
   font-size: 0.9rem;
   font-weight: 700;
   display: inline-block;
-  width: 3.5rem;
   text-align: right;
   margin-right: 5px;
 }
 
 form input {
-  font-size: 0.8rem;
-  border: none;
-  border-radius: 2px;
-  padding: 8px;
-  width: 300px;
-  box-shadow: 0 0 3px 1px lightgray;
-  margin-left: 10px;
+  width: 50%;
+  padding: 5px;
+  margin-bottom: 15px;
+  border: 1px solid lightgray;
+  border-radius: 3px;
 }
 
 form input:focus {
@@ -144,17 +148,34 @@ nav {
   font-weight: bold;
 }
 
+
+
+/* User page*/
+
+.user-page {
+  margin: 8px;
+  padding: 8px;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+}
+
+.user-recipes, .user-grocery-lists {
+  flex: 1; /* This will make them take equal space */
+  margin: 0 10px; /* Add some margin to separate them */
+}
+
+.scrollable-list {
+  max-height: 500px;
+  overflow-y: scroll;
+  border: 1px solid #ccc;
+  padding: 10px;
+  margin-bottom: 20px;
+}
+
+.recipe-item, .list-item {
+  padding: 5px;
+  border-bottom: 1px solid #ccc;
+}
+
 /* responsive queries for tightening things up for mobile. */
-
-@media screen and (max-width: 576px) {
-  body {
-    margin: 0;
-  }
-}
-
-@media screen and (min-width: 992px) {
-  .container {
-    max-width: 900px;
-    margin: 8px auto;
-  }
-}
