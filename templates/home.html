@@ -70,8 +70,9 @@
       {% endif %}
       {% if not loop.last %}
         <a href="#modal-{{ loop.index + 1 }}" class="btn">Next &rarr;</a>
+      {% else %}
+        <a href="#modal-closed" class="btn">Head to cart</a>
       {% endif %}
-      <a href="#modal-closed" class="link-2"></a>
     </div>
   </div>
 {% endfor %}
