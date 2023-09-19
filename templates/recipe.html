@@ -1,6 +1,6 @@
 {% extends 'base.html' %} 
 
-{% block body_class %}View Recipe{% endblock %}
+{% block body_class %}Edit Recipe{% endblock %}
 
 {% block content %}
 
@@ -18,7 +18,7 @@
 	{% endfor %}
 
 	<div class="btn-container">
-		<button class="btn btn-outline-warning" type="submit">Add</button>
+		<button class="btn btn-outline-warning" type="submit">Update</button>
 	</div>
     <div>
         {% for ingredient in ingredients %}

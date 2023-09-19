@@ -13,7 +13,7 @@
     <div class="scrollable-list">
       {% for recipe in recipes %}
       <div class="recipe-item">
-        <a href="">{{ recipe.name }}</a>
+        <a href="{{url_for('view_recipe', recipe_id=recipe.id)}}">{{ recipe.name }}</a>
       </div>
       {% endfor %}
     </div>

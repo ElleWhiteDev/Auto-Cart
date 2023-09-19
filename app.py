@@ -362,11 +362,8 @@ def add_recipe():
         ingredients_text = form.ingredients_text.data
         url = form.url.data
         user_id=g.user.id
-        print(ingredients_text)
         
         recipe = Recipe.create_recipe(ingredients_text, url, user_id, name)
-
-        print(recipe)
 
         try:
             db.session.add(recipe)
@@ -382,11 +379,30 @@ def add_recipe():
     return redirect(url_for('homepage', form=form))
 
 
-@app.route('/recipe', methods=["GET", "POST"])
+@app.route('/recipe/<int:recipe_id>', methods=["GET", "POST"])
 def view_recipe(recipe_id):
     """View/Edit a user submitted recipe"""
 
-    return render_template('recipe.html', recipe_id=recipe_id)
+    recipe = Recipe.query.get_or_404(recipe_id)
+    form = AddRecipeForm(obj=recipe)
+
+    if form.validate_on_submit():
+        form.populate_obj(recipe)
+
+        try:
+            db.session.add(recipe)
+            db.session.commit()
+
+            flash('Recipe created successfully!', 'success')
+            return redirect(url_for('view_recipe', recipe_id=recipe.id), form=form)
+            
+        except Exception as error:
+            db.session.rollback()
+            flash('Error Occured. Please try again', 'danger')
+            print(error)
+            return redirect(url_for('view_recipe', recipe_id=recipe.id), form=form)
+
+    return render_template('recipe.html', recipe_id=recipe_id, form=form)
 
 
 @app.route('/grocery_list', methods=["GET", "POST"])

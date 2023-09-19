@@ -5,7 +5,7 @@
 {% block content %}
     <h1>We're trying</h1>
     <div class="btn-container">
-        <a class="btn btn-primary" href="{{url_for('kroger_authenticate')}}" id="kroger-auth">Krager</a>
+        <a class="btn btn-primary" href="#modal-1" id="modal-closed">Krager</a>
     </div>
 <div class="container">
   <div class="row">
@@ -52,5 +52,32 @@
 
 </div>
 </div>
+{% for ingredient in g.grocery_list.recipe_ingredients %}
+  <div class="modal-container" id="modal-{{ loop.index }}">
+    <div class="my-modal">
+      <div class="details">
+        <h1 class="title">Ingredient Select</h1>
+        <p class="description">Choose the option you'd like to add to your cart</p>
+      </div>
+      <p class="txt">Your options for {{ingredient.quantity}} {{ingredient.measurement}} {{ ingredient.ingredient_name }} are:</p>
+      <ul>
+        {% for option in ingredient.options %}
+          <li>{{option.brand}} {{ option.name }} - {{ option.price }}</li>
+        {% endfor %}
+      </ul>
+      {% if loop.index > 1 %}
+        <a href="#modal-{{ loop.index - 1 }}" class="btn">&larr; Previous</a>
+      {% endif %}
+      {% if not loop.last %}
+        <a href="#modal-{{ loop.index + 1 }}" class="btn">Next &rarr;</a>
+      {% endif %}
+      <a href="#modal-closed" class="link-2"></a>
+    </div>
+  </div>
+{% endfor %}
+
+
+
+
 
 {% endblock %}
