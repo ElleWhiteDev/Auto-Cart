@@ -23,9 +23,6 @@
   <div class="navbar-brand">
     <a class="nav-link" href="{{url_for('homepage')}}" id="nav-all">Auto Cart</a>
   </div>
-  <div class="nav-left">
-      <a class="nav-link" href="{{url_for('homepage')}}" id="nav-recipe">New Recipe</a>
-  </div>
   <div class="nav-right">
       {% if g.user is none %}
         <a class="nav-link" href="{{url_for('login')}}" id="nav-login">Login</a>

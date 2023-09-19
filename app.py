@@ -15,13 +15,14 @@ CURR_GROCERY_LIST_KEY = "curr_grocery_list"
 app = Flask(__name__)
 bcrypt = Bcrypt(app)
 
-# app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql:///auto-cart'
-SQLALCHEMY_DATABASE_URI = 'postgresql://eawhite88:koneko13@magic-cart-db.crrapbdvxpld.us-east-2.rds.amazonaws.com:5432/magic-cart-db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql:///auto_cart'
+# app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://eawhite:koneko13@magiccartdb.crrapbdvxpld.us-east-2.rds.amazonaws.com:5432/magiccartdb'
+
 
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ECHO'] = False
-app.config['SECRET_KEY'] = 'keep it secret keep it sage'
+app.config['SECRET_KEY'] = 'keep it secret keep it safe'
 
 app.app_context().push()
 connect_db(app)
@@ -104,6 +105,7 @@ def do_logout():
 
     if CURR_USER_KEY in session:
         del session[CURR_USER_KEY]
+        del session[CURR_GROCERY_LIST_KEY]
 
 #################################################
 
@@ -112,7 +114,7 @@ def do_logout():
 def kroger_authenticate():
     """Send request to Kroger API for authentication token"""
         # Must define all scopes needed for application
-    scope = 'cart.basic:write product.compact'
+    scope = 'cart.basic:write product.compact profile.compact'
 
     # Build authorization URL
     params = {
@@ -164,6 +166,40 @@ def callback():
 
     form = AddRecipeForm()
     return redirect(url_for('homepage', form=form))
+
+#################################################
+
+@app.route('/product-search')
+def search_kroger_product(name, token):
+    """Choose product from Kroger and get product ID"""
+
+    base_url = "https://api.kroger.com/v1/products"
+    headers = {
+        'Accept' : 'application/json',
+        'Authorization' : f'Bearer {token}'
+    }
+    params = {
+        'filter.term' : name
+    }
+
+    response = requests.get(base_url, headers=headers, params=params)
+
+    selection_list = parse_kroger_response(response)
+
+    return selection_list
+
+def parse_kroger_response(response):
+    """Parse Kroger response for customer selection"""
+
+    products = []
+    for product in response['data']:
+        products.append({
+            'name' : product.get['description', 'N/A'],
+            'id' : product.get['productId', 'N/A'],
+            'price' : product.get['items'][0].get('price', {}).get('regular', 'N/A')
+        })
+    
+    return products
 
 #################################################
 
@@ -313,6 +349,7 @@ def delete_account():
     flash('Account deleted successfully', 'success')
     return redirect(url_for('login'))
 
+##########################################################
 
 @app.route('/add_recipe', methods=["GET","POST"])
 def add_recipe():
@@ -362,7 +399,7 @@ def view_gorcery_list(recipe_id):
 @app.route('/update_grocery_list', methods=['POST'])
 def update_grocery_list():
     """Add selected recipes to current grocery list"""
-
+    
     selected_recipe_ids = request.form.getlist('recipe_ids')
     session['selected_recipe_ids'] = selected_recipe_ids
 
