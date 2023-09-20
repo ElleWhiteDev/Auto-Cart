@@ -18,9 +18,9 @@
 <div class="container">
   <div class="row justify-content-center">
     <!-- Current Recipes Column -->
-    <div class="col-4 sidebar">
+    <div class="col-4 sidebar border">
       <form method="POST" action="{{ url_for('update_grocery_list') }}">
-        <h3>Your Recipes</h3>
+        <h3>Recipe Box</h3>
           {% for recipe in recipes %}
           <div>
             <input type="checkbox" name="recipe_ids" value="{{ recipe.id }}" {% if recipe.id|string in selected_recipe_ids %}checked{% endif %}>
@@ -49,7 +49,7 @@
     </div>
 
     <!-- Grocery List Column -->
-<div class="col-4 grocery-list">
+<div class="col-4 grocery-list border">
   <h3>Your Grocery List</h3>
   <ul>
     {% for ingredient in g.grocery_list.recipe_ingredients %}

@@ -67,6 +67,11 @@ btn {
   margin-top: 2%;
 }
 
+.border{
+  border: 1px solid lightgray;
+  border-radius: 12px;
+}
+
 /* Modals */
 .modal-container {
   display: none;

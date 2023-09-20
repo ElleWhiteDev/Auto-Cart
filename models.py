@@ -224,9 +224,6 @@ class GroceryList(db.Model):
                         "measurement": measurement,
                     })
 
-        print(f"g.user = {g.user}, g.grocery_list_id = {g.grocery_list_id}, g.grocery_list = {g.grocery_list}")
-
-
         if grocery_list is not None:
             grocery_list.recipe_ingredients.clear() 
 
@@ -239,15 +236,8 @@ class GroceryList(db.Model):
                 )
                 grocery_list.recipe_ingredients.append(recipe_ingredient)
 
-        print(f"g.user = {g.user}, g.grocery_list_id = {g.grocery_list_id}, g.grocery_list = {g.grocery_list}")
-
 
         db.session.commit()
-        print(f"Debug: Committed new GroceryList with ID {grocery_list.id}")
-        print(f"Debug: Session New: {db.session.new}")
-        print(f"Debug: Session Dirty: {db.session.dirty}")
-
-
 
 
 def connect_db(app):
