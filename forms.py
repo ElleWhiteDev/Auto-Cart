@@ -39,3 +39,4 @@ class AddRecipeForm(FlaskForm):
     name = StringField('Recipe Name', validators=[DataRequired()])
     ingredients_text = TextAreaField('Paste Ingredients Section', validators=[DataRequired()])
     url = StringField('Recipe URL', validators=[Optional()])
+    notes = TextAreaField('Notes', validators=[Optional()])

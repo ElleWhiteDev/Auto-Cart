@@ -4,9 +4,13 @@
 
 {% block content %}
 
+<h1 class="display-3">Edit Recipe</h1>
+<p class="lead">
+	Make changes to the saved recipes in your box
+</p>
 
     <div>
-        <form method="POST" id="user_form" class="col-md-4 mt-4">
+        <form method="POST" class="col-md-4 mt-4">
 	{{ form.hidden_tag() }} {% for field in form if field.widget.input_type !=
 	'hidden' %}
 	<p>

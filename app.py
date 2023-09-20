@@ -361,9 +361,10 @@ def add_recipe():
         name = form.name.data
         ingredients_text = form.ingredients_text.data
         url = form.url.data
+        notes = form.notes.data
         user_id=g.user.id
         
-        recipe = Recipe.create_recipe(ingredients_text, url, user_id, name)
+        recipe = Recipe.create_recipe(ingredients_text, url, user_id, name, notes)
 
         try:
             db.session.add(recipe)

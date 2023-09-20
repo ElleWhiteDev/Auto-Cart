@@ -117,6 +117,7 @@ class Recipe(db.Model):
     )
     name = db.Column(db.Text, nullable=False)
     url = db.Column(db.Text, nullable=False)
+    notes = db.Column(db.Text, nullable=True)
 
     recipe_ingredients = db.relationship("RecipeIngredient", back_populates="recipe")
 
@@ -155,12 +156,12 @@ class Recipe(db.Model):
         return parsed_ingredients
 
     @classmethod
-    def create_recipe(cls, ingredients_text, url, user_id, name):
+    def create_recipe(cls, ingredients_text, url, user_id, name, notes):
         """Takes parsed ingredients and creates a recipe object"""
 
         parsed_ingredients = cls.parse_ingredients(ingredients_text)
-        print(parsed_ingredients)
-        recipe = cls(url=url, user_id=user_id, name=name)
+    
+        recipe = cls(url=url, user_id=user_id, name=name, notes=notes)
         db.session.add(recipe)
 
         for ingredient_data in parsed_ingredients:
