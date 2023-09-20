@@ -4,20 +4,26 @@
 
 {% block content %}
 
-<h1 class="display-1">Update Email</h1>
+<div class="container">
+  <div class="row justify-content-center">
+    <div class="col-md-6">
+<h1 class="display-3">Update Email</h1>
 <p class="lead">
 	Update your email address below. Please enter your current password to confirm the change. If you do not know your current password please contact the administrator.
 </p>
 <p class="lead">
-    Current email: {{ g.user.email }}
+    Current email: <strong>{{ g.user.email }}</strong>
 </p>
+</div>
+</div>
+</div>
 
 <form method="POST" class="justify-content-center" id="user_form">
 	{{ form.hidden_tag() }} 
 
 	<div class="container">
 		<div class="row justify-content-center">
-			<div class="col-md-8">
+			<div class="col-md-4">
 				{% for field in form if field.widget.input_type != 'hidden' %}
 				<div class="form-group">
 					<label for="{{ field.id }}">{{ field.label.text }}</label>

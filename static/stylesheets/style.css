@@ -62,7 +62,7 @@ btn {
   margin: 0;
 }
 
-/* Hide the modal by default */
+/* Modals */
 .modal-container {
   display: none;
   position: fixed;
@@ -89,7 +89,22 @@ btn {
   display: block;
 }
 
+.modal-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
+}
 
+.modal-actions form,
+.modal-actions a {
+  flex: 1;  /* Take up equal amount of space */
+  margin: 0 10px;  /* A little space between them */
+}
+
+.modal-actions .btn {
+  width: 100%;  /* Make buttons full width */
+  padding: 10px;  /* Some padding */
+}
 
 /* Forms */
 

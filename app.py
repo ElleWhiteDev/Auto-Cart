@@ -347,7 +347,7 @@ def delete_account():
     db.session.commit()
 
     flash('Account deleted successfully', 'success')
-    return redirect(url_for('login'))
+    return redirect(url_for('homepage'))
 
 ##########################################################
 

@@ -9,7 +9,7 @@
 	Login Below. Don't have an account? <a href="/register">Register Here</a>
 </p>
 
-<form method="POST" id="user_form">
+<form method="POST" class="col-md-4 mt-4">
 	{{ form.hidden_tag() }} {% for field in form if field.widget.input_type !=
 	'hidden' %}
 	<p>
