@@ -222,7 +222,7 @@ def register():
 
     if form.validate_on_submit():
         user = User.signup(
-            username=form.username.data.strip(),
+            username=form.username.data.strip().capitalize(),
             password=form.password.data,
             email=form.email.data.strip()
         )
@@ -286,7 +286,7 @@ def logout():
 @app.route('/profile')
 @require_login
 def user_view():
-    """View/edit recipes and grocery lists. Update account info or delete account"""
+    """View/edit recipesc update account info or delete account"""
 
     user = g.user.id
     return render_template('profile.html', user=user)

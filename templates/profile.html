@@ -1,42 +1,29 @@
 {% extends 'base.html' %}
 
-{% block body_class %}User Profile{% endblock %}
-
 {% block content %}
-<div class="container">
-  <h1>{{ g.user.username }}'s Dashboard</h1>
-
-  <div class="user-page">
-  <!-- User Recipes Section -->
-  <div class="user-recipes">
-    <h3>Your Recipes</h3>
-    <div class="scrollable-list">
-      {% for recipe in recipes %}
-      <div class="recipe-item">
-        <a href="{{url_for('view_recipe', recipe_id=recipe.id)}}">{{ recipe.name }}</a>
+<div class="container mt-4">
+  <h1 class="text-center">{{ g.user.username }}'s Profile</h1>
+  <div class="row justify-content-center">
+    <div class="col-md-4 mt-3">
+      <div class="d-flex justify-content-between mb-3">
+        <a href="{{url_for('update_email')}}" class="btn btn-primary">Change Email</a>
+        <a href="{{url_for('update_password')}}" class="btn btn-danger">Change Password</a>
       </div>
-      {% endfor %}
-    </div>
-  </div>
-
-  <!-- User Grocery Lists Section -->
-  <div class="user-grocery-lists">
-    <h3>Your Grocery Lists</h3>
-    <div class="scrollable-list">
-      {% for list in grocery_lists %}
-      <div class="list-item">
-        <p>{{ list.id }}</p>
+      <div class="card mt-4">
+        <div class="card-header">
+          Recipe Box
+        </div>
+        <div class="card-body scrollable-list">
+          <ul class="list-group list-group-flush">
+            {% for recipe in g.user.recipes %}
+              <li class="list-group-item">
+                <a href="{{url_for('view_recipe', recipe_id=recipe.id)}}">{{recipe.name}}</a>
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
       </div>
-      {% endfor %}
     </div>
-  </div>
-  </div>
-
-  <!-- Update Account Info Section -->
-  <div class="btn-container">
-    <a href="{{ url_for('update_email') }}" class="btn btn-outline-warning">Update Email Info</a>
-    <a href="{{ url_for('update_password') }}" class="btn btn-outline-warning">Update Password</a>
-    <a href="{{ url_for('delete_account') }}" class="btn btn-outline-danger">Delete Account</a>
   </div>
 </div>
 {% endblock %}
