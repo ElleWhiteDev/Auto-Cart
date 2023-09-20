@@ -30,6 +30,7 @@ Auto-Cart is designed to simplify your online recipe experience. Input your reci
 
 - **Frontend**: HTML, CSS (Bootstrap)
 - **Backend**: Python, Flask
+- **Form Handling**: Flask-WTF, WTForms
 - **Database**: PostgreSQL
 - **Hosting**: AWS (EC2/EIP/RDS) with Apache
 
@@ -41,5 +42,5 @@ Auto-Cart is designed to simplify your online recipe experience. Input your reci
 
 ## Additional Features 🎉
 
-- HTML/CSS modals for a seamless and user-friendly interface.
-- Upcoming: Email functionality.
+- Pure HTML/CSS modals
+- Email functionality
