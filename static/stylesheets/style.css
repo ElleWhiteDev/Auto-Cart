@@ -62,6 +62,11 @@ btn {
   margin: 0;
 }
 
+.export-btn {
+  margin-left: 69%;
+  margin-top: 2%;
+}
+
 /* Modals */
 .modal-container {
   display: none;
