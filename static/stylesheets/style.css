@@ -139,6 +139,13 @@ form > hr {
   overflow-y: auto; /* Enable vertical scroll */
 }
 
+#user_form {
+  width: 100%;
+}
+
+#user_form input {
+  width: 100%;
+}
 
 /* Navigation bar */
 

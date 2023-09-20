@@ -8,9 +8,9 @@
         <a class="btn btn-primary" href="#modal-1" id="modal-closed">Krager</a>
     </div>
 <div class="container">
-  <div class="row">
+  <div class="row justify-content-center">
     <!-- Current Recipes Column -->
-    <div class="col-3 sidebar">
+    <div class="col-4 sidebar">
       <form method="POST" action="{{ url_for('update_grocery_list') }}">
         <h3>Your Recipes</h3>
           {% for recipe in recipes %}
@@ -41,7 +41,7 @@
     </div>
 
     <!-- Grocery List Column -->
-<div class="col-5 grocery-list">
+<div class="col-4 grocery-list">
   <h3>Your Grocery List</h3>
   <ul>
     {% for ingredient in g.grocery_list.recipe_ingredients %}
@@ -57,9 +57,9 @@
     <div class="my-modal">
       <div class="details">
         <h1 class="title">Ingredient Select</h1>
-        <p class="description">Choose the option you'd like to add to your cart</p>
+        <p class="description">Please choose the option you'd like to add to your cart</p>
       </div>
-      <p class="txt">Your options for {{ingredient.quantity}} {{ingredient.measurement}} {{ ingredient.ingredient_name }} are:</p>
+      <p class="txt">Your options for {{ingredient.quantity}} {{ingredient.measurement}} {{ ingredient.ingredient_name }} are</p>
       <ul>
         {% for option in ingredient.options %}
           <li>{{option.brand}} {{ option.name }} - {{ option.price }}</li>
@@ -73,6 +73,9 @@
       {% else %}
         <a href="#modal-closed" class="btn">Head to cart</a>
       {% endif %}
+      <p>
+        <a href="#modal-closed" class="close">Cancel</a>
+      </p>
     </div>
   </div>
 {% endfor %}
