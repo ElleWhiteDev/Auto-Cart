@@ -6,7 +6,7 @@
 
 
     <div>
-        <form method="POST" id="user_form">
+        <form method="POST" id="user_form" class="col-md-4 mt-4">
 	{{ form.hidden_tag() }} {% for field in form if field.widget.input_type !=
 	'hidden' %}
 	<p>
@@ -20,11 +20,6 @@
 	<div class="btn-container">
 		<button class="btn btn-outline-warning" type="submit">Update</button>
 	</div>
-    <div>
-        {% for ingredient in ingredients %}
-        {{ingredient.name}}
-        {% endfor %}
-    </div>
 </form>
     </div>
 {% endblock %}

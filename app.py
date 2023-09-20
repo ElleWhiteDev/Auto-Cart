@@ -384,32 +384,29 @@ def view_recipe(recipe_id):
     """View/Edit a user submitted recipe"""
 
     recipe = Recipe.query.get_or_404(recipe_id)
-    form = AddRecipeForm(obj=recipe)
+    
+    # Create the text representation of the ingredients
+    ingredients_text = "\n".join(
+        f"{ingr.quantity} {ingr.measurement} {ingr.ingredient_name}"
+        for ingr in recipe.recipe_ingredients
+    )
+    
+    form = AddRecipeForm(obj=recipe, ingredients_text=ingredients_text)
 
     if form.validate_on_submit():
         form.populate_obj(recipe)
-
+        recipe.recipe_ingredients = Recipe.parse_ingredients(form.ingredient_text.data)
+        
         try:
-            db.session.add(recipe)
             db.session.commit()
-
-            flash('Recipe created successfully!', 'success')
-            return redirect(url_for('view_recipe', recipe_id=recipe.id), form=form)
-            
+            flash('Recipe updated successfully!', 'success')
         except Exception as error:
             db.session.rollback()
-            flash('Error Occured. Please try again', 'danger')
+            flash('Error occurred. Please try again.', 'danger')
             print(error)
-            return redirect(url_for('view_recipe', recipe_id=recipe.id), form=form)
 
-    return render_template('recipe.html', recipe_id=recipe_id, form=form)
+    return render_template('recipe.html', recipe=recipe, form=form)
 
-
-@app.route('/grocery_list', methods=["GET", "POST"])
-def view_gorcery_list(recipe_id):
-    """View/Edit a user built grocery list"""
-
-    return render_template('recipe.html', recipe_id=recipe_id)
     
 
 @app.route('/update_grocery_list', methods=['POST'])

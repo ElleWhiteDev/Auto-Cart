@@ -74,7 +74,6 @@ btn {
   z-index: 1000;
 }
 
-/* Modal content styling */
 .my-modal {
   position: absolute;
   top: 35%;
@@ -86,7 +85,6 @@ btn {
   z-index: 1001;
 }
 
-/* Show the modal when it's targeted */
 .modal-container:target {
   display: block;
 }
@@ -135,6 +133,12 @@ form > hr {
 .login-input label {
   width: 70px;
 }
+
+.scrollable-box {
+  height: 400px; /* Set the height as you like */
+  overflow-y: auto; /* Enable vertical scroll */
+}
+
 
 /* Navigation bar */
 
