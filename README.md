@@ -14,7 +14,8 @@ Auto-Cart is designed to simplify your online recipe experience. Input your reci
 3. **Delete Account**: Control your data with easy account deletion.
 4. **Recipe Box**: A centralized hub for all your treasured recipes.
 5. **Export to Kroger**: Directly populate your Kroger shopping cart from your recipe selections.
-6. **Email Grocery List**: Alternatively, receive your curated grocery list via email.
+6. **Choose Your Items** Select the store you'd like to shop from and choose from all instock options. 
+7. **Email Grocery List**: Alternatively, receive your curated grocery list via email.
 
 
 ## Standard User Flow 🚶
@@ -22,7 +23,7 @@ Auto-Cart is designed to simplify your online recipe experience. Input your reci
 1. **User Sign-up / Login**: Register for an account or log into your existing one.
 2. **Add New Recipe**: Input the URL, ingredients, and notes of your chosen recipe.
 3. **View Recipe Box**: Review your saved recipes.
-4. **Export to Kroger Cart**: Review Kroger's options for the items in grocery list and select choices
+4. **Export to Kroger**: Choose a store and review Kroger's options for the items in grocery list and select choices
 5. **Redirect to Kroger**: Upon confirmation, you are redirected to Kroger's website, cart ready for checkout.
 6. **Email Grocery List**: As an option, have your grocery list emailed to you for added convenience.
 
@@ -39,6 +40,8 @@ Auto-Cart is designed to simplify your online recipe experience. Input your reci
 - Kroger Auth API
 - Kroger Product API
 - Kroger Cart API
+- Kroger Location API
+- Kroger Profile API
 
 ## Additional Features 🎉
 

@@ -32,6 +32,10 @@ class User(db.Model):
 
     oath_token = db.Column(db.Text, nullable=True, unique=True)
 
+    refresh_token = db.Column(db.Text, nullable=True, unique=True)
+
+    profile_id = db.Column(db.Text, nullable = True, unique=True)
+
     recipes = db.relationship("Recipe", backref="user", cascade="all, delete-orphan")
     grocery_lists = db.relationship(
         "GroceryList", backref="user", cascade="all, delete-orphan"

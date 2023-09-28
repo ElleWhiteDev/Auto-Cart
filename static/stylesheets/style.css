@@ -82,17 +82,27 @@ btn {
   height: 100%;
   background-color: rgba(0, 0, 0, 0.7);
   z-index: 1000;
+  overflow: auto; /* Makes the whole container scrollable */
 }
 
 .my-modal {
   position: absolute;
-  top: 35%;
+  top: 10%;
   left: 50%;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, 0); /* Changed to only move horizontally */
   background-color: #fff;
   padding: 20px;
-  width: 40%;
+  width: 50%;
+  max-width: 95%; /* Added max-width */
   z-index: 1001;
+  box-sizing: border-box;
+  overflow-y: auto; /* Makes the modal itself scrollable */
+  max-height: 80vh; /* Makes sure it doesn't go beyond the viewport */
+}
+
+#modal-ingredient .my-modal {
+  width: 80%;
+  max-width: 95%; /* Make sure it doesn't exceed the screen */
 }
 
 .modal-container:target {
@@ -107,14 +117,16 @@ btn {
 
 .modal-actions form,
 .modal-actions a {
-  flex: 1;  /* Take up equal amount of space */
-  margin: 0 10px;  /* A little space between them */
+  flex: 1;
+  margin: 0 10px;
 }
 
 .modal-actions .btn {
-  width: 100%;  /* Make buttons full width */
-  padding: 10px;  /* Some padding */
+  width: 100%;
+  padding: 10px;
 }
+
+
 
 /* Forms */
 
