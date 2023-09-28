@@ -1,8 +1,5 @@
-{% extends 'base.html' %} 
-
-{% block body_class %}Login{% endblock %}
-
-{% block content %}
+{% extends 'base.html' %} {% block body_class %}Login{% endblock %} {% block
+content %}
 
 <h1 class="display-3">Login</h1>
 <p class="lead">
@@ -13,8 +10,8 @@
 	{{ form.hidden_tag() }} {% for field in form if field.widget.input_type !=
 	'hidden' %}
 	<p>
-		{{ field.label }} {{ field(class_="form-control custom-form-control") }} {% for error in
-		field.errors %}
+		{{ field.label }} {{ field(class_="form-control custom-form-control") }} {%
+		for error in field.errors %}
 		<span class="form-text text-danger"> {{ error }} </span>
 		{% endfor %}
 	</p>

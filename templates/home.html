@@ -1,120 +1,149 @@
-{% extends 'base.html' %} 
-
-{% block body_class %}Homepage{% endblock %}
-
-{% block content %}
-    <div class="container">
-        <div class="row justify-content-center">
-            <div class="col-12">
-                <h1 class="text-center">Welcome to Auto Cart</h1>
-            </div>
-            <div class="col-8">
-                <p class="text-center">Auto Cart is a web application that allows you to create a grocery list based on the recipes you want to make. Simply add your recipes, select the ones you want to make, and we'll generate a grocery list for you!</p>
-        </div>
-    </div>
-    <div class="export-btn">
-        <a class="btn btn-outline-warning" href="{{url_for('kroger_authenticate')}}" id="modal-closed">Export To Cart</a>
-    </div>
+{% extends 'base.html' %} {% block body_class %}Homepage{% endblock %} {% block
+content %}
 <div class="container">
-  <div class="row justify-content-center">
-    <!-- Current Recipes Column -->
-    <div class="col-4 sidebar border">
-      <form method="POST" action="{{ url_for('update_grocery_list') }}">
-        <h3>Recipe Box</h3>
-          {% for recipe in recipes %}
-          <div>
-            <input type="checkbox" name="recipe_ids" value="{{ recipe.id }}" {% if recipe.id|string in selected_recipe_ids %}checked{% endif %}>
-            {{ recipe.name }}
-            </div>
-          {% endfor %}
-        <button type="submit" class="btn btn-outline-warning">Update Grocery List</button>
-      </form>
-    </div>
+	<div class="row justify-content-center">
+		<div class="col-12">
+			<h1 class="text-center">Welcome to Auto Cart</h1>
+		</div>
+		<div class="col-8">
+			<p class="text-center">
+				Auto Cart is a web application that allows you to create a grocery list
+				based on the recipes you want to make. Simply add your recipes, select
+				the ones you want to make, and we'll generate a grocery list for you!
+			</p>
+		</div>
+	</div>
+	<div class="export-btn">
+		<a
+			class="btn btn-outline-warning"
+			href="{{url_for('kroger_authenticate')}}"
+			id="modal-closed"
+			>Export To Cart</a
+		>
+	</div>
+	<div class="container">
+		<div class="row justify-content-center">
+			<!-- Current Recipes Column -->
+			<div class="col-4 sidebar border">
+				<form method="POST" action="{{ url_for('update_grocery_list') }}">
+					<h3>Recipe Box</h3>
+					{% for recipe in recipes %}
+					<div>
+						<input
+							type="checkbox"
+							name="recipe_ids"
+							value="{{ recipe.id }}"
+							{%
+							if
+							recipe.id|string
+							in
+							selected_recipe_ids
+							%}checked{%
+							endif
+							%}
+						/>
+						{{ recipe.name }}
+					</div>
+					{% endfor %}
+					<button type="submit" class="btn btn-outline-warning">
+						Update Grocery List
+					</button>
+				</form>
+			</div>
 
-    <!-- New Recipe Form Column -->
-    <div class="col-4">
-      <h3>Add New Recipe</h3>
-      <form method="POST" action="{{ url_for('add_recipe') }}" id="user_form">
-	{{ form.hidden_tag() }} {% for field in form if field.widget.input_type !=
-	'hidden' %}
-	<p>
-		{{ field.label }} {{ field(class_="form-control custom-form-control") }} {% for error in
-		field.errors %}
-		<span class="form-text text-danger"> {{ error }} </span>
-		{% endfor %}
-	</p>
-	{% endfor %}
-        <button type="submit" class="btn btn-outline-warning">Submit</button>
-      </form>
-    </div>
+			<!-- New Recipe Form Column -->
+			<div class="col-4">
+				<h3>Add New Recipe</h3>
+				<form method="POST" action="{{ url_for('add_recipe') }}" id="user_form">
+					{{ form.hidden_tag() }} {% for field in form if
+					field.widget.input_type != 'hidden' %}
+					<p>
+						{{ field.label }} {{ field(class_="form-control
+						custom-form-control") }} {% for error in field.errors %}
+						<span class="form-text text-danger"> {{ error }} </span>
+						{% endfor %}
+					</p>
+					{% endfor %}
+					<button type="submit" class="btn btn-outline-warning">Submit</button>
+				</form>
+			</div>
 
-    <!-- Grocery List Column -->
-<div class="col-4 grocery-list border">
-  <h3>Your Grocery List</h3>
-  <ul>
-    {% for ingredient in g.grocery_list.recipe_ingredients %}
-      <li>{{ ingredient.quantity}} {{ ingredient.measurement }} {{ ingredient.ingredient_name }}</li>
-    {% endfor %}
-  </ul>
-</div>
+			<!-- Grocery List Column -->
+			<div class="col-4 grocery-list border">
+				<h3>Your Grocery List</h3>
+				<ul>
+					{% for ingredient in g.grocery_list.recipe_ingredients %}
+					<li>
+						{{ ingredient.quantity}} {{ ingredient.measurement }} {{
+						ingredient.ingredient_name }}
+					</li>
+					{% endfor %}
+				</ul>
+			</div>
+		</div>
+	</div>
 
-</div>
-</div>
-    
-    <!-- Zipcode Modal -->
-    <div class="modal-container" id="modal-zipcode">
-        <div class="my-modal">
-            <div class="details">
-                <h1 class="title">Location Select</h1>
-                <p class="description">Please enter your zipcode to find the nearest Kroger store</p>
-            </div>
-            <form method="POST" action="{{ url_for('location_search') }}" id="user_form">
-                <input type="text" name="zipcode" placeholder="Enter Zipcode">
-                <button type="submit">Next</button>
-            </form>
-            <p><a href="#modal-closed" class="btn">Cancel</a></p>
-        </div>
-    </div>
+	<!-- Zipcode Modal -->
+	<div class="modal-container" id="modal-zipcode">
+		<div class="my-modal">
+			<div class="details">
+				<h1 class="title">Location Select</h1>
+				<p class="description">
+					Please enter your zipcode to find the nearest Kroger store
+				</p>
+			</div>
+			<form
+				method="POST"
+				action="{{ url_for('location_search') }}"
+				id="user_form"
+			>
+				<input type="text" name="zipcode" placeholder="Enter Zipcode" />
+				<button type="submit">Next</button>
+			</form>
+			<p><a href="#modal-closed" class="btn">Cancel</a></p>
+		</div>
+	</div>
 
-    <!-- Store Selection Modal -->
-    <div class="modal-container" id="modal-store">
-        <div class="my-modal">
-            <div class="details">
-                <h1 class="title">Store Select</h1>
-                <p class="description">Please select the store you'd like to shop at</p>
-            </div>
-            <form method="POST" action="{{ url_for('select_store') }}" id="user_form">
-                {% for address, city, location_id in session['stores'] %}
-                    <input type="radio" name="store_id" value="{{ location_id }}">{{ address }} {{ city }}
-                {% endfor %}
-                <button type="submit">Next</button>
-            </form>
-            <p>
-                <a href="#modal-zipcode" class="btn">&larr; Previous</a>
-                <a href="#modal-closed" class="btn">Cancel</a>
-            </p>
-        </div>
-    </div>
+	<!-- Store Selection Modal -->
+	<div class="modal-container" id="modal-store">
+		<div class="my-modal">
+			<div class="details">
+				<h1 class="title">Store Select</h1>
+				<p class="description">Please select the store you'd like to shop at</p>
+			</div>
+			<form method="POST" action="{{ url_for('select_store') }}" id="user_form">
+				{% for address, city, location_id in session['stores'] %}
+				<input type="radio" name="store_id" value="{{ location_id }}" />{{
+				address }} {{ city }} {% endfor %}
+				<button type="submit">Next</button>
+			</form>
+			<p>
+				<a href="#modal-zipcode" class="btn">&larr; Previous</a>
+				<a href="#modal-closed" class="btn">Cancel</a>
+			</p>
+		</div>
+	</div>
 
-    <!-- Ingredient Selection Modal -->
-    <div class="modal-container" id="modal-ingredient">
-        <div class="my-modal">
-            <div class="details">
-                <h1 class="title">Ingredient Select</h1>
-                <p class="description">Please select the item you'd like to add to your cart</p>
-            </div>
-            <form method="POST" action="{{ url_for('item_choice') }}" id="user_form">
-    {% for item in session['items_to_choose_from'] %}
-        <input type="radio" name="product_id" value="{{ item['id'] }}">
-        {{ item['name'] }} - {{ item['price'] }}
-                {% endfor %}
-                <button type="submit">Next</button>
-            </form>
-            <p>
-                <a href="#modal-store" class="btn">&larr; Previous</a>
-                <a href="#modal-closed" class="btn">Cancel</a>
-            </p>
-        </div>
-    </div>
+	<!-- Ingredient Selection Modal -->
+	<div class="modal-container" id="modal-ingredient">
+		<div class="my-modal">
+			<div class="details">
+				<h1 class="title">Ingredient Select</h1>
+				<p class="description">
+					Please select the item you'd like to add to your cart
+				</p>
+			</div>
+			<form method="POST" action="{{ url_for('item_choice') }}" id="user_form">
+				{% for item in session['items_to_choose_from'] %}
+				<input type="radio" name="product_id" value="{{ item['id'] }}" />
+				{{ item['name'] }} - {{ item['price'] }} {% endfor %}
+				<button type="submit">Next</button>
+			</form>
+			<p>
+				<a href="#modal-store" class="btn">&larr; Previous</a>
+				<a href="#modal-closed" class="btn">Cancel</a>
+			</p>
+		</div>
+	</div>
 </div>
 {% endblock %}

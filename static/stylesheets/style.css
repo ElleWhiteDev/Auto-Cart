@@ -1,259 +1,264 @@
 /* General */
 body {
-  font-family: Arimo, sans-serif;  
+	font-family: Arimo, sans-serif;
 }
 
 h4 {
-  font-size: 1rem;
-  margin: 0;
+	font-size: 1rem;
+	margin: 0;
 }
 
 h5 {
-  font-size: 0.9rem;
-  font-weight: lighter;
+	font-size: 0.9rem;
+	font-weight: lighter;
 }
 
 a {
-  text-decoration: none;
+	text-decoration: none;
 }
 
 .btn-container {
-  text-align: center;
-  margin-top: 10px;
+	text-align: center;
+	margin-top: 10px;
 }
 
-.btn-container a{
-  margin-right: 10px;
+.btn-container a {
+	margin-right: 10px;
 }
 
 btn {
-  margin-right: 10px;
+	margin-right: 10px;
 }
 
 .btn:hover {
-  cursor: pointer;
+	cursor: pointer;
 }
 
 /* Site layout */
 
 .container {
-  margin: 8px;
-  padding: 8px;
-  display: flex;
-  flex-direction: column;
-  text-align: center;
+	margin: 8px;
+	padding: 8px;
+	display: flex;
+	flex-direction: column;
+	text-align: center;
 }
 
 .sidebar {
-  padding-left: 5px;
-  text-align: left;
+	padding-left: 5px;
+	text-align: left;
 }
 
 .sidebar input[type="checkbox"] {
-  padding: 2px;
-  margin-right: 5px; 
-  width: auto;
-  display: inline-block; 
+	padding: 2px;
+	margin-right: 5px;
+	width: auto;
+	display: inline-block;
 }
 
 .grocery-list ul {
-  list-style-type: none;
-  padding: 0;
-  margin: 0;
+	list-style-type: none;
+	padding: 0;
+	margin: 0;
 }
 
 .export-btn {
-  margin-left: 69%;
-  margin-top: 2%;
+	margin-left: 69%;
+	margin-top: 2%;
 }
 
-.border{
-  border: 1px solid lightgray;
-  border-radius: 12px;
+.border {
+	border: 1px solid lightgray;
+	border-radius: 12px;
 }
 
 /* Modals */
 .modal-container {
-  display: none;
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.7);
-  z-index: 1000;
-  overflow: auto; /* Makes the whole container scrollable */
+	display: none;
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	background-color: rgba(0, 0, 0, 0.7);
+	z-index: 1000;
+	overflow: auto;
 }
 
 .my-modal {
-  position: absolute;
-  top: 10%;
-  left: 50%;
-  transform: translate(-50%, 0); /* Changed to only move horizontally */
-  background-color: #fff;
-  padding: 20px;
-  width: 50%;
-  max-width: 95%; /* Added max-width */
-  z-index: 1001;
-  box-sizing: border-box;
-  overflow-y: auto; /* Makes the modal itself scrollable */
-  max-height: 80vh; /* Makes sure it doesn't go beyond the viewport */
+	position: absolute;
+	top: 10%;
+	left: 50%;
+	transform: translate(-50%, 0);
+	background-color: #fff;
+	padding: 20px;
+	width: 50%;
+	max-width: 95%;
+	z-index: 1001;
+	box-sizing: border-box;
+	overflow-y: auto;
+	max-height: 80vh;
 }
 
 #modal-ingredient .my-modal {
-  width: 80%;
-  max-width: 95%; /* Make sure it doesn't exceed the screen */
+	width: 80%;
+	max-width: 95%;
 }
 
 .modal-container:target {
-  display: block;
+	display: block;
 }
 
 .modal-actions {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 20px;
+	display: flex;
+	justify-content: space-between;
+	margin-top: 20px;
 }
 
 .modal-actions form,
 .modal-actions a {
-  flex: 1;
-  margin: 0 10px;
+	flex: 1;
+	margin: 0 10px;
 }
 
 .modal-actions .btn {
-  width: 100%;
-  padding: 10px;
+	width: 100%;
+	padding: 10px;
 }
-
-
 
 /* Forms */
 
 form {
-  display: flex;
-  flex-direction: column;
-  width: 50%;
-  margin: 8px auto 0;
+	display: flex;
+	flex-direction: column;
+	width: 50%;
+	margin: 8px auto 0;
 }
 
 form label {
-  font-size: 0.9rem;
-  font-weight: 700;
-  display: inline-block;
-  text-align: right;
-  margin-right: 5px;
+	font-size: 0.9rem;
+	font-weight: 700;
+	display: inline-block;
+	text-align: right;
+	margin-right: 5px;
 }
 
 form input {
-  width: 50%;
-  padding: 5px;
-  margin-bottom: 15px;
-  border: 1px solid lightgray;
-  border-radius: 3px;
+	width: 50%;
+	padding: 5px;
+	margin-bottom: 15px;
+	border: 1px solid lightgray;
+	border-radius: 3px;
 }
 
 form input:focus {
-  outline: none;
-  box-shadow: 0 0 4px 1px darkgray;
+	outline: none;
+	box-shadow: 0 0 4px 1px darkgray;
 }
 
 form > button:hover {
-  background-color: dimgray;
+	background-color: dimgray;
 }
 
 form > hr {
-  margin: 0;
-  border: 1px solid lightgray;
+	margin: 0;
+	border: 1px solid lightgray;
 }
 
 .login-input label {
-  width: 70px;
+	width: 70px;
 }
 
 .scrollable-box {
-  height: 400px; /* Set the height as you like */
-  overflow-y: auto; /* Enable vertical scroll */
+	height: 400px;
+	overflow-y: auto;
 }
 
 #user_form {
-  width: 100%;
+	width: 100%;
 }
 
 #user_form input {
-  width: 100%;
+	width: 100%;
 }
 
 /* Navigation bar */
 
 nav {
-  display: flex;
-  background-color: #ff6404;
-  align-items: center;
-  padding: 10px 20px;
-  border-radius: 3px 3px 0 0;
-  background: #F0F2F0;  /* fallback for old browsers */
-  background: -webkit-linear-gradient(to right, #000C40, #F0F2F0);  /* Chrome 10-25, Safari 5.1-6 */
-  background: linear-gradient(to right, #000C40, #F0F2F0); /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
-
+	display: flex;
+	background-color: #ff6404;
+	align-items: center;
+	padding: 10px 20px;
+	border-radius: 3px 3px 0 0;
+	background: #f0f2f0; /* fallback for old browsers */
+	background: -webkit-linear-gradient(
+		to right,
+		#000c40,
+		#f0f2f0
+	); /* Chrome 10-25, Safari 5.1-6 */
+	background: linear-gradient(
+		to right,
+		#000c40,
+		#f0f2f0
+	); /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
 }
 
 .navbar-brand {
-  font-weight: bold;
-  color: #F0F2F0;
+	font-weight: bold;
+	color: #f0f2f0;
 }
 
 .nav-link {
-  font-size: 0.85rem;
-  margin: 0 3px;
+	font-size: 0.85rem;
+	margin: 0 3px;
 }
 
 .nav-link:hover {
-  color: #FFC107;
+	color: #ffc107;
 }
 
 .nav-right {
-  margin-left: auto;
-  text-align: right;
+	margin-left: auto;
+	text-align: right;
 }
 
 .nav-left {
-  margin: 0 10px;
-  color: #F0F2F0;
+	margin: 0 10px;
+	color: #f0f2f0;
 }
 
 #nav-username {
-  font-weight: bold;
+	font-weight: bold;
 }
-
-
 
 /* User page*/
 
 .user-page {
-  margin: 8px;
-  padding: 8px;
-  display: flex;
-  flex-direction: row;
-  justify-content: space-between;
+	margin: 8px;
+	padding: 8px;
+	display: flex;
+	flex-direction: row;
+	justify-content: space-between;
 }
 
-.user-recipes, .user-grocery-lists {
-  flex: 1; /* This will make them take equal space */
-  margin: 0 10px; /* Add some margin to separate them */
+.user-recipes,
+.user-grocery-lists {
+	flex: 1;
+	margin: 0 10px;
 }
 
 .scrollable-list {
-  max-height: 500px;
-  overflow-y: scroll;
-  border: 1px solid #ccc;
-  padding: 10px;
-  margin-bottom: 20px;
+	max-height: 500px;
+	overflow-y: scroll;
+	border: 1px solid #ccc;
+	padding: 10px;
+	margin-bottom: 20px;
 }
 
-.recipe-item, .list-item {
-  padding: 5px;
-  border-bottom: 1px solid #ccc;
+.recipe-item,
+.list-item {
+	padding: 5px;
+	border-bottom: 1px solid #ccc;
 }
 
 /* responsive queries for tightening things up for mobile. */

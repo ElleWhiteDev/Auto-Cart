@@ -16,8 +16,8 @@ CURR_GROCERY_LIST_KEY = "curr_grocery_list"
 app = Flask(__name__)
 bcrypt = Bcrypt(app)
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql:///auto_cart'
-# app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://eawhite:koneko13@magiccartdb.crrapbdvxpld.us-east-2.rds.amazonaws.com:5432/magiccartdb'
+#app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql:///auto_cart'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://eawhite:koneko13@magiccartdb.crrapbdvxpld.us-east-2.rds.amazonaws.com:5432/magiccartdb'
 
 
 
@@ -64,7 +64,7 @@ def inject_user_data():
         }
 
     else:
-        print('no user detected')
+
     return {}
 
 
@@ -125,7 +125,7 @@ def kroger_authenticate():
         print("ALREADY AUTHENTICATED REDIRECTING")
         return redirect(url_for('callback'))
     url = get_kroger_auth_url()
-    print("AUTHENTICATED REDIRECTING")
+    print("AUTHENTICATING REDIRECTING")
     return redirect(url)
 
 
@@ -162,24 +162,18 @@ def callback():
             print(f"An error occurred while refreshing the token: {e}")
     else:
         try:
-            print("RUNNING NEW TOKEN")
             access_token, refresh_token = get_kroger_access_token(authorization_code)
-            print("Access token", access_token)
             profile_id = fetch_kroger_profile_id(access_token)
-            print("checked profile id")
             user.oath_token = access_token
             user.refresh_token = refresh_token
             user.profile_id = profile_id
-            print("user profile id", user.profile_id, "user oath token", user.oath_token)
         except Exception as e:
             print(f"An error occurred while fetching the new token: {e}")
 
     db.session.commit()
 
-    print("CALLBACK REDIRECTING")
     session['show_modal'] = True
-    print("SHOW MODAL", session['show_modal'])
-    print("PROFILE ID", user.profile_id)
+
 
     form = AddRecipeForm()
     return redirect(url_for('homepage', form=form) + '#modal-zipcode')
@@ -217,7 +211,7 @@ def refresh_kroger_access_token(existing_token):
     
     client_credentials = f"{CLIENT_ID}:{CLIENT_SECRET}"
     encoded_credentials = base64.b64encode(client_credentials.encode()).decode()
-    scope = 'cart.basic:write product.compact profile.compact'
+
     
     headers = {
         'Authorization': f'Basic {encoded_credentials}',
@@ -230,12 +224,8 @@ def refresh_kroger_access_token(existing_token):
     })
     
     token_url = 'https://api.kroger.com/v1/connect/oauth2/token'
-    print("headers", headers)
-    print("body", body)
+
     token_response = requests.post(token_url, data=body, headers=headers)
-    print("TOKEN RESPONSE STATUS", token_response.status_code)
-    print("Token response", token_response.reason)
-    print("TOKEN RESPONSE", token_response.content)
     
     new_oath_token = token_response.json().get('access_token')
     refreshed_token = token_response.json().get('refresh_token')
@@ -252,7 +242,6 @@ def fetch_kroger_profile_id(token):
     }
 
     profile_response = requests.get(profile_url, headers=headers)
-    print("PROFILE RESPONSE", profile_response.content)
 
     if profile_response.status_code == 200:
         return profile_response.json()['data']['id']
@@ -267,7 +256,7 @@ def location_search():
     """Send request to Kroger API for locations"""
 
     zipcode = request.form.get('zipcode')
-    print("ZIPCODE", zipcode)
+
     token = g.user.oath_token
 
     stores = fetch_kroger_stores(zipcode, token)
@@ -275,7 +264,7 @@ def location_search():
 
     if stores:
         session['stores'] = stores
-        print("STORES", stores)
+
         return redirect(url_for('homepage', form=form) + '#modal-store')
     else:
         return redirect(url_for('homepage', form=form) + '#modal-store')
@@ -305,11 +294,10 @@ def fetch_kroger_stores(zipcode, token):
             location_id = store['locationId']
             stores.append((address, city, location_id))
 
-        print("Successfully fetched locations")
-        print(stores)
+
         return stores
     else:
-        print("Failed to get locations:", response.content)
+
         return None
 
 
@@ -320,7 +308,7 @@ def select_store():
     
     store_id = request.form.get('store_id')
     session['location_id'] = store_id
-    print("LOCATION ID", session['location_id'])
+
 
     return redirect(url_for('search_kroger_products'))
 
@@ -390,21 +378,20 @@ def item_choice():
     """Store user selected product ID in session"""
 
     chosen_id = request.form.get('product_id')
-    print("FORM DATA", request.form)
-    print("CHOSEN ID", chosen_id)
+
 
     for item in session.get('items_to_choose_from', []):
         if item['id'] == chosen_id:
             session['products_for_cart'].append(item['id'])
-            print("PRODUCTS FOR CART", session['products_for_cart'])
+
             session['items_to_choose_from'] = []
-            print("ITEMS TO CHOOSE FROM", session['items_to_choose_from'])
+
 
     if session.get('ingredient_names'):
-        print("redirect search_kroger_products")
+
         return redirect(url_for('search_kroger_products'))
     else:
-        print("redirect send_to_cart")
+
         return redirect(url_for('send_to_cart'))
 
 
@@ -415,7 +402,7 @@ def send_to_cart():
 
     selected_upcs = session.get('products_for_cart', [])
     items = [{"quantity": 1, "upc": upc, "modality": "instore"} for upc in selected_upcs]
-    print("ITEMS", items)
+
     success = add_to_cart(items)
 
     session['products_for_cart'] = []
@@ -461,32 +448,6 @@ def add_to_cart(items):
         print("Something went wrong, items may not have been added to card (status code: %s)" %response.status_code)
         return
 
-'''
-def create_cart():
-    """Create a cart for the user"""
-
-    url = "https://api.kroger.com/v1/carts"
-    headers = {
-        'Authorization': f'Bearer {g.user.oath_token}',
-        'Content-Type': 'application/json'
-    }
-
-    print(f"Creating cart with URL: {url}")
-    print(f"Headers: {headers}")
-
-    response = requests.put(url, headers=headers, data=json.dumps({}))
-    print("RESPONSE", response.content)
-    print(f"Full Response: {response.__dict__}")
-
-    print("Response Status Code: ", response.status_code)
-    print("Response Headers: ", response.headers)
-
-    if response.status_code == 200:
-        return response.json()
-    else:
-        return None
-'''
-
 
 #################################################
 
@@ -504,8 +465,6 @@ def register():
     """Handle user signup"""
 
     form = UserAddForm()
-
-    print(form.errors)
 
     if form.validate_on_submit():
         user = User.signup(
