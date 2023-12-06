@@ -32,11 +32,11 @@ class User(db.Model):
 
     password = db.Column(db.Text, nullable=False)
 
-    oath_token = db.Column(db.Text, nullable=True, unique=True)
+    oath_token = db.Column(db.Text, nullable=True)
 
     refresh_token = db.Column(db.Text, nullable=True, unique=True)
 
-    profile_id = db.Column(db.Text, nullable=True, unique=True)
+    profile_id = db.Column(db.Text, nullable=True)
 
     recipes = db.relationship("Recipe", backref="user", cascade="all, delete-orphan")
     grocery_lists = db.relationship(
@@ -86,6 +86,7 @@ class User(db.Model):
             if is_auth:
                 return user
 
+        print("User not found")
         return False
 
 
