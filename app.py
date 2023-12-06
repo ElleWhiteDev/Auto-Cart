@@ -16,8 +16,8 @@ CURR_GROCERY_LIST_KEY = "curr_grocery_list"
 app = Flask(__name__)
 bcrypt = Bcrypt(app)
 
-#app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql:///auto_cart'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://eawhite:koneko13@magiccartdb.crrapbdvxpld.us-east-2.rds.amazonaws.com:5432/magiccartdb'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql:///auto_cart'
+# app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://eawhite:koneko13@magiccartdb.crrapbdvxpld.us-east-2.rds.amazonaws.com:5432/magiccartdb'
 
 
 
@@ -62,10 +62,8 @@ def inject_user_data():
             'grocery_list_recipe_ingredients': grocery_list_recipe_ingredients,
             'selected_recipe_ids': selected_recipe_ids
         }
-
     else:
-
-    return {}
+        return {}
 
 
 #################################################
@@ -116,6 +114,7 @@ def do_logout():
         del session[CURR_GROCERY_LIST_KEY]
 
 #################################################
+
 @app.route('/authenticate')
 @require_login
 def kroger_authenticate():
