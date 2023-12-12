@@ -17,8 +17,8 @@ CURR_GROCERY_LIST_KEY = "curr_grocery_list"
 app = Flask(__name__)
 bcrypt = Bcrypt(app)
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql:///auto_cart'
-# app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://eawhite:koneko13@magiccartdb.crrapbdvxpld.us-east-2.rds.amazonaws.com:5432/magiccartdb'
+#app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql:///auto_cart'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgres://wxcsfunqurshto:06c6a6d97d24b0b099588a2e8289c61198aec2c257a0d5db30b5c2581761cd41@ec2-3-210-173-88.compute-1.amazonaws.com:5432/ddt9nscnvtu7dc'
 
 
 
