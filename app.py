@@ -36,8 +36,10 @@ app.config['MAIL_DEFAULT_SENDER'] = 'sutocartgrocerylist@gmail.com'
 
 mail = Mail(app)
 
-app.app_context().push()
 connect_db(app)
+with app.app_context():
+    db.create_all()
+
 
 
 def require_login(func):
