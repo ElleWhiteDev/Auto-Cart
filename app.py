@@ -705,3 +705,8 @@ def update_grocery_list():
     grocery_list = g.grocery_list
     GroceryList.update_grocery_list(selected_recipe_ids, grocery_list=grocery_list)
     return redirect(url_for('homepage'))
+
+
+if __name__ == '__main__':
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
