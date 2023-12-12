@@ -10,7 +10,7 @@ Flask-Bcrypt==1.0.1
 Flask-Mail==0.9.1
 Flask-SQLAlchemy==3.0.5
 Flask-WTF==1.1.1
-greenlet==2.0.2
+greenlet
 gunicorn==21.2.0
 idna==3.4
 is-disposable-email==1.0.0
