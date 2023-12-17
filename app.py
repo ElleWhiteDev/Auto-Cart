@@ -18,7 +18,8 @@ app = Flask(__name__)
 bcrypt = Bcrypt(app)
 
 #app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql:///auto_cart'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://wxcsfunqurshto:06c6a6d97d24b0b099588a2e8289c61198aec2c257a0d5db30b5c2581761cd41@ec2-3-210-173-88.compute-1.amazonaws.com:5432/ddt9nscnvtu7dc'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgres://vhmyfvagwjinim:1c188fe0a55e2dcf8d9dd0e14f3a4f019f09661a0ecde466f9c123637f515da5@ec2-54-167-29-148.compute-1.amazonaws.com:5432/d15jd43h78a304
+'
 
 
 
