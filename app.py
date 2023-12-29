@@ -1,4 +1,5 @@
 import base64
+import os
 import requests
 import json
 from urllib.parse import urlencode
@@ -22,7 +23,6 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://vhmyfvagwjinim:1c188fe0a55
 
 
 
-
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ECHO'] = False
 app.config['SECRET_KEY'] = 'keep it secret keep it safe'
@@ -40,7 +40,6 @@ mail = Mail(app)
 connect_db(app)
 with app.app_context():
     db.create_all()
-
 
 
 def require_login(func):
@@ -88,7 +87,7 @@ def add_user_to_g():
 
     if 'show_modal' not in session:
         session['show_modal'] = False
-    
+
     if 'products_for_cart' not in session:
         session['products_for_cart'] = []
 
@@ -127,311 +126,310 @@ def do_logout():
         del session[CURR_USER_KEY]
         del session[CURR_GROCERY_LIST_KEY]
 
-#################################################
-
-# @app.route('/authenticate')
-# @require_login
-# def kroger_authenticate():
-#     """Redirect user to Kroger API for authentication"""
-
-#     if g.user.oath_token:
-#         print("ALREADY AUTHENTICATED REDIRECTING")
-#         return redirect(url_for('callback'))
-#     url = get_kroger_auth_url()
-#     print("AUTHENTICATING REDIRECTING")
-#     return redirect(url)
-
-
-# def get_kroger_auth_url():
-#     """Generate the URL for the Kroger OAuth2 flow."""
-
-#     scope = 'cart.basic:write product.compact profile.compact'
-#     params = {
-#         'client_id': CLIENT_ID,
-#         'redirect_uri': REDIRECT_URL,
-#         'response_type': 'code',
-#         'scope': scope
-#     }
-#     url = f"{OAUTH2_BASE_URL}/authorize?{urlencode(params)}"
-#     return url
-
-
-# @app.route('/callback')
-# @require_login
-# def callback():
-#     """Receive bearer token and profile ID from Kroger API."""
-#     authorization_code = request.args.get('code')
-#     user = g.user
-
-#     if user.oath_token:
-#         try:
-#             new_oath_token, refresh_token = refresh_kroger_access_token(user.refresh_token)
-#             if new_oath_token:
-#                 user.oath_token = new_oath_token
-#                 user.refresh_token = refresh_token
-#             else:
-#                 print("Failed to refresh token. Keeping old token.")
-#         except Exception as e:
-#             print(f"An error occurred while refreshing the token: {e}")
-#     else:
-#         try:
-#             access_token, refresh_token = get_kroger_access_token(authorization_code)
-#             profile_id = fetch_kroger_profile_id(access_token)
-#             user.oath_token = access_token
-#             user.refresh_token = refresh_token
-#             user.profile_id = profile_id
-#         except Exception as e:
-#             print(f"An error occurred while fetching the new token: {e}")
-
-#     db.session.commit()
-
-#     session['show_modal'] = True
-
-
-#     form = AddRecipeForm()
-#     return redirect(url_for('homepage', form=form) + '#modal-zipcode')
-
-
-# def get_kroger_access_token(authorization_code):
-#     """Exchange the authorization code for an access token."""
-
-#     client_credentials = f"{CLIENT_ID}:{CLIENT_SECRET}"
-#     encoded_credentials = base64.b64encode(client_credentials.encode()).decode()
-#     scope = 'cart.basic:write product.compact profile.compact'
-#     headers = {
-#         'Authorization': f'Basic {encoded_credentials}',
-#         'Content-Type': 'application/x-www-form-urlencoded'
-#     }
-
-#     body = urlencode({
-#         'grant_type': 'authorization_code',
-#         'code': authorization_code,
-#         'redirect_uri': REDIRECT_URL,
-#         'scope': scope
-#     })
-
-#     token_url = 'https://api.kroger.com/v1/connect/oauth2/token'
-#     token_response = requests.post(token_url, data=body, headers=headers)
-
-#     response_json = token_response.json()
-#     access_token = response_json.get('access_token')
-#     refresh_token = response_json.get('refresh_token')
-#     return access_token, refresh_token
-
-
-# def refresh_kroger_access_token(existing_token):
-#     """Refresh the Kroger access token."""
-    
-#     client_credentials = f"{CLIENT_ID}:{CLIENT_SECRET}"
-#     encoded_credentials = base64.b64encode(client_credentials.encode()).decode()
-
-    
-#     headers = {
-#         'Authorization': f'Basic {encoded_credentials}',
-#         'Content-Type': 'application/x-www-form-urlencoded'
-#     }
-    
-#     body = urlencode({
-#         'grant_type': 'refresh_token',
-#         'refresh_token': existing_token
-#     })
-    
-#     token_url = 'https://api.kroger.com/v1/connect/oauth2/token'
+################################################
+
+@app.route('/authenticate')
+@require_login
+def kroger_authenticate():
+    """Redirect user to Kroger API for authentication"""
+
+    if g.user.oath_token:
+        print("ALREADY AUTHENTICATED REDIRECTING")
+        return redirect(url_for('callback'))
+    url = get_kroger_auth_url()
+    print("AUTHENTICATING REDIRECTING")
+    return redirect(url)
+
+
+def get_kroger_auth_url():
+    """Generate the URL for the Kroger OAuth2 flow."""
+
+    scope = 'cart.basic:write product.compact profile.compact'
+    params = {
+        'client_id': CLIENT_ID,
+        'redirect_uri': REDIRECT_URL,
+        'response_type': 'code',
+        'scope': scope
+    }
+    url = f"{OAUTH2_BASE_URL}/authorize?{urlencode(params)}"
+    return url
+
+
+@app.route('/callback')
+@require_login
+def callback():
+    """Receive bearer token and profile ID from Kroger API."""
+    authorization_code = request.args.get('code')
+    user = g.user
+
+    if user.oath_token:
+        try:
+            new_oath_token, refresh_token = refresh_kroger_access_token(user.refresh_token)
+            if new_oath_token:
+                user.oath_token = new_oath_token
+                user.refresh_token = refresh_token
+            else:
+                print("Failed to refresh token. Keeping old token.")
+        except Exception as e:
+            print(f"An error occurred while refreshing the token: {e}")
+    else:
+        try:
+            access_token, refresh_token = get_kroger_access_token(authorization_code)
+            profile_id = fetch_kroger_profile_id(access_token)
+            user.oath_token = access_token
+            user.refresh_token = refresh_token
+            user.profile_id = profile_id
+        except Exception as e:
+            print(f"An error occurred while fetching the new token: {e}")
 
-#     token_response = requests.post(token_url, data=body, headers=headers)
-    
-#     new_oath_token = token_response.json().get('access_token')
-#     refreshed_token = token_response.json().get('refresh_token')
-    
-#     return new_oath_token, refreshed_token
+    db.session.commit()
 
+    session['show_modal'] = True
 
-# def fetch_kroger_profile_id(token):
-#     """Fetch the Kroger Profile ID."""
-#     profile_url = 'https://api.kroger.com/v1/identity/profile'
-#     headers = {
-#         'Accept': 'application/json',
-#         'Authorization': f'Bearer {token}'
-#     }
-
-#     profile_response = requests.get(profile_url, headers=headers)
-
-#     if profile_response.status_code == 200:
-#         return profile_response.json()['data']['id']
-#     else:
-#         print("Failed to get profile ID:", profile_response.content)
-#         return None
-
-
-# @app.route('/location-search', methods=['POST'])
-# @require_login
-# def location_search():
-#     """Send request to Kroger API for locations"""
-
-#     zipcode = request.form.get('zipcode')
-
-#     token = g.user.oath_token
-
-#     stores = fetch_kroger_stores(zipcode, token)
-#     form = AddRecipeForm()
-
-#     if stores:
-#         session['stores'] = stores
-
-#         return redirect(url_for('homepage', form=form) + '#modal-store')
-#     else:
-#         return redirect(url_for('homepage', form=form) + '#modal-store')
-
-
-# def fetch_kroger_stores(zipcode, token):
-#     API_URL = "https://api.kroger.com/v1/locations"
-#     params = {
-#         "filter.zipCode.near": zipcode,
-#         "filter.limit": 5,
-#         "filter.chain": "Kroger"
-#     }
-
-#     headers = {
-#         'Accept': 'application/json',
-#         'Authorization': f'Bearer {token}'
-#     }
-
-#     response = requests.get(API_URL, params=params, headers=headers)
-
-#     if response.status_code == 200:
-#         stores = []
 
-#         for store in response.json()['data']:
-#             address = store['address']['addressLine1']
-#             city = store['address']['city']
-#             location_id = store['locationId']
-#             stores.append((address, city, location_id))
+    form = AddRecipeForm()
+    return redirect(url_for('homepage', form=form) + '#modal-zipcode')
 
 
-#         return stores
-#     else:
+def get_kroger_access_token(authorization_code):
+    """Exchange the authorization code for an access token."""
 
-#         return None
+    client_credentials = f"{CLIENT_ID}:{CLIENT_SECRET}"
+    encoded_credentials = base64.b64encode(client_credentials.encode()).decode()
+    scope = 'cart.basic:write product.compact profile.compact'
+    headers = {
+        'Authorization': f'Basic {encoded_credentials}',
+        'Content-Type': 'application/x-www-form-urlencoded'
+    }
 
+    body = urlencode({
+        'grant_type': 'authorization_code',
+        'code': authorization_code,
+        'redirect_uri': REDIRECT_URL,
+        'scope': scope
+    })
 
-# @app.route('/select-store', methods=['POST'])
-# @require_login
-# def select_store():
-#     """Store user selected store ID in session"""
-    
-#     store_id = request.form.get('store_id')
-#     session['location_id'] = store_id
+    token_url = 'https://api.kroger.com/v1/connect/oauth2/token'
+    token_response = requests.post(token_url, data=body, headers=headers)
 
+    response_json = token_response.json()
+    access_token = response_json.get('access_token')
+    refresh_token = response_json.get('refresh_token')
+    return access_token, refresh_token
 
-#     return redirect(url_for('search_kroger_products'))
 
+def refresh_kroger_access_token(existing_token):
+    """Refresh the Kroger access token."""
 
-# @app.route('/product-search')
-# @require_login
-# def search_kroger_products():
-#     """Search Kroger for ingredients based on name and present user with options."""
+    client_credentials = f"{CLIENT_ID}:{CLIENT_SECRET}"
+    encoded_credentials = base64.b64encode(client_credentials.encode()).decode()
 
-#     if not session.get('ingredient_names'):
-#         ingredient_names = [ingredient.ingredient_name for ingredient in g.grocery_list.recipe_ingredients]
-#         session['ingredient_names'] = ingredient_names
-    
-#     next_ingredient = session['ingredient_names'].pop(0) if session['ingredient_names'] else None
-#     if next_ingredient:
-#         response = get_kroger_products(next_ingredient)
-#         if response:
-#             session['items_to_choose_from'] = parse_product_response(response)
-#     form = AddRecipeForm()
-#     return redirect(url_for('homepage', form=form) + '#modal-ingredient')
 
+    headers = {
+        'Authorization': f'Basic {encoded_credentials}',
+        'Content-Type': 'application/x-www-form-urlencoded'
+    }
 
-# def parse_product_response(json_response):
-#     """Parse Kroger response for customer selection."""
+    body = urlencode({
+        'grant_type': 'refresh_token',
+        'refresh_token': existing_token
+    })
 
-#     """Parse Kroger response for customer selection."""
-    
-#     # Navigate to the 'data' key first, then iterate through the list of products
-#     products_data = json_response.get('data', [])
-#     items_to_choose_from = []
-    
-#     for product_data in products_data:
-#         product = {
-#             'name': product_data.get('description', 'N/A'),
-#             'id': product_data.get('upc', 'N/A'),
-#             'price': product_data.get('items', [{}])[0].get('price', {}).get('regular', 'N/A')
-#         }
-#         items_to_choose_from.append(product)
-    
-#     return items_to_choose_from
+    token_url = 'https://api.kroger.com/v1/connect/oauth2/token'
 
+    token_response = requests.post(token_url, data=body, headers=headers)
 
-# def get_kroger_products(ingredient):
-#     """Fetch Kroger products based on the ingredient."""
-#     BEARER_TOKEN = g.user.oath_token
-#     LOCATION_ID = session.get('location_id')
+    new_oath_token = token_response.json().get('access_token')
+    refreshed_token = token_response.json().get('refresh_token')
 
-#     api_url = f"https://api.kroger.com/v1/products?filter.term={ingredient}&filter.locationId={LOCATION_ID}&filter.limit=10"
-        
-#     headers = {
-#         'Accept': 'application/json',
-#         'Authorization': f'Bearer {BEARER_TOKEN}'
-#     }
+    return new_oath_token, refreshed_token
 
-#     response = requests.get(api_url, headers=headers)
 
-#     if response.status_code == 200:
-#         return response.json()
-#     else:
-#         print(f"Failed to fetch data for ingredient: {ingredient}")
-#         return None
+def fetch_kroger_profile_id(token):
+    """Fetch the Kroger Profile ID."""
+    profile_url = 'https://api.kroger.com/v1/identity/profile'
+    headers = {
+        'Accept': 'application/json',
+        'Authorization': f'Bearer {token}'
+    }
 
+    profile_response = requests.get(profile_url, headers=headers)
 
-# @app.route('/item-choice', methods=['POST'])
-# @require_login
-# def item_choice():
-#     """Store user selected product ID in session"""
+    if profile_response.status_code == 200:
+        return profile_response.json()['data']['id']
+    else:
+        print("Failed to get profile ID:", profile_response.content)
+        return None
 
-#     chosen_id = request.form.get('product_id')
 
+@app.route('/location-search', methods=['POST'])
+@require_login
+def location_search():
+    """Send request to Kroger API for locations"""
 
-#     for item in session.get('items_to_choose_from', []):
-#         if item['id'] == chosen_id:
-#             session['products_for_cart'].append(item['id'])
+    zipcode = request.form.get('zipcode')
 
-#             session['items_to_choose_from'] = []
+    token = g.user.oath_token
 
+    stores = fetch_kroger_stores(zipcode, token)
+    form = AddRecipeForm()
 
-#     if session.get('ingredient_names'):
+    if stores:
+        session['stores'] = stores
 
-#         return redirect(url_for('search_kroger_products'))
-#     else:
+        return redirect(url_for('homepage', form=form) + '#modal-store')
+    else:
+        return redirect(url_for('homepage', form=form) + '#modal-store')
 
-#         return redirect(url_for('send_to_cart'))
 
+def fetch_kroger_stores(zipcode, token):
+    """Fetch Kroger stores based on zipcode"""
+    API_URL = "https://api.kroger.com/v1/locations"
+    params = {
+        "filter.zipCode.near": zipcode,
+        "filter.limit": 5,
+        "filter.chain": "Kroger"
+    }
 
-# @app.route('/send-to-cart', methods=['POST', 'GET'])
-# @require_login
-# def send_to_cart():
-#     """Add selected products to user's Kroger cart"""
+    headers = {
+        'Accept': 'application/json',
+        'Authorization': f'Bearer {token}'
+    }
 
-#     selected_upcs = session.get('products_for_cart', [])
-#     items = [{"quantity": 1, "upc": upc, "modality": "instore"} for upc in selected_upcs]
+    response = requests.get(API_URL, params=params, headers=headers)
 
-#     success = add_to_cart(items)
+    if response.status_code == 200:
+        stores = []
 
-#     session['products_for_cart'] = []
-#     session['items_to_choose_from'] = []
-#     session['show_modal'] = False
-#     session['location_id'] = None
-#     session['stores'] = []
-    
-#     if success:
-#         return redirect('https://www.kroger.com/cart')
-#     else:
-#         form = AddRecipeForm()
-#         return redirect(url_for('homepage', form=form))
+        for store in response.json()['data']:
+            address = store['address']['addressLine1']
+            city = store['address']['city']
+            location_id = store['locationId']
+            stores.append((address, city, location_id))
 
+        return stores
+    else:
 
-# def add_to_cart(items):
+        return None
+
+
+@app.route('/select-store', methods=['POST'])
+@require_login
+def select_store():
+    """Store user selected store ID in session"""
+
+    store_id = request.form.get('store_id')
+    session['location_id'] = store_id
+
+    return redirect(url_for('search_kroger_products'))
+
+
+@app.route('/product-search')
+@require_login
+def search_kroger_products():
+    """Search Kroger for ingredients based on name and present user with options."""
+
+    if not session.get('ingredient_names'):
+        ingredient_names = [ingredient.ingredient_name for ingredient in g.grocery_list.recipe_ingredients]
+        session['ingredient_names'] = ingredient_names
+
+    next_ingredient = session['ingredient_names'].pop(0) if session['ingredient_names'] else None
+    if next_ingredient:
+        response = get_kroger_products(next_ingredient)
+        if response:
+            session['items_to_choose_from'] = parse_product_response(response)
+    form = AddRecipeForm()
+    return redirect(url_for('homepage', form=form) + '#modal-ingredient')
+
+
+def parse_product_response(json_response):
+    """Parse Kroger response for customer selection."""
+
+    """Parse Kroger response for customer selection."""
+
+    # Navigate to the 'data' key first, then iterate through the list of products
+    products_data = json_response.get('data', [])
+    items_to_choose_from = []
+
+    for product_data in products_data:
+        product = {
+            'name': product_data.get('description', 'N/A'),
+            'id': product_data.get('upc', 'N/A'),
+            'price': product_data.get('items', [{}])[0].get('price', {}).get('regular', 'N/A')
+        }
+        items_to_choose_from.append(product)
+
+    return items_to_choose_from
+
+
+def get_kroger_products(ingredient):
+    """Fetch Kroger products based on the ingredient."""
+    BEARER_TOKEN = g.user.oath_token
+    LOCATION_ID = session.get('location_id')
+
+    api_url = f"https://api.kroger.com/v1/products?filter.term={ingredient}&filter.locationId={LOCATION_ID}&filter.limit=10"
+
+    headers = {
+        'Accept': 'application/json',
+        'Authorization': f'Bearer {BEARER_TOKEN}'
+    }
+
+    response = requests.get(api_url, headers=headers)
+
+    if response.status_code == 200:
+        return response.json()
+    else:
+        print(f"Failed to fetch data for ingredient: {ingredient}")
+        return None
+
+
+@app.route('/item-choice', methods=['POST'])
+@require_login
+def item_choice():
+    """Store user selected product ID in session"""
+
+    chosen_id = request.form.get('product_id')
+
+
+    for item in session.get('items_to_choose_from', []):
+        if item['id'] == chosen_id:
+            session['products_for_cart'].append(item['id'])
+
+            session['items_to_choose_from'] = []
+
+
+    if session.get('ingredient_names'):
+
+        return redirect(url_for('search_kroger_products'))
+    else:
+
+        return redirect(url_for('send_to_cart'))
+
+
+@app.route('/send-to-cart', methods=['POST', 'GET'])
+@require_login
+def send_to_cart():
+    """Add selected products to user's Kroger cart"""
+
+    selected_upcs = session.get('products_for_cart', [])
+    items = [{"quantity": 1, "upc": upc, "modality": "instore"} for upc in selected_upcs]
+
+    success = add_to_cart(items)
+
+    session['products_for_cart'] = []
+    session['items_to_choose_from'] = []
+    session['show_modal'] = False
+    session['location_id'] = None
+    session['stores'] = []
+
+    if success:
+        return redirect('https://www.kroger.com/cart')
+    else:
+        form = AddRecipeForm()
+        return redirect(url_for('homepage', form=form))
+
+
+def add_to_cart(items):
     """Add selected items to user's Kroger cart"""
     oath_token = g.user.oath_token
     for item in items:
@@ -449,7 +447,7 @@ def do_logout():
         'Authorization': f'Bearer {oath_token}',
         'Content-Type': 'application/json'
     }
-       
+
     data = {'items': items}
 
     response = requests.put(url, headers=headers, data=json.dumps(data))
@@ -468,26 +466,19 @@ def email_modal():
     return redirect(url_for('homepage'))
 
 @app.route('/send-email', methods=['POST'])
-def send_email():
+def send_grocery_list_email():
+    """Send grocery list to user supplied email"""
     email = request.form['email']
-    list_content = format_grocery_list(g.grocery_list)
-    send_email(email, list_content)
-    flash("List sent successfully!", "success")
+    grocery_list = g.grocery_list
+
+    if grocery_list:
+        GroceryList.send_email(email, grocery_list)
+        flash("List sent successfully!", "success")
+    else:
+        flash("No grocery list found", "error")
+
     return redirect(url_for('homepage'))
 
-
-def send_email(recipient, content):
-    msg = Message("Your List", recipients=[recipient])
-    msg.body = f"Here is your list:\n{content}"
-    mail.send(msg)
-
-def format_grocery_list(grocery_list):
-    ingredients_list = []
-    for recipe_ingredient in grocery_list.recipe_ingredients:
-        ingredient_detail = f"{recipe_ingredient.quantity} {recipe_ingredient.measurement} {recipe_ingredient.ingredient_name}"
-        ingredients_list.append(ingredient_detail)
-
-    return "\n".join(ingredients_list)
 
 #################################################
 
@@ -651,7 +642,7 @@ def add_recipe():
         url = form.url.data
         notes = form.notes.data
         user_id=g.user.id
-        
+
         recipe = Recipe.create_recipe(ingredients_text, url, user_id, name, notes)
 
         try:
@@ -673,19 +664,19 @@ def view_recipe(recipe_id):
     """View/Edit a user submitted recipe"""
 
     recipe = Recipe.query.get_or_404(recipe_id)
-    
+
     # Create the text representation of the ingredients
     ingredients_text = "\n".join(
         f"{ingr.quantity} {ingr.measurement} {ingr.ingredient_name}"
         for ingr in recipe.recipe_ingredients
     )
-    
+
     form = AddRecipeForm(obj=recipe, ingredients_text=ingredients_text)
 
     if form.validate_on_submit():
         form.populate_obj(recipe)
         recipe.recipe_ingredients = Recipe.parse_ingredients(form.ingredient_text.data)
-        
+
         try:
             db.session.commit()
             flash('Recipe updated successfully!', 'success')
@@ -696,12 +687,12 @@ def view_recipe(recipe_id):
 
     return render_template('recipe.html', recipe=recipe, form=form)
 
-    
+
 
 @app.route('/update_grocery_list', methods=['POST'])
 def update_grocery_list():
     """Add selected recipes to current grocery list"""
-    
+
     selected_recipe_ids = request.form.getlist('recipe_ids')
     session['selected_recipe_ids'] = selected_recipe_ids
 
