@@ -247,6 +247,22 @@ class GroceryList(db.Model):
 
         db.session.commit()
 
+    @classmethod
+    def send_email(cls, recipient, grocery_list):
+        """Send the grocery list via email."""
+        msg = Message("Your Grocery List", recipients=[recipient])
+        msg.body = f"Here is your list:\n{grocery_list.format_grocery_list()}"
+        mail.send(msg)
+
+
+    def format_grocery_list(self):
+        """Format the grocery list for email."""
+        ingredients_list = []
+        for recipe_ingredient in self.recipe_ingredients:
+            ingredient_detail = f"{recipe_ingredient.quantity} {recipe_ingredient.measurement} {recipe_ingredient.ingredient_name}"
+            ingredients_list.append(ingredient_detail)
+
+        return "\n".join(ingredients_list)
 
 def connect_db(app):
     db.app = app
