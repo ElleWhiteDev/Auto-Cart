@@ -2,6 +2,7 @@ import re
 from fractions import Fraction
 from collections import defaultdict
 from flask import g
+from flask_mail import Message
 from flask_bcrypt import Bcrypt
 from flask_sqlalchemy import SQLAlchemy
 
@@ -248,7 +249,7 @@ class GroceryList(db.Model):
         db.session.commit()
 
     @classmethod
-    def send_email(cls, recipient, grocery_list):
+    def send_email(cls, recipient, grocery_list, mail):
         """Send the grocery list via email."""
         msg = Message("Your Grocery List", recipients=[recipient])
         msg.body = f"Here is your list:\n{grocery_list.format_grocery_list()}"

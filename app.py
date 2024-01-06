@@ -36,6 +36,8 @@ app.config['MAIL_PASSWORD'] = 'lnriddicjzjfxjxt'
 app.config['MAIL_DEFAULT_SENDER'] = 'sutocartgrocerylist@gmail.com'
 
 mail = Mail(app)
+mail.init_app(app)
+
 
 connect_db(app)
 with app.app_context():
@@ -472,7 +474,7 @@ def send_grocery_list_email():
     grocery_list = g.grocery_list
 
     if grocery_list:
-        GroceryList.send_email(email, grocery_list)
+        GroceryList.send_email(email, grocery_list, mail)
         flash("List sent successfully!", "success")
     else:
         flash("No grocery list found", "error")
