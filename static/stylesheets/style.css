@@ -186,7 +186,7 @@ form > hr {
 
 nav {
 	display: flex;
-	background-color: #ff6404;
+	background-color: #fee6e3;
 	align-items: center;
 	padding: 10px 20px;
 	border-radius: 3px 3px 0 0;
@@ -203,33 +203,48 @@ nav {
 	); /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
 }
 
+nav {
+    display: flex;
+    align-items: center;
+    padding: 10px 20px;
+    border-radius: 5px; /* Adjusted for a more pronounced curve */
+    background: linear-gradient(to right, #fee6e3, #007bff); /* Blue to peach gradient */
+    box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2); /* Adding a subtle shadow for depth */
+}
+
 .navbar-brand {
-	font-weight: bold;
-	color: #f0f2f0;
+    font-weight: bold;
+    color: #000; /* Changed to white for better visibility on gradient */
+    font-size: 1.25rem;
 }
 
 .nav-link {
-	font-size: 0.85rem;
-	margin: 0 3px;
+    font-size: 0.85rem;
+    margin: 0 10px;
+    color: #000; /* Consistent color with the brand */
+    text-transform: uppercase;
 }
 
 .nav-link:hover {
-	color: #ffc107;
+    color: #ffd700; /* Adjusted hover color for a gold-like effect */
+    text-decoration: none;
 }
 
 .nav-right {
-	margin-left: auto;
-	text-align: right;
+    margin-left: auto;
+    text-align: right;
 }
 
 .nav-left {
-	margin: 0 10px;
-	color: #f0f2f0;
+    margin: 0 10px;
+    color: #ffffff;
 }
 
 #nav-username {
-	font-weight: bold;
+    font-weight: bold;
+    color: #ffd700; /* Gold-like color to stand out */
 }
+
 
 /* User page*/
 
