@@ -25,6 +25,7 @@ a {
 .btn-container a {
   display: flex;
   justify-content: center;
+  max-width: 135px;
   text-align: center;
   align-items: center;
 }
