@@ -25,13 +25,10 @@ a {
 .btn-container a {
   display: flex;
   justify-content: center;
-  max-width: 150px;
   text-align: center;
   align-items: center;
 }
 
-btn {
-}
 
 .btn:hover {
 	cursor: pointer;
