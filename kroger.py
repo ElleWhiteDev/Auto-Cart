@@ -282,6 +282,12 @@ class KrogerSessionManager:
     @staticmethod
     def add_product_to_cart(product_id: str) -> bool:
         """Add selected product to cart session."""
+        # Initialize session defaults if they don't exist
+        if 'products_for_cart' not in session:
+            session['products_for_cart'] = []
+        if 'items_to_choose_from' not in session:
+            session['items_to_choose_from'] = []
+
         print(f"=== ADD PRODUCT TO CART DEBUG ===")
         print(f"Product ID to add: {product_id}")
         print(f"Current items_to_choose_from: {session.get('items_to_choose_from', [])}")
