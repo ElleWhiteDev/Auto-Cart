@@ -104,7 +104,12 @@ content %}
 
 			<!-- Grocery List Column -->
 			<div class="col-4 grocery-list border">
-				<h3>Your Grocery List</h3>
+				<div class="d-flex justify-content-between align-items-center mb-3">
+					<h3>Your Grocery List</h3>
+					<form method="POST" action="{{ url_for('clear_grocery_list') }}" style="display: inline;">
+						<button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to clear your grocery list?')">Clear List</button>
+					</form>
+				</div>
 				<ul>
 					{% for ingredient in g.grocery_list.recipe_ingredients %}
 					<li>
@@ -181,16 +186,20 @@ content %}
 		</div>
 	</div>
 
-		<!-- Email Modal -->
+	<!-- Email Modal -->
 <div id="email-modal" class="modal-container">
-    <div class="modal-content">
-        <span class="close">&times;</span>
+    <div class="my-modal">
+        <div class="details">
+            <h1 class="title">Email Grocery List</h1>
+            <p class="description">Enter your email address to receive your grocery list</p>
+        </div>
         <form action="/send-email" method="post">
             <label for="email">Email:</label>
             <input type="email" id="email" name="email" required>
-            <input type="submit" value="Send Email">
+            <button type="submit" class="button-56">Send Email</button>
         </form>
-    </div> -->
+        <p><a href="#modal-closed" class="btn">Cancel</a></p>
+    </div>
 </div>
 </div>
 {% endblock %}
@@ -198,10 +207,7 @@ content %}
 {% block scripts %}
 <script>
 document.getElementById('extract-ai-btn').addEventListener('click', async function() {
-    console.log('Extract button clicked!');
-
     const urlInput = document.getElementById('url');
-    console.log('URL input element:', urlInput);
 
     if (!urlInput) {
         alert('Could not find URL input field');
@@ -209,7 +215,6 @@ document.getElementById('extract-ai-btn').addEventListener('click', async functi
     }
 
     const url = urlInput.value.trim();
-    console.log('URL value:', url);
 
     if (!url) {
         alert('Please enter a recipe URL first');
@@ -226,8 +231,6 @@ document.getElementById('extract-ai-btn').addEventListener('click', async functi
     btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Extracting...';
 
     try {
-        console.log('Making form request...');
-
         // Create form data and submit
         const formData = new FormData();
         formData.append('url', url);
@@ -237,11 +240,8 @@ document.getElementById('extract-ai-btn').addEventListener('click', async functi
             body: formData
         });
 
-        console.log('Response received:', response);
-
         if (response.ok) {
             const result = await response.json();
-            console.log('Parsed result:', result);
 
             if (result.success) {
                 // Populate form fields with extracted data
@@ -270,7 +270,6 @@ document.getElementById('extract-ai-btn').addEventListener('click', async functi
             showFlashMessage(errorResult.error || 'Failed to extract recipe', 'danger');
         }
     } catch (error) {
-        console.error('Error:', error);
         showFlashMessage('Network error. Please try again.', 'danger');
     } finally {
         // Reset button state
@@ -298,5 +297,25 @@ function showFlashMessage(message, category) {
         flashDiv.remove();
     }, 5000);
 }
+
+// Email modal close functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const emailModal = document.getElementById('email-modal');
+    const closeBtn = emailModal.querySelector('.close');
+
+    // Close modal when clicking the X
+    if (closeBtn) {
+        closeBtn.addEventListener('click', function() {
+            emailModal.style.display = 'none';
+        });
+    }
+
+    // Close modal when clicking outside of it
+    window.addEventListener('click', function(event) {
+        if (event.target === emailModal) {
+            emailModal.style.display = 'none';
+        }
+    });
+});
 </script>
 {% endblock %}

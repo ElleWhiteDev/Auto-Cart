@@ -2,13 +2,14 @@ import base64
 import os
 import requests
 import json
+from fractions import Fraction
 from urllib.parse import urlencode, urljoin, urlparse
 from flask import Flask, render_template, request, flash, redirect, session, g, url_for, jsonify
 from flask_mail import Mail, Message
 from sqlalchemy.exc import IntegrityError
 from flask_bcrypt import Bcrypt
 from functools import wraps
-from models import db, connect_db, User, Recipe, GroceryList
+from models import db, connect_db, User, Recipe, GroceryList, RecipeIngredient
 from forms import UserAddForm, AddRecipeForm, UpdatePasswordForm, LoginForm, UpdateEmailForm
 from secret import CLIENT_ID, OAUTH2_BASE_URL, API_BASE_URL, REDIRECT_URL, CLIENT_SECRET
 from bs4 import BeautifulSoup
@@ -680,8 +681,33 @@ def view_recipe(recipe_id):
     form = AddRecipeForm(obj=recipe, ingredients_text=ingredients_text)
 
     if form.validate_on_submit():
-        form.populate_obj(recipe)
-        recipe.recipe_ingredients = Recipe.parse_ingredients(form.ingredient_text.data)
+        # Manually update recipe fields
+        recipe.name = form.name.data
+        recipe.url = form.url.data
+        recipe.notes = form.notes.data
+
+        # Clear existing ingredients
+        for ingredient in recipe.recipe_ingredients:
+            db.session.delete(ingredient)
+
+        # Parse and create new ingredients
+        parsed_ingredients = Recipe.parse_ingredients(form.ingredients_text.data)
+        for ingredient_data in parsed_ingredients:
+            quantity_string = ingredient_data["quantity"]
+            if "/" in quantity_string:
+                quantity = float(Fraction(quantity_string))
+            elif Recipe.is_float(quantity_string):
+                quantity = float(quantity_string)
+            else:
+                continue
+
+            recipe_ingredient = RecipeIngredient(
+                recipe_id=recipe.id,
+                quantity=quantity,
+                measurement=ingredient_data["measurement"],
+                ingredient_name=ingredient_data["ingredient_name"],
+            )
+            recipe.recipe_ingredients.append(recipe_ingredient)
 
         try:
             db.session.commit()
@@ -693,6 +719,31 @@ def view_recipe(recipe_id):
 
     return render_template('recipe.html', recipe=recipe, form=form)
 
+
+@app.route('/recipe/<int:recipe_id>/delete', methods=["POST"])
+@require_login
+def delete_recipe(recipe_id):
+    """Delete a recipe"""
+
+    recipe = Recipe.query.get_or_404(recipe_id)
+
+    # Ensure user owns this recipe
+    if recipe.user_id != g.user.id:
+        flash('You can only delete your own recipes', 'danger')
+        return redirect(url_for('homepage'))
+
+    recipe_name = recipe.name  # Store name before deletion
+
+    try:
+        db.session.delete(recipe)
+        db.session.commit()
+        flash(f'Recipe "{recipe_name}" deleted successfully!', 'success')
+    except Exception as error:
+        db.session.rollback()
+        flash('Error occurred while deleting recipe', 'danger')
+        print(error)
+
+    return redirect(url_for('homepage'))
 
 
 @app.route('/update_grocery_list', methods=['POST'])
@@ -1001,6 +1052,23 @@ def extract_html_patterns(soup):
         print(f"HTML pattern extraction error: {e}")
 
     return None
+
+
+@app.route('/clear_grocery_list', methods=['POST'])
+@require_login
+def clear_grocery_list():
+    """Clear all items from the current grocery list"""
+
+    grocery_list = g.grocery_list
+
+    if grocery_list:
+        grocery_list.recipe_ingredients.clear()
+        db.session.commit()
+        flash('Grocery list cleared successfully!', 'success')
+    else:
+        flash('No grocery list found', 'error')
+
+    return redirect(url_for('homepage'))
 
 
 if __name__ == '__main__':

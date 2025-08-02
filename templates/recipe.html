@@ -48,5 +48,11 @@ block content %}
 			<button class="button-56" type="submit">Update</button>
 		</div>
 	</form>
+
+	<!-- Separate delete form -->
+	<form method="POST" action="{{ url_for('delete_recipe', recipe_id=recipe.id) }}" style="margin-top: 10px;">
+		<button type="submit" class="button-56-red" onclick="return confirm('Are you sure you want to delete this recipe?')">Delete Recipe</button>
+	</form>
 </div>
+
 {% endblock %}
