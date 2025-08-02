@@ -57,15 +57,47 @@ content %}
 			<div class="col-4">
 				<h3>Add New Recipe</h3>
 				<form method="POST" action="{{ url_for('add_recipe') }}" id="user_form">
-					{{ form.hidden_tag() }} {% for field in form if
-					field.widget.input_type != 'hidden' %}
+					{{ form.hidden_tag() }}
+
+					<!-- Recipe Name -->
 					<p>
-						{{ field.label }} {{ field(class_="form-control
-						custom-form-control") }} {% for error in field.errors %}
+						{{ form.name.label }}
+						{{ form.name(class_="form-control custom-form-control") }}
+						{% for error in form.name.errors %}
 						<span class="form-text text-danger"> {{ error }} </span>
 						{% endfor %}
 					</p>
-					{% endfor %}
+
+					<!-- URL field with AI extract button -->
+					<div class="form-group">
+						{{ form.url.label(class="form-label") }}
+						<div class="input-group">
+							{{ form.url(class="form-control", placeholder="https://example.com/recipe") }}
+							<button type="button" id="extract-ai-btn" class="btn btn-outline-secondary">
+								<span id="extract-spinner" class="spinner-border spinner-border-sm d-none" role="status"></span>
+								Extract with AI
+							</button>
+						</div>
+					</div>
+
+					<!-- Ingredients -->
+					<p>
+						{{ form.ingredients_text.label }}
+						{{ form.ingredients_text(class_="form-control custom-form-control") }}
+						{% for error in form.ingredients_text.errors %}
+						<span class="form-text text-danger"> {{ error }} </span>
+						{% endfor %}
+					</p>
+
+					<!-- Notes -->
+					<p>
+						{{ form.notes.label }}
+						{{ form.notes(class_="form-control custom-form-control") }}
+						{% for error in form.notes.errors %}
+						<span class="form-text text-danger"> {{ error }} </span>
+						{% endfor %}
+					</p>
+
 					<button type="submit" class="button-54">Submit</button>
 				</form>
 			</div>
@@ -161,4 +193,110 @@ content %}
     </div> -->
 </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('extract-ai-btn').addEventListener('click', async function() {
+    console.log('Extract button clicked!');
+
+    const urlInput = document.getElementById('url');
+    console.log('URL input element:', urlInput);
+
+    if (!urlInput) {
+        alert('Could not find URL input field');
+        return;
+    }
+
+    const url = urlInput.value.trim();
+    console.log('URL value:', url);
+
+    if (!url) {
+        alert('Please enter a recipe URL first');
+        return;
+    }
+
+    // Show loading state
+    const btn = this;
+    const spinner = document.getElementById('extract-spinner');
+    const originalText = btn.innerHTML;
+
+    btn.disabled = true;
+    spinner.classList.remove('d-none');
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Extracting...';
+
+    try {
+        console.log('Making form request...');
+
+        // Create form data and submit
+        const formData = new FormData();
+        formData.append('url', url);
+
+        const response = await fetch('/extract-recipe-form', {
+            method: 'POST',
+            body: formData
+        });
+
+        console.log('Response received:', response);
+
+        if (response.ok) {
+            const result = await response.json();
+            console.log('Parsed result:', result);
+
+            if (result.success) {
+                // Populate form fields with extracted data
+                const nameField = document.getElementById('name');
+                const ingredientsField = document.getElementById('ingredients_text');
+                const notesField = document.getElementById('notes');
+
+                if (nameField && result.data.name) {
+                    nameField.value = result.data.name;
+                }
+
+                if (ingredientsField && result.data.ingredients_text) {
+                    ingredientsField.value = result.data.ingredients_text;
+                }
+
+                if (notesField && result.data.notes) {
+                    notesField.value = result.data.notes;
+                }
+
+                showFlashMessage('Recipe extracted successfully! Review and edit as needed.', 'success');
+            } else {
+                showFlashMessage(result.error || 'Failed to extract recipe', 'danger');
+            }
+        } else {
+            const errorResult = await response.json();
+            showFlashMessage(errorResult.error || 'Failed to extract recipe', 'danger');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showFlashMessage('Network error. Please try again.', 'danger');
+    } finally {
+        // Reset button state
+        btn.disabled = false;
+        spinner.classList.add('d-none');
+        btn.innerHTML = originalText;
+    }
+});
+
+function showFlashMessage(message, category) {
+    // Create flash message element
+    const flashDiv = document.createElement('div');
+    flashDiv.className = `alert alert-${category} alert-dismissible fade show`;
+    flashDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+
+    // Insert at top of form
+    const form = document.querySelector('#user_form');
+    form.insertBefore(flashDiv, form.firstChild);
+
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+        flashDiv.remove();
+    }, 5000);
+}
+</script>
 {% endblock %}

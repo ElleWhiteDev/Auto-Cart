@@ -2,8 +2,8 @@ import base64
 import os
 import requests
 import json
-from urllib.parse import urlencode
-from flask import Flask, render_template, request, flash, redirect, session, g, url_for
+from urllib.parse import urlencode, urljoin, urlparse
+from flask import Flask, render_template, request, flash, redirect, session, g, url_for, jsonify
 from flask_mail import Mail, Message
 from sqlalchemy.exc import IntegrityError
 from flask_bcrypt import Bcrypt
@@ -11,6 +11,8 @@ from functools import wraps
 from models import db, connect_db, User, Recipe, GroceryList
 from forms import UserAddForm, AddRecipeForm, UpdatePasswordForm, LoginForm, UpdateEmailForm
 from secret import CLIENT_ID, OAUTH2_BASE_URL, API_BASE_URL, REDIRECT_URL, CLIENT_SECRET
+from bs4 import BeautifulSoup
+import re
 
 CURR_USER_KEY = "curr_user"
 CURR_GROCERY_LIST_KEY = "curr_grocery_list"
@@ -18,8 +20,8 @@ CURR_GROCERY_LIST_KEY = "curr_grocery_list"
 app = Flask(__name__)
 bcrypt = Bcrypt(app)
 
-#app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql:///auto_cart'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://utrqjjxkwlrohb:ccc6e93157652b53c4998ba72c1bf6b0b73d43c05e4c9f13b8a81b5540219e2b@ec2-100-26-73-144.compute-1.amazonaws.com:5432/d2hhhk29b6cn4l'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql:///auto_cart'
+# app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://utrqjjxkwlrohb:ccc6e93157652b53c4998ba72c1bf6b0b73d43c05e4c9f13b8a81b5540219e2b@ec2-100-26-73-144.compute-1.amazonaws.com:5432/d2hhhk29b6cn4l'
 
 
 
@@ -634,7 +636,7 @@ def delete_account():
 
 @app.route('/add_recipe', methods=["GET","POST"])
 def add_recipe():
-    """User submits chunk of text. It's parsed into individual ingregient objects and assembled into a recipe"""
+    """User submits chunk of text. It's parsed into individual ingredient objects and assembled into a recipe"""
 
     form = AddRecipeForm()
 
@@ -643,22 +645,24 @@ def add_recipe():
         ingredients_text = form.ingredients_text.data
         url = form.url.data
         notes = form.notes.data
-        user_id=g.user.id
+        user_id = g.user.id
 
-        recipe = Recipe.create_recipe(ingredients_text, url, user_id, name, notes)
+        # Determine source type based on whether URL was used for extraction
+        source_type = 'extracted' if url and url.strip() else 'manual'
+
+        recipe = Recipe.create_recipe(ingredients_text, url, user_id, name, notes, source_type)
 
         try:
             db.session.add(recipe)
             db.session.commit()
-
             flash('Recipe created successfully!', 'success')
-            return redirect(url_for('homepage', form=form))
+            return redirect(url_for('homepage'))
         except Exception as error:
             db.session.rollback()
-            flash('Error Occured. Please try again', 'danger')
+            flash('Error Occurred. Please try again', 'danger')
             print(error)
-            return redirect(url_for('homepage', form=form))
-    return redirect(url_for('homepage', form=form))
+            return redirect(url_for('homepage'))
+    return redirect(url_for('homepage'))
 
 
 @app.route('/recipe/<int:recipe_id>', methods=["GET", "POST"])
@@ -701,6 +705,302 @@ def update_grocery_list():
     grocery_list = g.grocery_list
     GroceryList.update_grocery_list(selected_recipe_ids, grocery_list=grocery_list)
     return redirect(url_for('homepage'))
+
+
+@app.route('/extract-recipe-form', methods=['POST'])
+@require_login
+def extract_recipe_form():
+    """Extract recipe data from URL using web scraping"""
+
+    url = request.form.get('url')
+    print(f"=== RECIPE EXTRACTION DEBUG ===")
+    print(f"URL received: {url}")
+
+    if not url:
+        return jsonify({'success': False, 'error': 'URL is required for recipe extraction'}), 400
+
+    # Scrape the recipe data
+    recipe_data = scrape_recipe_data(url)
+
+    print(f"Scraping result: {recipe_data}")
+
+    if recipe_data.get('error'):
+        return jsonify({'success': False, 'error': f"Could not extract recipe: {recipe_data['error']}"}), 400
+    elif recipe_data.get('name') or recipe_data.get('ingredients'):
+        # Return the extracted data as JSON
+        extracted_data = {
+            'name': recipe_data.get('name', ''),
+            'ingredients_text': '\n'.join(recipe_data.get('ingredients', [])),
+            'notes': recipe_data.get('instructions', ''),
+            'url': url
+        }
+
+        print(f"Returning extracted data: {extracted_data}")
+        return jsonify({'success': True, 'data': extracted_data})
+    else:
+        return jsonify({'success': False, 'error': 'No recipe data found on this page. Please enter manually.'}), 400
+
+
+def scrape_recipe_data(url):
+    """
+    Scrape recipe data from a URL using multiple extraction methods.
+    Returns: {"name": str, "ingredients": list, "instructions": str, "error": str|None}
+    """
+
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+    }
+
+    try:
+        print(f"=== SCRAPING DEBUG ===")
+        print(f"Fetching URL: {url}")
+
+        # Fetch the webpage
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+
+        print(f"Response status: {response.status_code}")
+        print(f"Content length: {len(response.content)}")
+
+        soup = BeautifulSoup(response.content, 'html.parser')
+
+        # Method 1: JSON-LD structured data
+        recipe_data = extract_jsonld_recipe(soup)
+        if recipe_data:
+            print("Found JSON-LD recipe data")
+            return recipe_data
+
+        # Method 2: Microdata
+        recipe_data = extract_microdata_recipe(soup)
+        if recipe_data:
+            print("Found microdata recipe data")
+            return recipe_data
+
+        # Method 3: HTML patterns fallback
+        recipe_data = extract_html_patterns(soup)
+        if recipe_data:
+            print("Found recipe data using HTML patterns")
+            return recipe_data
+
+        print("No recipe data found using any method")
+        return {"name": "", "ingredients": [], "instructions": "", "error": "No recipe data found on this page"}
+
+    except requests.exceptions.Timeout:
+        return {"name": "", "ingredients": [], "instructions": "", "error": "Request timed out"}
+    except requests.exceptions.RequestException as e:
+        return {"name": "", "ingredients": [], "instructions": "", "error": f"Failed to fetch page: {str(e)}"}
+    except Exception as e:
+        print(f"Scraping error: {e}")
+        return {"name": "", "ingredients": [], "instructions": "", "error": f"Error parsing page: {str(e)}"}
+
+
+def extract_jsonld_recipe(soup):
+    """Extract recipe from JSON-LD structured data"""
+    try:
+        scripts = soup.find_all('script', type='application/ld+json')
+
+        for script in scripts:
+            try:
+                data = json.loads(script.string)
+
+                # Handle both single objects and arrays
+                if isinstance(data, list):
+                    data = data[0] if data else {}
+
+                # Look for Recipe type (can be nested)
+                recipe = find_recipe_in_jsonld(data)
+                if recipe:
+                    return parse_jsonld_recipe(recipe)
+
+            except (json.JSONDecodeError, KeyError, TypeError):
+                continue
+
+    except Exception as e:
+        print(f"JSON-LD extraction error: {e}")
+
+    return None
+
+
+def find_recipe_in_jsonld(data):
+    """Recursively find Recipe object in JSON-LD data"""
+    if isinstance(data, dict):
+        if data.get('@type') == 'Recipe':
+            return data
+        # Check nested objects
+        for value in data.values():
+            if isinstance(value, (dict, list)):
+                result = find_recipe_in_jsonld(value)
+                if result:
+                    return result
+    elif isinstance(data, list):
+        for item in data:
+            result = find_recipe_in_jsonld(item)
+            if result:
+                return result
+    return None
+
+
+def parse_jsonld_recipe(recipe):
+    """Parse recipe data from JSON-LD format"""
+    try:
+        name = recipe.get('name', '')
+
+        # Extract ingredients
+        ingredients = []
+        recipe_ingredients = recipe.get('recipeIngredient', [])
+        for ingredient in recipe_ingredients:
+            if isinstance(ingredient, str):
+                ingredients.append(ingredient.strip())
+            elif isinstance(ingredient, dict):
+                ingredients.append(ingredient.get('text', str(ingredient)))
+
+        # Extract instructions
+        instructions = []
+        recipe_instructions = recipe.get('recipeInstructions', [])
+        for instruction in recipe_instructions:
+            if isinstance(instruction, str):
+                instructions.append(instruction.strip())
+            elif isinstance(instruction, dict):
+                text = instruction.get('text') or instruction.get('name', '')
+                if text:
+                    instructions.append(text.strip())
+
+        instructions_text = '\n'.join(f"{i+1}. {inst}" for i, inst in enumerate(instructions))
+
+        if name or ingredients:
+            return {
+                "name": name,
+                "ingredients": ingredients,
+                "instructions": instructions_text,
+                "error": None
+            }
+
+    except Exception as e:
+        print(f"JSON-LD parsing error: {e}")
+
+    return None
+
+
+def extract_microdata_recipe(soup):
+    """Extract recipe from microdata"""
+    try:
+        recipe_elem = soup.find(attrs={"itemtype": "http://schema.org/Recipe"}) or \
+                     soup.find(attrs={"itemtype": "https://schema.org/Recipe"})
+
+        if not recipe_elem:
+            return None
+
+        name = ""
+        name_elem = recipe_elem.find(attrs={"itemprop": "name"})
+        if name_elem:
+            name = name_elem.get_text(strip=True)
+
+        # Extract ingredients
+        ingredients = []
+        ingredient_elems = recipe_elem.find_all(attrs={"itemprop": "recipeIngredient"})
+        for elem in ingredient_elems:
+            text = elem.get_text(strip=True)
+            if text:
+                ingredients.append(text)
+
+        # Extract instructions
+        instructions = []
+        instruction_elems = recipe_elem.find_all(attrs={"itemprop": "recipeInstructions"})
+        for elem in instruction_elems:
+            text = elem.get_text(strip=True)
+            if text:
+                instructions.append(text)
+
+        instructions_text = '\n'.join(f"{i+1}. {inst}" for i, inst in enumerate(instructions))
+
+        if name or ingredients:
+            return {
+                "name": name,
+                "ingredients": ingredients,
+                "instructions": instructions_text,
+                "error": None
+            }
+
+    except Exception as e:
+        print(f"Microdata extraction error: {e}")
+
+    return None
+
+
+def extract_html_patterns(soup):
+    """Extract recipe using common HTML patterns"""
+    try:
+        name = ""
+        ingredients = []
+        instructions = ""
+
+        # Extract recipe name
+        name_selectors = [
+            'h1.recipe-title', 'h1.entry-title', 'h1.post-title',
+            'h2.recipe-title', 'h2.entry-title',
+            '.recipe-header h1', '.recipe-header h2',
+            'h1', 'h2'
+        ]
+
+        for selector in name_selectors:
+            elem = soup.select_one(selector)
+            if elem:
+                name = elem.get_text(strip=True)
+                if name and len(name) < 200:  # Reasonable title length
+                    break
+
+        # Extract ingredients
+        ingredient_selectors = [
+            '.ingredients li', '.recipe-ingredients li',
+            'ul.ingredients li', '[class*="ingredient"] li',
+            '.ingredient-list li', '.recipe-ingredient'
+        ]
+
+        for selector in ingredient_selectors:
+            elems = soup.select(selector)
+            if elems:
+                for elem in elems:
+                    text = elem.get_text(strip=True)
+                    if text and len(text) > 3:  # Filter out empty/short items
+                        ingredients.append(text)
+                if ingredients:
+                    break
+
+        # Extract instructions
+        instruction_selectors = [
+            '.instructions li', '.recipe-instructions li',
+            'ol.instructions li', '[class*="instruction"] li',
+            '.directions li', '.recipe-directions li',
+            '.method li', '.preparation li'
+        ]
+
+        instruction_steps = []
+        for selector in instruction_selectors:
+            elems = soup.select(selector)
+            if elems:
+                for elem in elems:
+                    text = elem.get_text(strip=True)
+                    if text and len(text) > 10:  # Filter out short instructions
+                        instruction_steps.append(text)
+                if instruction_steps:
+                    break
+
+        if instruction_steps:
+            instructions = '\n'.join(f"{i+1}. {step}" for i, step in enumerate(instruction_steps))
+
+        # Return data if we found something useful
+        if name or ingredients or instruction_steps:
+            return {
+                "name": name or "Untitled Recipe",
+                "ingredients": ingredients,
+                "instructions": instructions,
+                "error": None
+            }
+
+    except Exception as e:
+        print(f"HTML pattern extraction error: {e}")
+
+    return None
 
 
 if __name__ == '__main__':

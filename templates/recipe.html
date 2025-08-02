@@ -6,15 +6,43 @@ block content %}
 
 <div>
 	<form method="POST" class="col-md-4 mt-4">
-		{{ form.hidden_tag() }} {% for field in form if field.widget.input_type !=
-		'hidden' %}
+		{{ form.hidden_tag() }}
+
+		<!-- Recipe Name -->
 		<p>
-			{{ field.label }} {{ field(class_="form-control custom-form-control") }}
-			{% for error in field.errors %}
+			{{ form.name.label }}
+			{{ form.name(class_="form-control custom-form-control") }}
+			{% for error in form.name.errors %}
 			<span class="form-text text-danger"> {{ error }} </span>
 			{% endfor %}
 		</p>
-		{% endfor %}
+
+		<!-- URL -->
+		<p>
+			{{ form.url.label }}
+			{{ form.url(class_="form-control custom-form-control") }}
+			{% for error in form.url.errors %}
+			<span class="form-text text-danger"> {{ error }} </span>
+			{% endfor %}
+		</p>
+
+		<!-- Ingredients -->
+		<p>
+			{{ form.ingredients_text.label }}
+			{{ form.ingredients_text(class_="form-control custom-form-control") }}
+			{% for error in form.ingredients_text.errors %}
+			<span class="form-text text-danger"> {{ error }} </span>
+			{% endfor %}
+		</p>
+
+		<!-- Notes -->
+		<p>
+			{{ form.notes.label }}
+			{{ form.notes(class_="form-control custom-form-control") }}
+			{% for error in form.notes.errors %}
+			<span class="form-text text-danger"> {{ error }} </span>
+			{% endfor %}
+		</p>
 
 		<div class="btn-container">
 			<button class="button-56" type="submit">Update</button>
