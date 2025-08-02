@@ -85,7 +85,7 @@ def callback():
         flash('No authorization code received from Kroger', 'danger')
         return redirect(url_for('homepage'))
 
-    success = kroger_workflow.handle_callback(authorization_code, g.user, REDIRECT_URL)
+    success = kroger_workflow.handle_callback(authorization_code, g.user, app.config['REDIRECT_URL'])
     if success:
         db.session.commit()
         flash('Successfully connected to Kroger!', 'success')
