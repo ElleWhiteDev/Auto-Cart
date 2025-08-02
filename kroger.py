@@ -326,60 +326,72 @@ class KrogerWorkflow:
         self.session_manager = KrogerSessionManager()
 
     def handle_authentication(self, user, oauth_base_url: str, redirect_url: str) -> str:
-        """Handle Kroger authentication workflow."""
-        if user.oath_token:
-            # Try to refresh the token first
-            try:
-                new_oath_token, refresh_token = self.kroger_service.refresh_access_token(user.refresh_token)
-                if new_oath_token:
-                    user.oath_token = new_oath_token
-                    user.refresh_token = refresh_token
-                    print("TOKEN REFRESHED SUCCESSFULLY - SKIPPING AUTH")
-                    return url_for('homepage') + '#modal-zipcode'  # Skip auth, go straight to zipcode
-                else:
-                    print("TOKEN REFRESH FAILED - CLEARING TOKENS")
-                    # Clear invalid tokens
-                    user.oath_token = None
-                    user.refresh_token = None
-                    user.profile_id = None
-            except Exception as e:
-                print(f"Token refresh error: {e} - CLEARING TOKENS")
+        """Handle Kroger authentication workflow with persistent tokens."""
+        # Check if we have existing tokens
+        if user.oath_token and user.refresh_token:
+            print("FOUND EXISTING TOKENS - TESTING VALIDITY")
+
+            # Test if current token is valid by making a simple API call
+            if self._test_token_validity(user.oath_token):
+                print("EXISTING TOKEN IS VALID - SKIPPING AUTH")
+                return url_for('homepage') + '#modal-zipcode'
+
+            print("EXISTING TOKEN INVALID - ATTEMPTING REFRESH")
+            # Try to refresh the token
+            new_access_token, new_refresh_token = self.kroger_service.refresh_access_token(user.refresh_token)
+
+            if new_access_token and new_refresh_token:
+                print("TOKEN REFRESH SUCCESSFUL")
+                user.oath_token = new_access_token
+                user.refresh_token = new_refresh_token
+                # Save to database
+                from models import db
+                db.session.commit()
+                return url_for('homepage') + '#modal-zipcode'
+            else:
+                print("TOKEN REFRESH FAILED - CLEARING TOKENS")
+                # Clear invalid tokens
                 user.oath_token = None
                 user.refresh_token = None
                 user.profile_id = None
+                from models import db
+                db.session.commit()
 
-        # Only build auth URL if we don't have valid tokens
+        # No valid tokens - redirect to OAuth
         scope = 'cart.basic:write product.compact profile.compact'
         auth_url = self.kroger_service.build_oauth_url(oauth_base_url, redirect_url, scope)
-        print("NO VALID TOKEN - REDIRECTING TO AUTH")
+        print("NO VALID TOKENS - REDIRECTING TO AUTH")
         return auth_url
+
+    def _test_token_validity(self, token: str) -> bool:
+        """Test if a token is valid by making a simple API call."""
+        try:
+            profile_id = self.kroger_service.get_profile_id(token)
+            return profile_id is not None
+        except Exception as e:
+            print(f"Token validation failed: {e}")
+            return False
 
     def handle_callback(self, authorization_code: str, user, redirect_url: str) -> bool:
         """Handle OAuth callback and token management."""
-        if user.oath_token:
-            try:
-                new_oath_token, refresh_token = self.kroger_service.refresh_access_token(user.refresh_token)
-                if new_oath_token:
-                    user.oath_token = new_oath_token
-                    user.refresh_token = refresh_token
-                    return True
-                else:
-                    print("Failed to refresh token. Keeping old token.")
-                    return False
-            except Exception as e:
-                print(f"An error occurred while refreshing the token: {e}")
-                return False
-        else:
-            try:
-                access_token, refresh_token = self.kroger_service.get_access_token(authorization_code, redirect_url)
+        try:
+            access_token, refresh_token = self.kroger_service.get_access_token(authorization_code, redirect_url)
+            if access_token and refresh_token:
                 profile_id = self.kroger_service.get_profile_id(access_token)
                 user.oath_token = access_token
                 user.refresh_token = refresh_token
                 user.profile_id = profile_id
+                # Save to database
+                from models import db
+                db.session.commit()
+                print("NEW TOKENS SAVED TO DATABASE")
                 return True
-            except Exception as e:
-                print(f"An error occurred while fetching the new token: {e}")
+            else:
+                print("Failed to get tokens from authorization code")
                 return False
+        except Exception as e:
+            print(f"Error in callback handling: {e}")
+            return False
 
     def handle_location_search(self, zipcode: str, token: str) -> str:
         """Handle store location search and return redirect URL."""
@@ -440,6 +452,36 @@ class KrogerWorkflow:
             return 'https://www.kroger.com/cart'
         else:
             return url_for('homepage')
+
+    def ensure_valid_token(self, user) -> Optional[str]:
+        """Ensure user has a valid token, refreshing if necessary."""
+        if not user.oath_token or not user.refresh_token:
+            return None
+
+        # Test current token
+        if self._test_token_validity(user.oath_token):
+            return user.oath_token
+
+        # Try to refresh
+        print("Token expired, attempting refresh...")
+        new_access_token, new_refresh_token = self.kroger_service.refresh_access_token(user.refresh_token)
+
+        if new_access_token and new_refresh_token:
+            user.oath_token = new_access_token
+            user.refresh_token = new_refresh_token
+            from models import db
+            db.session.commit()
+            print("Token refreshed successfully")
+            return new_access_token
+
+        # Refresh failed - clear tokens
+        print("Token refresh failed - clearing tokens")
+        user.oath_token = None
+        user.refresh_token = None
+        user.profile_id = None
+        from models import db
+        db.session.commit()
+        return None
 
 
 def parse_kroger_products(json_response: Dict) -> List[Dict[str, str]]:
