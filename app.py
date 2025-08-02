@@ -64,7 +64,7 @@ def kroger_authenticate():
             app.config['OAUTH2_BASE_URL'],
             app.config['REDIRECT_URL']
         )
-        # ... rest of function unchanged
+        return redirect(result)
     except Exception as e:
         flash('Authentication error. Please try again.', 'danger')
         return redirect(url_for('homepage'))
