@@ -5,9 +5,14 @@ from flask import g
 from flask_mail import Message
 from flask_bcrypt import Bcrypt
 from flask_sqlalchemy import SQLAlchemy
+from openai import OpenAI
+from secret import OPENAI_API_KEY
 
 bcrypt = Bcrypt()
 db = SQLAlchemy()
+
+# Initialize OpenAI client
+openai_client = OpenAI(api_key=OPENAI_API_KEY)
 
 
 # Join table for Grocery List to Recipe Ingredient
@@ -135,34 +140,104 @@ class Recipe(db.Model):
             return False
 
     @classmethod
+    def clean_ingredients_with_openai(cls, ingredients_text):
+        """Clean and standardize scraped ingredients using OpenAI."""
+        try:
+            system_prompt = """You are a recipe ingredient parser. Clean and standardize the following scraped ingredients text according to these rules:
+
+1. Separate concatenated words (e.g., "1/4cuphoney" → "1/4 cup honey")
+2. Remove unwanted characters: checkboxes (▢☐□✓✔), bullet points, extra symbols
+3. Standardize measurements:
+   - "tb", "T", "tablespoon", "tablespoons" → "tbsp"
+   - "c", "C", "cup", "cups" → "cup"
+   - "t", "tsp", "teaspoon", "teaspoons" → "tsp"
+   - "oz", "ounce", "ounces" → "oz"
+   - "lb", "pound", "pounds" → "lb"
+   - "g", "gram", "grams" → "g"
+   - "kg", "kilogram", "kilograms" → "kg"
+4. Convert decimal quantities to fractions where appropriate:
+   - "0.25" → "1/4"
+   - "0.5" → "1/2"
+   - "0.75" → "3/4"
+   - "0.33" → "1/3"
+   - "0.67" → "2/3"
+5. Simplify ingredient descriptions by removing preparation methods:
+   - "4 tbsp melted butter" → "4 tbsp butter"
+   - "1 cup diced onions" → "1 cup onions"
+   - "2 lbs ground beef" → "2 lb beef"
+6. Format each ingredient as: "quantity measurement ingredient_name"
+7. Put each ingredient on a separate line
+8. Remove empty lines
+
+Return only the cleaned ingredients, one per line, with no additional text or explanations."""
+
+            response = openai_client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": f"Clean these ingredients:\n\n{ingredients_text}"}
+                ],
+                temperature=0.1,
+                max_tokens=1000
+            )
+
+            cleaned_text = response.choices[0].message.content.strip()
+            return cleaned_text
+
+        except Exception as e:
+            print(f"=== OPENAI ERROR DEBUG ===")
+            print(f"OpenAI API error: {e}")
+            print(f"Error type: {type(e).__name__}")
+            print("Falling back to original ingredients text")
+            print(f"=== END OPENAI ERROR DEBUG ===")
+            return ingredients_text
+
+    @classmethod
     def parse_ingredients(cls, ingredients_text):
         """Parse ingredient text into individual objects"""
 
+        # Ingredients should already be cleaned by OpenAI at this point
         ingredients = ingredients_text.split("\n")
         parsed_ingredients = []
 
         for ingredient in ingredients:
+            # Clean up any remaining unwanted characters
+            ingredient = re.sub(r'[▢☐□✓✔]', '', ingredient).strip()
+
+            if not ingredient:
+                continue
+
             print(f"Trying to match: {ingredient}")
-            match = re.match(r"^(\S+)\s+(\S+)\s+(.*)", ingredient)
+
+            # Try different regex patterns
+            patterns = [
+                r"^(\d+(?:/\d+)?(?:\.\d+)?)\s+(\w+)\s+(.*)",  # "1/4 cup honey"
+                r"^(\d+(?:/\d+)?(?:\.\d+)?)(\w+)\s+(.*)",     # "1/4cup honey"
+                r"^(\d+(?:/\d+)?(?:\.\d+)?)(\w+)(.*)",        # "1/4cuphoney"
+            ]
+
+            match = None
+            for pattern in patterns:
+                match = re.match(pattern, ingredient)
+                if match:
+                    break
+
             print(f"Match result: {match}")
             if match:
                 quantity, measurement, ingredient_name = match.groups()
-                ingredient_name = ingredient_name[:40]
-                print(ingredient_name)
-                parsed_ingredients.append(
-                    {
-                        "quantity": quantity.strip() if quantity else None,
-                        "measurement": measurement.strip() if measurement else None,
-                        "ingredient_name": ingredient_name.strip(),
-                    }
-                )
-        print(parsed_ingredients)
+                ingredient_name = ingredient_name.strip()[:40]
+                parsed_ingredients.append({
+                    "quantity": quantity.strip() if quantity else None,
+                    "measurement": measurement.strip() if measurement else None,
+                    "ingredient_name": ingredient_name.strip(),
+                })
         return parsed_ingredients
 
     @classmethod
     def create_recipe(cls, ingredients_text, url, user_id, name, notes, source_type='manual'):
         """Takes parsed ingredients and creates a recipe object"""
 
+        # Parse ingredients (already cleaned if from scraping)
         parsed_ingredients = cls.parse_ingredients(ingredients_text)
 
         recipe = cls(url=url, user_id=user_id, name=name, notes=notes, source_type=source_type)

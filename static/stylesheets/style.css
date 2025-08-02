@@ -282,8 +282,122 @@ nav {
 /* responsive queries for tightening things up for mobile. */
 
 
-/* CSS */
-.button-56 {
+/* Unified Button System */
+.btn-primary {
+  align-items: center;
+  background-color: #007bff;
+  border: 2px solid #0056b3;
+  border-radius: 8px;
+  box-sizing: border-box;
+  color: white;
+  cursor: pointer;
+  display: inline-flex;
+  font-family: Inter, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  height: 40px;
+  justify-content: center;
+  line-height: 20px;
+  padding: 0 16px;
+  position: relative;
+  text-align: center;
+  text-decoration: none;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  transition: all 0.2s ease;
+}
+
+.btn-primary:hover {
+  background-color: #0056b3;
+  border-color: #004085;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 123, 255, 0.3);
+}
+
+.btn-outline-primary {
+  align-items: center;
+  background-color: transparent;
+  border: 2px solid #007bff;
+  border-radius: 8px;
+  box-sizing: border-box;
+  color: #007bff;
+  cursor: pointer;
+  display: inline-flex;
+  font-family: Inter, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  height: 40px;
+  justify-content: center;
+  line-height: 20px;
+  padding: 0 16px;
+  position: relative;
+  text-align: center;
+  text-decoration: none;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  transition: all 0.2s ease;
+}
+
+.btn-outline-primary:hover {
+  background-color: #007bff;
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
+}
+
+.btn-outline-secondary {
+  align-items: center;
+  background-color: transparent;
+  border: 2px solid #6c757d;
+  border-radius: 8px;
+  box-sizing: border-box;
+  color: #6c757d;
+  cursor: pointer;
+  display: inline-flex;
+  font-family: Inter, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  height: 40px;
+  justify-content: center;
+  line-height: 20px;
+  padding: 0 16px;
+  position: relative;
+  text-align: center;
+  text-decoration: none;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  transition: all 0.2s ease;
+}
+
+.btn-outline-secondary:hover {
+  background-color: #6c757d;
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(108, 117, 125, 0.3);
+}
+
+.btn-sm {
+  height: 32px;
+  font-size: 12px;
+  padding: 0 12px;
+}
+
+.btn-lg {
+  height: 48px;
+  font-size: 16px;
+  padding: 0 24px;
+}
+
+/* Submit button - special styling */
+.btn-submit {
   align-items: center;
   background-color: #fee6e3;
   border: 2px solid #111;
@@ -291,14 +405,14 @@ nav {
   box-sizing: border-box;
   color: #111;
   cursor: pointer;
-  display: flex;
-  font-family: Inter,sans-serif;
+  display: inline-flex;
+  font-family: Inter, sans-serif;
   font-size: 16px;
+  font-weight: 600;
   height: 48px;
   justify-content: center;
   line-height: 24px;
-  max-width: 100%;
-  padding: 0 25px;
+  padding: 0 32px;
   position: relative;
   text-align: center;
   text-decoration: none;
@@ -307,7 +421,7 @@ nav {
   touch-action: manipulation;
 }
 
-.button-56:after {
+.btn-submit:after {
   background-color: #111;
   border-radius: 8px;
   content: "";
@@ -322,119 +436,85 @@ nav {
   z-index: -1;
 }
 
-.button-56:hover:after {
+.btn-submit:hover:after {
   transform: translate(0, 0);
 }
 
-.button-56:active {
+.btn-submit:active {
   background-color: #ffdeda;
-  outline: 0;
 }
 
-.button-56:hover {
-  outline: 0;
-}
-
-@media (min-width: 768px) {
-  .button-56 {
-    padding: 0 40px;
-  }
-}
-
-.button-56-red {
+/* Danger button */
+.btn-danger {
   align-items: center;
-  background-color: red;
-  border: 2px solid #111;
+  background-color: #dc3545;
+  border: 2px solid #c82333;
   border-radius: 8px;
   box-sizing: border-box;
   color: white;
   cursor: pointer;
-  display: flex;
-  font-family: Inter,sans-serif;
-  font-size: 16px;
-  height: 48px;
+  display: inline-flex;
+  font-family: Inter, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  height: 40px;
   justify-content: center;
-  line-height: 24px;
-  max-width: 100%;
-  padding: 0 25px;
+  line-height: 20px;
+  padding: 0 16px;
   position: relative;
   text-align: center;
   text-decoration: none;
   user-select: none;
   -webkit-user-select: none;
   touch-action: manipulation;
+  transition: all 0.2s ease;
 }
 
-.button-56-red:after {
-  background-color: #111;
-  border-radius: 8px;
-  content: "";
-  display: block;
-  height: 48px;
-  left: 0;
-  width: 100%;
-  position: absolute;
-  top: -2px;
-  transform: translate(8px, 8px);
-  transition: transform .2s ease-out;
-  z-index: -1;
+.btn-danger:hover {
+  background-color: #c82333;
+  border-color: #bd2130;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
 }
 
-.button-56-red:hover:after {
-  transform: translate(0, 0);
+/* Disabled state for all buttons */
+.btn:disabled,
+.btn-primary:disabled,
+.btn-outline-primary:disabled,
+.btn-outline-secondary:disabled,
+.btn-submit:disabled,
+.btn-danger:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
 }
 
-.button-56-red:active {
-  background-color: #ffdeda;
-  outline: 0;
+.btn:disabled:hover,
+.btn-primary:disabled:hover,
+.btn-outline-primary:disabled:hover,
+.btn-outline-secondary:disabled:hover,
+.btn-submit:disabled:hover,
+.btn-danger:disabled:hover {
+  background-color: inherit;
+  color: inherit;
+  border-color: inherit;
 }
 
-.button-56-red:hover {
-  outline: 0;
+/* Ensure buttons don't interfere with modals */
+.btn-outline-secondary,
+.btn-outline-primary {
+    position: relative;
+    z-index: 1; /* Lower z-index for buttons */
 }
 
-/* CSS */
-.button-54 {
-  font-family: Inter,sans-serif;
-  font-size: 16px;
-  letter-spacing: 2px;
-  text-decoration: none;
-  text-transform: uppercase;
-  color: #000;
-  cursor: pointer;
-  border: 3px solid;
-  padding: 0.25em 0.5em;
-  box-shadow: 1px 1px 0px 0px, 2px 2px 0px 0px, 3px 3px 0px 0px, 4px 4px 0px 0px, 5px 5px 0px 0px;
-  position: relative;
-  user-select: none;
-  -webkit-user-select: none;
-  touch-action: manipulation;
+/* Form elements should stay below modals */
+.form-group {
+    position: relative;
+    z-index: 1;
 }
 
-.button-54:active {
-  background-color: #ffdeda;
-  outline: 0;
-}
-
-@media (min-width: 768px) {
-  .button-54 {
-    padding: 0.25em 0.75em;
-  }
-}
-
-.button-54-smaller {
-  font-family: Inter,sans-serif;
-  font-size: 10px;
-  letter-spacing: 2px;
-  text-decoration: none;
-  text-transform: uppercase;
-  color: #000;
-  cursor: pointer;
-  border: 3px solid;
-  padding: 0.25em 0.5em;
-  box-shadow: 1px 1px 0px 0px, 2px 2px 0px 0px, 3px 3px 0px 0px, 4px 4px 0px 0px, 5px 5px 0px 0px;
-  position: relative;
-  user-select: none;
-  -webkit-user-select: none;
-  touch-action: manipulation;
+.input-group {
+    position: relative;
+    z-index: 1;
 }
