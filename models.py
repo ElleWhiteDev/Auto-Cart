@@ -117,7 +117,6 @@ class Recipe(db.Model):
         db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     name = db.Column(db.Text, nullable=False)
-    source_type = db.Column(db.String(20), nullable=False, default='manual')
     url = db.Column(db.Text, nullable=True)
     notes = db.Column(db.Text, nullable=True)
 
@@ -227,13 +226,13 @@ Return only the cleaned ingredients, one per line, with no additional text or ex
         return parsed_ingredients
 
     @classmethod
-    def create_recipe(cls, ingredients_text, url, user_id, name, notes, source_type='manual'):
+    def create_recipe(cls, ingredients_text, url, user_id, name, notes):
         """Takes parsed ingredients and creates a recipe object"""
 
         # Parse ingredients (already cleaned if from scraping)
         parsed_ingredients = cls.parse_ingredients(ingredients_text)
 
-        recipe = cls(url=url, user_id=user_id, name=name, notes=notes, source_type=source_type)
+        recipe = cls(url=url, user_id=user_id, name=name, notes=notes)
 
         for ingredient_data in parsed_ingredients:
             quantity_string = ingredient_data["quantity"]

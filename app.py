@@ -294,8 +294,7 @@ def add_recipe():
         notes = form.notes.data
         user_id = g.user.id
 
-        source_type = 'extracted' if url and url.strip() else 'manual'
-        recipe = Recipe.create_recipe(ingredients_text, url, user_id, name, notes, source_type)
+        recipe = Recipe.create_recipe(ingredients_text, url, user_id, name, notes)
 
         try:
             db.session.add(recipe)
