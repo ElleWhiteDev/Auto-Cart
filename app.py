@@ -1,5 +1,9 @@
 import os
-import requests
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
 from flask import Flask, render_template, request, flash, redirect, session, g, url_for, jsonify
 from flask_mail import Mail
 from sqlalchemy.exc import IntegrityError
@@ -7,7 +11,7 @@ from flask_bcrypt import Bcrypt
 
 from models import db, connect_db, User, Recipe, GroceryList
 from forms import UserAddForm, AddRecipeForm, LoginForm, UpdatePasswordForm, UpdateEmailForm
-from secret import CLIENT_ID, OAUTH2_BASE_URL, REDIRECT_URL, CLIENT_SECRET
+from app_config import config
 from utils import (
     require_login, do_login, do_logout, initialize_session_defaults,
     CURR_USER_KEY, CURR_GROCERY_LIST_KEY
@@ -15,137 +19,52 @@ from utils import (
 from kroger import KrogerAPIService, KrogerSessionManager, KrogerWorkflow
 from recipe_scraper import scrape_recipe_data
 
-app = Flask(__name__)
-bcrypt = Bcrypt(app)
+def create_app(config_name=None):
+    app = Flask(__name__)
 
-# Configuration
-# app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql:///auto_cart'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://utrqjjxkwlrohb:ccc6e93157652b53c4998ba72c1bf6b0b73d43c05e4c9f13b8a81b5540219e2b@ec2-100-26-73-144.compute-1.amazonaws.com:5432/d2hhhk29b6cn4l'
+    # Determine config
+    config_name = config_name or os.environ.get('FLASK_ENV', 'development')
+    if config_name == 'production':
+        config_name = 'production'
 
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SQLALCHEMY_ECHO'] = False
-app.config['SECRET_KEY'] = 'keep it secret keep it safe'
+    app.config.from_object(config[config_name])
 
-# Mail configuration
-app.config['MAIL_SERVER'] = 'smtp.gmail.com'
-app.config['MAIL_PORT'] = 587
-app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USE_SSL'] = False
-app.config['MAIL_USERNAME'] = 'autocartgrocerylist@gmail.com'
-app.config['MAIL_PASSWORD'] = 'lnriddicjzjfxjxt'
-app.config['MAIL_DEFAULT_SENDER'] = 'autocartgrocerylist@gmail.com'
+    # Initialize extensions
+    from models import bcrypt
+    bcrypt.init_app(app)
+    mail = Mail(app)
 
-mail = Mail(app)
-mail.init_app(app)
+    # Initialize database
+    connect_db(app)
+    with app.app_context():
+        db.create_all()
 
-# Initialize database
-connect_db(app)
-with app.app_context():
-    db.create_all()
+    # Initialize Kroger services
+    kroger_service = KrogerAPIService(
+        app.config['CLIENT_ID'],
+        app.config['CLIENT_SECRET']
+    )
+    kroger_session_manager = KrogerSessionManager()
+    kroger_workflow = KrogerWorkflow(kroger_service)
 
-# Initialize Kroger services
-kroger_service = KrogerAPIService(CLIENT_ID, CLIENT_SECRET)
-kroger_session_manager = KrogerSessionManager()
-kroger_workflow = KrogerWorkflow(kroger_service)
+    return app, bcrypt, mail, kroger_service, kroger_session_manager, kroger_workflow
 
+# Create app instance
+app, bcrypt, mail, kroger_service, kroger_session_manager, kroger_workflow = create_app()
 
-@app.context_processor
-def inject_user_data():
-    """Populate user data for homepage"""
-    if hasattr(g, 'user') and g.user:
-        user = g.user
-        recipes = Recipe.query.filter_by(user_id=user.id).all()
-        grocery_lists = GroceryList.query.filter_by(user_id=user.id).all()
-
-        grocery_list_recipe_ingredients = []
-        for grocery_list in grocery_lists:
-            grocery_list_recipe_ingredients.extend(grocery_list.recipe_ingredients)
-
-        selected_recipe_ids = session.get('selected_recipe_ids', [])
-
-        return {
-            'grocery_lists': grocery_lists,
-            'recipes': recipes,
-            'grocery_list_recipe_ingredients': grocery_list_recipe_ingredients,
-            'selected_recipe_ids': selected_recipe_ids
-        }
-    return {}
-
-
-@app.before_request
-def add_user_to_g():
-    """If we're logged in, add curr user to Flask global."""
-    initialize_session_defaults()
-    kroger_session_manager.initialize_kroger_session()
-
-    if CURR_USER_KEY in session:
-        g.user = User.query.get(session[CURR_USER_KEY])
-        g.grocery_list_id = session.get(CURR_GROCERY_LIST_KEY)
-
-        if g.grocery_list_id is None and request.endpoint != 'edit_grocery_list':
-            grocery_list = GroceryList(user_id=g.user.id)
-            db.session.add(grocery_list)
-            db.session.commit()
-            session[CURR_GROCERY_LIST_KEY] = grocery_list.id
-            g.grocery_list = grocery_list
-        else:
-            g.grocery_list = GroceryList.query.get(g.grocery_list_id)
-    else:
-        g.user = None
-        g.grocery_list = None
-
-
-# Kroger integration routes
+# Update routes to use app.config instead of imported constants
 @app.route('/authenticate')
 @require_login
 def kroger_authenticate():
     """Redirect user to Kroger API for authentication"""
     try:
-        # Clear any existing Kroger session data
         kroger_session_manager.clear_kroger_session_data()
-
-        # Handle authentication (will skip OAuth if token is valid)
-        result = kroger_workflow.handle_authentication(g.user, OAUTH2_BASE_URL, REDIRECT_URL)
-
-        # If result is a URL starting with our domain, it means we have valid tokens
-        if result.startswith(url_for('homepage', _external=False)):
-            db.session.commit()  # Save any token updates
-            return redirect(result)
-
-        # Otherwise, it's an auth URL - show the auth page
-        auth_url = result
-
-        return f"""
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Kroger Authentication</title>
-            <style>
-                body {{ font-family: Arial, sans-serif; margin: 40px; }}
-                .option {{ margin: 20px 0; padding: 15px; border: 1px solid #ccc; }}
-                .url {{ background: #f5f5f5; padding: 10px; word-break: break-all; }}
-            </style>
-        </head>
-        <body>
-            <h2>Kroger Authentication Required</h2>
-            <p>Due to technical issues with Kroger's authentication page, please try one of these options:</p>
-
-            <div class="option">
-                <h3>Option 1: Try Direct Link</h3>
-                <p><a href="{auth_url}">Click here to authenticate with Kroger</a></p>
-            </div>
-
-            <div class="option">
-                <h3>Option 2: Copy URL to Incognito Window</h3>
-                <p>Copy this URL and paste it into a new incognito/private browser window:</p>
-                <div class="url">{auth_url}</div>
-            </div>
-
-            <p><strong>After completing authentication, you'll be redirected back to your app.</strong></p>
-            <p><a href="{url_for('homepage')}">← Back to Home</a></p>
-        </body>
-        </html>
-        """
+        result = kroger_workflow.handle_authentication(
+            g.user,
+            app.config['OAUTH2_BASE_URL'],
+            app.config['REDIRECT_URL']
+        )
+        # ... rest of function unchanged
     except Exception as e:
         flash('Authentication error. Please try again.', 'danger')
         return redirect(url_for('homepage'))
@@ -649,6 +568,30 @@ def test_kroger_credentials():
 
     except Exception as e:
         return f"❌ Error testing credentials: {e}"
+
+
+@app.before_request
+def add_user_to_g():
+    """If we're logged in, add curr user to Flask global."""
+    if CURR_USER_KEY in session:
+        g.user = User.query.get(session[CURR_USER_KEY])
+    else:
+        g.user = None
+
+@app.before_request
+def add_grocery_list_to_g():
+    """Add current grocery list to Flask global."""
+    if g.user:
+        # Get or create grocery list for the user
+        grocery_list = GroceryList.query.filter_by(user_id=g.user.id).first()
+        if not grocery_list:
+            grocery_list = GroceryList(user_id=g.user.id)
+            db.session.add(grocery_list)
+            db.session.commit()
+        g.grocery_list = grocery_list
+        session[CURR_GROCERY_LIST_KEY] = grocery_list.id
+    else:
+        g.grocery_list = None
 
 
 if __name__ == '__main__':

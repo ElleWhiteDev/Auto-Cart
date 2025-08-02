@@ -1,4 +1,5 @@
 import re
+import os
 from fractions import Fraction
 from collections import defaultdict
 from flask import g
@@ -6,13 +7,12 @@ from flask_mail import Message
 from flask_bcrypt import Bcrypt
 from flask_sqlalchemy import SQLAlchemy
 from openai import OpenAI
-from secret import OPENAI_API_KEY
 
 bcrypt = Bcrypt()
 db = SQLAlchemy()
 
-# Initialize OpenAI client
-openai_client = OpenAI(api_key=OPENAI_API_KEY)
+# Initialize OpenAI client using environment variable
+openai_client = OpenAI(api_key=os.environ.get('OPENAI_API_KEY'))
 
 
 # Join table for Grocery List to Recipe Ingredient
@@ -77,13 +77,7 @@ class User(db.Model):
 
     @classmethod
     def authenticate(cls, username, password):
-        """Find user with `username` and `password`.
-
-        It searches for a user whose password hash matches this password
-        and, if it finds such a user, returns that user object.
-
-        If can't find matching user (or if password is wrong), returns False.
-        """
+        """Find user with `username` and `password`."""
 
         user = cls.query.filter_by(username=username).first()
 
@@ -92,7 +86,6 @@ class User(db.Model):
             if is_auth:
                 return user
 
-        print("User not found")
         return False
 
 
