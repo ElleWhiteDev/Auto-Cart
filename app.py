@@ -489,12 +489,13 @@ def email_modal():
 
 @app.route('/send-email', methods=['POST'])
 def send_grocery_list_email():
-    """Send grocery list to user supplied email"""
+    """Send grocery list and selected recipes to user supplied email"""
     email = request.form['email']
+    selected_recipe_ids = request.form.getlist('recipe_ids')
     grocery_list = g.grocery_list
 
     if grocery_list:
-        GroceryList.send_email(email, grocery_list, mail)
+        GroceryList.send_email(email, grocery_list, selected_recipe_ids, mail)
         flash("List sent successfully!", "success")
     else:
         flash("No grocery list found", "error")
