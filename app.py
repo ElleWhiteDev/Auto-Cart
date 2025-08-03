@@ -501,8 +501,12 @@ def send_grocery_list_email():
     grocery_list = g.grocery_list
 
     if grocery_list:
-        GroceryList.send_email(email, grocery_list, selected_recipe_ids, mail)
-        flash("List sent successfully!", "success")
+        try:
+            GroceryList.send_email(email, grocery_list, selected_recipe_ids, mail)
+            flash("List sent successfully!", "success")
+        except Exception as e:
+            print(f"Email error: {e}")
+            flash("Email service is currently unavailable. Please try again later.", "danger")
     else:
         flash("No grocery list found", "error")
 

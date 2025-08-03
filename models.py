@@ -320,33 +320,38 @@ class GroceryList(db.Model):
     @classmethod
     def send_email(cls, recipient, grocery_list, selected_recipe_ids, mail):
         """Send the grocery list and selected recipes via email."""
-        msg = Message("Your Grocery List & Recipes", recipients=[recipient])
+        try:
+            msg = Message("Your Grocery List & Recipes", recipients=[recipient])
 
-        # Build email body
-        email_body = f"Here is your grocery list:\n\n{grocery_list.format_grocery_list()}"
+            # Build email body
+            email_body = f"Here is your grocery list:\n\n{grocery_list.format_grocery_list()}"
 
-        # Add selected recipes if any
-        if selected_recipe_ids:
-            recipes = Recipe.query.filter(Recipe.id.in_(selected_recipe_ids)).all()
-            if recipes:
-                email_body += "\n\n" + "="*50 + "\nSELECTED RECIPES\n" + "="*50 + "\n\n"
+            # Add selected recipes if any
+            if selected_recipe_ids:
+                recipes = Recipe.query.filter(Recipe.id.in_(selected_recipe_ids)).all()
+                if recipes:
+                    email_body += "\n\n" + "="*50 + "\nSELECTED RECIPES\n" + "="*50 + "\n\n"
 
-                for recipe in recipes:
-                    email_body += f"RECIPE: {recipe.name}\n"
-                    if recipe.url:
-                        email_body += f"URL: {recipe.url}\n"
+                    for recipe in recipes:
+                        email_body += f"RECIPE: {recipe.name}\n"
+                        if recipe.url:
+                            email_body += f"URL: {recipe.url}\n"
 
-                    email_body += "\nINGREDIENTS:\n"
-                    for ingredient in recipe.recipe_ingredients:
-                        email_body += f"• {ingredient.quantity} {ingredient.measurement} {ingredient.ingredient_name}\n"
+                        email_body += "\nINGREDIENTS:\n"
+                        for ingredient in recipe.recipe_ingredients:
+                            email_body += f"• {ingredient.quantity} {ingredient.measurement} {ingredient.ingredient_name}\n"
 
-                    if recipe.notes:
-                        email_body += f"\nINSTRUCTIONS/NOTES:\n{recipe.notes}\n"
+                        if recipe.notes:
+                            email_body += f"\nINSTRUCTIONS/NOTES:\n{recipe.notes}\n"
 
-                    email_body += "\n" + "-"*30 + "\n\n"
+                        email_body += "\n" + "-"*30 + "\n\n"
 
-        msg.body = email_body
-        mail.send(msg)
+            msg.body = email_body
+            mail.send(msg)
+
+        except Exception as e:
+            print(f"Failed to send email: {e}")
+            raise e
 
 
     def format_grocery_list(self):
