@@ -9,7 +9,7 @@ from flask_mail import Mail
 from sqlalchemy.exc import IntegrityError
 from flask_bcrypt import Bcrypt
 
-from models import db, connect_db, User, Recipe, GroceryList
+from models import db, connect_db, User, Recipe, GroceryList, RecipeIngredient
 from forms import UserAddForm, AddRecipeForm, LoginForm, UpdatePasswordForm, UpdateEmailForm
 from app_config import config
 from utils import (
@@ -341,10 +341,21 @@ def view_recipe(recipe_id):
         recipe.url = form.url.data
         recipe.notes = form.notes.data
 
+        # Clear existing ingredients
         for ingredient in recipe.recipe_ingredients:
             db.session.delete(ingredient)
 
-        Recipe.parse_and_add_ingredients(recipe, form.ingredients_text.data)
+        # Add new ingredients using the same logic as create_recipe
+        ingredients = form.ingredients_text.data.split("\n")
+        for ingredient in ingredients:
+            ingredient = ingredient.strip()
+            if ingredient:
+                recipe_ingredient = RecipeIngredient(
+                    quantity=1.0,
+                    measurement="unit",
+                    ingredient_name=ingredient[:40],
+                )
+                recipe.recipe_ingredients.append(recipe_ingredient)
 
         try:
             db.session.commit()
