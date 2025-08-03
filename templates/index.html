@@ -106,7 +106,7 @@ content %}
 					<div class="d-flex justify-content-between align-items-center mb-3">
 						<h3>Your Grocery List</h3>
 						<form method="POST" action="{{ url_for('clear_grocery_list') }}" style="display: inline;">
-							<button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to clear your grocery list?')">Clear List</button>
+							<button type="submit" class="btn btn-sm btn-outline-danger">Clear List</button>
 						</form>
 					</div>
 
@@ -124,9 +124,10 @@ content %}
 
 					<ul>
 						{% for ingredient in g.grocery_list.recipe_ingredients %}
-						<li>
-							{{ ingredient.quantity}} {{ ingredient.measurement }} {{
-							ingredient.ingredient_name }}
+						<li class="d-flex justify-content-between align-items-center">
+							<span>{{ ingredient.quantity}} {{ ingredient.measurement }} {{ ingredient.ingredient_name }}</span>
+							<button type="button" class="btn btn-sm btn-outline-danger delete-ingredient-btn"
+									data-ingredient-id="{{ ingredient.id }}" title="Remove ingredient">×</button>
 						</li>
 						{% endfor %}
 					</ul>
@@ -135,10 +136,10 @@ content %}
 				<!-- Manual ingredient input - justified to bottom -->
 				<div class="manual-ingredient-input">
 					<h5>Add Ingredient</h5>
-					<form method="POST" action="{{ url_for('add_manual_ingredient') }}">
+					<form method="POST" action="{{ url_for('add_manual_ingredient') }}" id="manual-ingredient-form">
 						<div class="input-group mb-2">
 							<input type="text" name="ingredient_text" class="form-control form-control-sm"
-								   required>
+								   placeholder="e.g. 2 cups flour" required id="manual-ingredient-input">
 							<button type="submit" class="btn btn-sm btn-primary">Add</button>
 						</div>
 					</form>
@@ -226,18 +227,38 @@ content %}
     <div class="my-modal">
         <div class="details">
             <h1 class="title">Email Grocery List & Recipes</h1>
-            <p class="description">Enter your email address and select recipes to include</p>
+            <p class="description">Enter your email address and choose what to send</p>
         </div>
         <form action="/send-email" method="post">
-            <label for="email">Email:</label>
-            <input type="email" id="email" name="email" required>
+            <div class="form-group mb-3">
+                <label for="email" class="form-label">Email:</label>
+                <input type="email" id="email" name="email" class="form-control" required>
+            </div>
+
+            <!-- Email type selection -->
+            <div class="email-type-selection mt-3 mb-3">
+                <h5>What to send:</h5>
+                <div class="form-check">
+                    <input type="radio" name="email_type" value="recipes_only" class="form-check-input" id="recipes-only">
+                    <label class="form-check-label" for="recipes-only">
+                        Recipes Only
+                    </label>
+                </div>
+                <div class="form-check">
+                    <input type="radio" name="email_type" value="list_and_recipes" class="form-check-input" id="list-and-recipes" checked>
+                    <label class="form-check-label" for="list-and-recipes">
+                        Grocery List & Recipes
+                    </label>
+                </div>
+            </div>
 
             <div class="recipe-selection mt-3">
                 <h5>Include Recipes (optional):</h5>
                 <div class="recipe-checkboxes" style="max-height: 200px; overflow-y: auto;">
                     {% for recipe in recipes %}
                     <div class="form-check">
-                        <input type="checkbox" name="recipe_ids" value="{{ recipe.id }}" class="form-check-input" id="email-recipe-{{ recipe.id }}">
+                        <input type="checkbox" name="recipe_ids" value="{{ recipe.id }}" class="form-check-input email-recipe-checkbox"
+                               id="email-recipe-{{ recipe.id }}">
                         <label class="form-check-label" for="email-recipe-{{ recipe.id }}">
                             {{ recipe.name }}
                         </label>
@@ -251,185 +272,25 @@ content %}
         <p><a href="#modal-closed" class="btn">Cancel</a></p>
     </div>
 </div>
+
+<script>
+// Sync email modal checkboxes with recipe box checkboxes
+document.getElementById('modal-closed').addEventListener('click', function() {
+    // When opening email modal, sync checkboxes
+    const recipeBoxCheckboxes = document.querySelectorAll('input[name="recipe_ids"]:not(.email-recipe-checkbox)');
+    const emailCheckboxes = document.querySelectorAll('.email-recipe-checkbox');
+
+    emailCheckboxes.forEach(emailCheckbox => {
+        const recipeId = emailCheckbox.value;
+        const correspondingRecipeBox = Array.from(recipeBoxCheckboxes).find(cb => cb.value === recipeId);
+        if (correspondingRecipeBox) {
+            emailCheckbox.checked = correspondingRecipeBox.checked;
+        }
+    });
+});
+</script>
 </div>
 {% endblock %}
 
 {% block scripts %}
-<script>
-function openKrogerAuth() {
-    // Navigate in the same tab instead of opening popup
-    window.location.href = '/authenticate';
-}
-
-document.getElementById('extract-ai-btn').addEventListener('click', async function() {
-    const urlInput = document.getElementById('url');
-
-    if (!urlInput) {
-        alert('Could not find URL input field');
-        return;
-    }
-
-    const url = urlInput.value.trim();
-
-    if (!url) {
-        alert('Please enter a recipe URL first');
-        return;
-    }
-
-    // Show loading state
-    const btn = this;
-    const spinner = document.getElementById('extract-spinner');
-    const originalText = btn.innerHTML;
-
-    btn.disabled = true;
-    spinner.classList.remove('d-none');
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Extracting...';
-
-    try {
-        // Create form data and submit
-        const formData = new FormData();
-        formData.append('url', url);
-
-        const response = await fetch('/extract-recipe-form', {
-            method: 'POST',
-            body: formData
-        });
-
-        if (response.ok) {
-            const result = await response.json();
-
-            if (result.success) {
-                // Populate form fields with extracted data
-                const nameField = document.getElementById('name');
-                const ingredientsField = document.getElementById('ingredients_text');
-                const notesField = document.getElementById('notes');
-
-                if (nameField && result.data.name) {
-                    nameField.value = result.data.name;
-                }
-
-                if (ingredientsField && result.data.ingredients_text) {
-                    ingredientsField.value = result.data.ingredients_text;
-                }
-
-                if (notesField && result.data.notes) {
-                    notesField.value = result.data.notes;
-                }
-
-                showFlashMessage('Recipe extracted successfully! Review and edit as needed.', 'success');
-            } else {
-                showFlashMessage(result.error || 'Failed to extract recipe', 'danger');
-            }
-        } else {
-            const errorResult = await response.json();
-            showFlashMessage(errorResult.error || 'Failed to extract recipe', 'danger');
-        }
-    } catch (error) {
-        showFlashMessage('Network error. Please try again.', 'danger');
-    } finally {
-        // Reset button state
-        btn.disabled = false;
-        spinner.classList.add('d-none');
-        btn.innerHTML = originalText;
-    }
-});
-
-function showFlashMessage(message, category) {
-    // Create flash message element
-    const flashDiv = document.createElement('div');
-    flashDiv.className = `alert alert-${category} alert-dismissible fade show`;
-    flashDiv.innerHTML = `
-        ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    `;
-
-    // Insert at top of form
-    const form = document.querySelector('#user_form');
-    form.insertBefore(flashDiv, form.firstChild);
-
-    // Auto-dismiss after 5 seconds
-    setTimeout(() => {
-        flashDiv.remove();
-    }, 5000);
-}
-
-// Email modal close functionality
-document.addEventListener('DOMContentLoaded', function() {
-    const emailModal = document.getElementById('email-modal');
-    const closeBtn = emailModal.querySelector('.close');
-
-    // Close modal when clicking the X
-    if (closeBtn) {
-        closeBtn.addEventListener('click', function() {
-            emailModal.style.display = 'none';
-        });
-    }
-
-    // Close modal when clicking outside of it
-    window.addEventListener('click', function(event) {
-        if (event.target === emailModal) {
-            emailModal.style.display = 'none';
-        }
-    });
-});
-
-// Standardize ingredients functionality
-document.getElementById('standardize-btn').addEventListener('click', async function() {
-    const ingredientsField = document.getElementById('ingredients_text');
-
-    if (!ingredientsField) {
-        alert('Could not find ingredients field');
-        return;
-    }
-
-    const ingredientsText = ingredientsField.value.trim();
-
-    if (!ingredientsText) {
-        alert('Please enter some ingredients first');
-        return;
-    }
-
-    // Show loading state
-    const btn = this;
-    const spinner = document.getElementById('standardize-spinner');
-    const originalText = btn.innerHTML;
-
-    btn.disabled = true;
-    spinner.classList.remove('d-none');
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Standardizing...';
-
-    try {
-        // Create form data and submit
-        const formData = new FormData();
-        formData.append('ingredients_text', ingredientsText);
-
-        const response = await fetch('/standardize-ingredients', {
-            method: 'POST',
-            body: formData
-        });
-
-        if (response.ok) {
-            const result = await response.json();
-
-            if (result.success) {
-                // Update the ingredients field with standardized text
-                ingredientsField.value = result.data.standardized_ingredients;
-                showFlashMessage('Ingredients standardized successfully!', 'success');
-            } else {
-                showFlashMessage(result.error || 'Failed to standardize ingredients', 'danger');
-            }
-        } else {
-            const errorResult = await response.json();
-            showFlashMessage(errorResult.error || 'Failed to standardize ingredients', 'danger');
-        }
-    } catch (error) {
-        showFlashMessage('Network error. Please try again.', 'danger');
-    } finally {
-        // Reset button state
-        btn.disabled = false;
-        spinner.classList.add('d-none');
-        btn.innerHTML = originalText;
-    }
-});
-</script>
 {% endblock %}

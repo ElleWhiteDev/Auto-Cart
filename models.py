@@ -187,72 +187,74 @@ Return only the cleaned ingredients, one per line, with no additional text or ex
 
     @classmethod
     def parse_ingredients(cls, ingredients_text):
-        """Parse ingredient text into individual objects"""
+        """Parse ingredient text into individual objects using OpenAI"""
 
-        # Ingredients should already be cleaned by OpenAI at this point
-        ingredients = ingredients_text.split("\n")
-        parsed_ingredients = []
+        try:
+            system_prompt = """You are an ingredient parser. Parse each ingredient line into structured data with quantity, measurement, and ingredient name.
 
-        for ingredient in ingredients:
-            # Clean up any remaining unwanted characters
-            ingredient = re.sub(r'[▢☐□✓✔]', '', ingredient).strip()
+Return ONLY a JSON array where each ingredient is an object with these exact keys:
+- "quantity": the numeric amount as a string (convert ranges like "3-4" to the first number "3")
+- "measurement": the unit of measurement (cup, tbsp, tsp, lb, oz, etc.)
+- "ingredient_name": the ingredient name including any descriptors
 
-            if not ingredient:
-                continue
+Examples:
+"2 cups flour" → {"quantity": "2", "measurement": "cup", "ingredient_name": "flour"}
+"1/4 tsp salt" → {"quantity": "1/4", "measurement": "tsp", "ingredient_name": "salt"}
+"3-4 lb chicken" → {"quantity": "3", "measurement": "lb", "ingredient_name": "chicken"}
+"salt and pepper to taste" → {"quantity": "1", "measurement": "unit", "ingredient_name": "salt and pepper to taste"}
 
-            print(f"Trying to match: {ingredient}")
+Return only the JSON array, no explanations."""
 
-            # Try different regex patterns
-            patterns = [
-                r"^(\d+(?:/\d+)?(?:\.\d+)?)\s+(\w+)\s+(.*)",  # "1/4 cup honey"
-                r"^(\d+(?:/\d+)?(?:\.\d+)?)(\w+)\s+(.*)",     # "1/4cup honey"
-                r"^(\d+(?:/\d+)?(?:\.\d+)?)(\w+)(.*)",        # "1/4cuphoney"
-            ]
+            response = openai_client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": f"Parse these ingredients:\n\n{ingredients_text}"}
+                ],
+                temperature=0.1,
+                max_tokens=1000
+            )
 
-            match = None
-            for pattern in patterns:
-                match = re.match(pattern, ingredient)
-                if match:
-                    break
+            import json
+            parsed_ingredients = json.loads(response.choices[0].message.content.strip())
+            return parsed_ingredients
 
-            print(f"Match result: {match}")
-            if match:
-                quantity, measurement, ingredient_name = match.groups()
-                ingredient_name = ingredient_name.strip()[:40]
-                parsed_ingredients.append({
-                    "quantity": quantity.strip() if quantity else None,
-                    "measurement": measurement.strip() if measurement else None,
-                    "ingredient_name": ingredient_name.strip(),
-                })
-        return parsed_ingredients
+        except Exception as e:
+            print(f"=== OPENAI PARSING ERROR ===")
+            print(f"OpenAI parsing error: {e}")
+            print("Falling back to simple parsing")
+            print(f"=== END OPENAI PARSING ERROR ===")
+
+            # Fallback: simple parsing
+            ingredients = ingredients_text.split("\n")
+            parsed_ingredients = []
+            for ingredient in ingredients:
+                ingredient = ingredient.strip()
+                if ingredient:
+                    parsed_ingredients.append({
+                        "quantity": "1",
+                        "measurement": "unit",
+                        "ingredient_name": ingredient[:40],
+                    })
+            return parsed_ingredients
 
     @classmethod
     def create_recipe(cls, ingredients_text, url, user_id, name, notes):
-        """Takes parsed ingredients and creates a recipe object"""
-
-        # Parse ingredients (already cleaned if from scraping)
-        parsed_ingredients = cls.parse_ingredients(ingredients_text)
+        """Takes ingredients text and creates a recipe object"""
 
         recipe = cls(url=url, user_id=user_id, name=name, notes=notes)
 
-        for ingredient_data in parsed_ingredients:
-            quantity_string = ingredient_data["quantity"]
-            if "/" in quantity_string:
-                quantity = float(Fraction(quantity_string))
-            elif cls.is_float(quantity_string):
-                quantity = float(quantity_string)
-            else:
-                print(
-                    f"Skipping ingredient: {ingredient_data['ingredient_name']} - Quantity is not a number."
+        # Just split ingredients by lines and store them as-is
+        ingredients = ingredients_text.split("\n")
+        for ingredient in ingredients:
+            ingredient = ingredient.strip()
+            if ingredient:
+                recipe_ingredient = RecipeIngredient(
+                    quantity=1.0,  # Default quantity
+                    measurement="unit",  # Default measurement
+                    ingredient_name=ingredient[:40],  # Store the full ingredient text
                 )
-                continue
-
-            recipe_ingredient = RecipeIngredient(
-                quantity=quantity,
-                measurement=ingredient_data["measurement"],
-                ingredient_name=ingredient_data["ingredient_name"],
-            )
-            recipe.recipe_ingredients.append(recipe_ingredient)
+                recipe.recipe_ingredients.append(recipe_ingredient)
 
         return recipe
 
@@ -353,6 +355,41 @@ class GroceryList(db.Model):
             print(f"Failed to send email: {e}")
             raise e
 
+    @classmethod
+    def send_recipes_only_email(cls, recipient, selected_recipe_ids, mail):
+        """Send only the selected recipes via email."""
+        try:
+            msg = Message("Your Recipes", recipients=[recipient])
+
+            if selected_recipe_ids:
+                recipes = Recipe.query.filter(Recipe.id.in_(selected_recipe_ids)).all()
+                if recipes:
+                    email_body = "Here are your selected recipes:\n\n"
+
+                    for recipe in recipes:
+                        email_body += f"RECIPE: {recipe.name}\n"
+                        if recipe.url:
+                            email_body += f"URL: {recipe.url}\n"
+
+                        email_body += "\nINGREDIENTS:\n"
+                        for ingredient in recipe.recipe_ingredients:
+                            email_body += f"• {ingredient.quantity} {ingredient.measurement} {ingredient.ingredient_name}\n"
+
+                        if recipe.notes:
+                            email_body += f"\nINSTRUCTIONS/NOTES:\n{recipe.notes}\n"
+
+                        email_body += "\n" + "-"*30 + "\n\n"
+                else:
+                    email_body = "No recipes selected."
+            else:
+                email_body = "No recipes selected."
+
+            msg.body = email_body
+            mail.send(msg)
+
+        except Exception as e:
+            print(f"Failed to send email: {e}")
+            raise e
 
     def format_grocery_list(self):
         """Format the grocery list for email."""

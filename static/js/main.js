@@ -119,6 +119,28 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    // Delete ingredient functionality
+    const deleteIngredientBtns = document.querySelectorAll('.delete-ingredient-btn');
+    deleteIngredientBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const ingredientId = this.getAttribute('data-ingredient-id');
+
+            // Remove the confirm dialog
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '/delete_ingredient';
+
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'ingredient_id';
+            input.value = ingredientId;
+
+            form.appendChild(input);
+            document.body.appendChild(form);
+            form.submit();
+        });
+    });
 });
 
 // Helper functions

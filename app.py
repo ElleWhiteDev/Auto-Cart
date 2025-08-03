@@ -152,18 +152,20 @@ def skip_ingredient():
 # User management routes
 @app.route('/')
 def homepage():
-    """Landing page"""
-    # Clear selected recipe IDs on page reload
-    session.pop('selected_recipe_ids', None)
+    """Show homepage with recipes and grocery list"""
+    initialize_session_defaults()
+
+    if g.user:
+        recipes = Recipe.query.filter_by(user_id=g.user.id).all()
+        selected_recipe_ids = session.get('selected_recipe_ids', [])
+        print(f"DEBUG: selected_recipe_ids = {selected_recipe_ids}")
+        print(f"DEBUG: recipe IDs = {[recipe.id for recipe in recipes]}")
+    else:
+        recipes = []
+        selected_recipe_ids = []
 
     form = AddRecipeForm()
-
-    # Get recipes for logged-in users
-    recipes = []
-    if g.user:
-        recipes = g.user.recipes
-
-    return render_template('index.html', form=form, recipes=recipes)
+    return render_template('index.html', form=form, recipes=recipes, selected_recipe_ids=selected_recipe_ids)
 
 
 @app.route('/register', methods=["GET", "POST"])
@@ -300,17 +302,25 @@ def add_recipe():
         notes = form.notes.data
         user_id = g.user.id
 
-        recipe = Recipe.create_recipe(ingredients_text, url, user_id, name, notes)
-
         try:
+            recipe = Recipe.create_recipe(ingredients_text, url, user_id, name, notes)
             db.session.add(recipe)
             db.session.commit()
             flash('Recipe created successfully!', 'success')
             return redirect(url_for('homepage'))
         except Exception as error:
             db.session.rollback()
+            print(f"=== RECIPE CREATION ERROR ===")
+            print(f"Error: {error}")
+            print(f"Error type: {type(error).__name__}")
+            import traceback
+            traceback.print_exc()
+            print(f"=== END ERROR DEBUG ===")
             flash('Error Occurred. Please try again', 'danger')
             return redirect(url_for('homepage'))
+    else:
+        print(f"Form validation failed: {form.errors}")
+        flash('Form validation failed. Please check your input.', 'danger')
     return redirect(url_for('homepage'))
 
 
@@ -402,6 +412,9 @@ def clear_grocery_list():
         flash('Grocery list cleared successfully!', 'success')
     else:
         flash('No grocery list found', 'error')
+
+    # Clear selected recipe IDs from session
+    session.pop('selected_recipe_ids', None)
 
     return redirect(url_for('homepage'))
 
@@ -497,18 +510,25 @@ def email_modal():
 def send_grocery_list_email():
     """Send grocery list and selected recipes to user supplied email"""
     email = request.form['email']
+    email_type = request.form.get('email_type', 'list_and_recipes')
     selected_recipe_ids = request.form.getlist('recipe_ids')
     grocery_list = g.grocery_list
 
-    if grocery_list:
-        try:
-            GroceryList.send_email(email, grocery_list, selected_recipe_ids, mail)
-            flash("List sent successfully!", "success")
-        except Exception as e:
-            print(f"Email error: {e}")
-            flash("Email service is currently unavailable. Please try again later.", "danger")
-    else:
-        flash("No grocery list found", "error")
+    try:
+        if email_type == 'recipes_only':
+            # Send only recipes
+            GroceryList.send_recipes_only_email(email, selected_recipe_ids, mail)
+            flash("Recipes sent successfully!", "success")
+        else:
+            # Send grocery list and recipes (current functionality)
+            if grocery_list:
+                GroceryList.send_email(email, grocery_list, selected_recipe_ids, mail)
+                flash("List sent successfully!", "success")
+            else:
+                flash("No grocery list found", "error")
+    except Exception as e:
+        print(f"Email error: {e}")
+        flash("Email service is currently unavailable. Please try again later.", "danger")
 
     return redirect(url_for('homepage'))
 
@@ -578,6 +598,36 @@ def test_kroger_credentials():
 
     except Exception as e:
         return f"❌ Error testing credentials: {e}"
+
+
+@app.route('/delete_ingredient', methods=['POST'])
+@require_login
+def delete_ingredient():
+    """Delete a specific ingredient from the grocery list"""
+    ingredient_id = request.form.get('ingredient_id')
+
+    if not ingredient_id:
+        flash('Invalid ingredient', 'error')
+        return redirect(url_for('homepage'))
+
+    from models import RecipeIngredient
+    ingredient = RecipeIngredient.query.get(ingredient_id)
+
+    if not ingredient:
+        flash('Ingredient not found', 'error')
+        return redirect(url_for('homepage'))
+
+    # Check if ingredient belongs to user's grocery list
+    if ingredient not in g.grocery_list.recipe_ingredients:
+        flash('Unauthorized', 'error')
+        return redirect(url_for('homepage'))
+
+    g.grocery_list.recipe_ingredients.remove(ingredient)
+    db.session.delete(ingredient)
+    db.session.commit()
+
+    flash('Ingredient removed successfully!', 'success')
+    return redirect(url_for('homepage'))
 
 
 @app.before_request
