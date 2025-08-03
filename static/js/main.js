@@ -1,6 +1,6 @@
 // Kroger authentication
 function openKrogerAuth() {
-    window.location.href = '/authenticate';
+    window.open('/authenticate', '_blank');
 }
 
 // AI Recipe extraction
