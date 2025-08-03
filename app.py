@@ -157,7 +157,13 @@ def homepage():
     session.pop('selected_recipe_ids', None)
 
     form = AddRecipeForm()
-    return render_template('index.html', form=form)
+
+    # Get recipes for logged-in users
+    recipes = []
+    if g.user:
+        recipes = g.user.recipes
+
+    return render_template('index.html', form=form, recipes=recipes)
 
 
 @app.route('/register', methods=["GET", "POST"])
