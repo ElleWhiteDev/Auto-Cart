@@ -153,11 +153,12 @@ class Recipe(db.Model):
    - "0.75" → "3/4"
    - "0.33" → "1/3"
    - "0.67" → "2/3"
-5. Simplify ingredient descriptions by removing preparation methods:
-   - "4 tbsp melted butter" → "4 tbsp butter"
-   - "1 cup diced onions" → "1 cup onions"
-   - "2 lbs ground beef" → "2 lb beef"
-6. Format each ingredient as: "quantity measurement ingredient_name"
+5. PRESERVE preparation modifiers and descriptive terms:
+   - Keep: "diced", "chopped", "minced", "sliced", "fresh", "frozen", "dried", "ground", "whole", "crushed", "grated", etc.
+   - "4 tbsp melted butter" → "4 tbsp melted butter"
+   - "1 cup diced onions" → "1 cup diced onions"
+   - "2 lbs ground beef" → "2 lb ground beef"
+6. Format each ingredient as: "quantity measurement ingredient_name_with_modifiers"
 7. Put each ingredient on a separate line
 8. Remove empty lines
 
@@ -277,40 +278,42 @@ class GroceryList(db.Model):
         """Create grocery list that includes chosen recipes"""
 
         recipes = Recipe.query.filter(Recipe.id.in_(selected_recipe_ids)).all()
-        combined_ingredients = defaultdict(lambda: [])
 
+        # Collect all ingredients from selected recipes
+        all_ingredients = []
         for recipe in recipes:
             for recipe_ingredient in recipe.recipe_ingredients:
-                ingredient_name = recipe_ingredient.ingredient_name
-                quantity = recipe_ingredient.quantity
-                measurement = recipe_ingredient.measurement
+                all_ingredients.append({
+                    'quantity': recipe_ingredient.quantity,
+                    'measurement': recipe_ingredient.measurement,
+                    'ingredient_name': recipe_ingredient.ingredient_name
+                })
 
-                found = False
-                for entry in combined_ingredients[ingredient_name]:
-                    if entry["measurement"] == measurement:
-                        entry["quantity"] += quantity
-                        found = True
-                        break
-
-                if not found:
-                    combined_ingredients[ingredient_name].append(
-                        {
-                            "quantity": quantity,
-                            "measurement": measurement,
-                        }
-                    )
+        # Use AI to consolidate similar ingredients
+        consolidated_ingredients = cls.consolidate_ingredients_with_openai(all_ingredients)
 
         if grocery_list is not None:
             grocery_list.recipe_ingredients.clear()
 
-        for ingredient_name, entries in combined_ingredients.items():
-            for entry in entries:
-                recipe_ingredient = RecipeIngredient(
-                    ingredient_name=ingredient_name,
-                    quantity=entry["quantity"],
-                    measurement=entry["measurement"],
-                )
-                grocery_list.recipe_ingredients.append(recipe_ingredient)
+        # Create new recipe ingredients from consolidated list
+        for ingredient_data in consolidated_ingredients:
+            quantity_string = str(ingredient_data["quantity"])
+
+            # Convert quantity to float
+            if "/" in quantity_string:
+                quantity = float(Fraction(quantity_string))
+            elif Recipe.is_float(quantity_string):
+                quantity = float(quantity_string)
+            else:
+                print(f"Skipping ingredient: {ingredient_data['ingredient_name']} - Invalid quantity.")
+                continue
+
+            recipe_ingredient = RecipeIngredient(
+                ingredient_name=ingredient_data["ingredient_name"],
+                quantity=quantity,
+                measurement=ingredient_data["measurement"],
+            )
+            grocery_list.recipe_ingredients.append(recipe_ingredient)
 
         db.session.commit()
 
