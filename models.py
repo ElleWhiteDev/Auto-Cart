@@ -358,6 +358,73 @@ class GroceryList(db.Model):
 
         return "\n".join(ingredients_list)
 
+    @classmethod
+    def consolidate_ingredients_with_openai(cls, ingredients_list):
+        """Consolidate similar ingredients using OpenAI."""
+        try:
+            # Format ingredients for AI processing
+            ingredients_text = "\n".join([
+                f"{ing['quantity']} {ing['measurement']} {ing['ingredient_name']}"
+                for ing in ingredients_list
+            ])
+
+            system_prompt = """You are an intelligent grocery list consolidator. Your task is to combine similar ingredients while preserving accurate quantities and measurements.
+
+Rules for consolidation:
+1. Combine ingredients that are the same base item, regardless of preparation method
+3. Add quantities together when combining
+4. Use the simplest form of the ingredient name (remove preparation methods for grocery list)
+5. Standardize measurements to most common form:
+   - Use "cup" instead of "c" or "C"
+   - Use "tbsp" instead of "tablespoon"
+   - Use "tsp" instead of "teaspoon"
+   - Use "lb" instead of "pound"
+
+Examples:
+- "2 cup diced onions" + "1 cup chopped onions" + "0.5 cup onions" = "3.5 cup onions"
+- "1 tbsp fresh basil" + "2 tsp dried basil" = keep separate (different units)
+
+Return the consolidated list with one ingredient per line in format: "quantity measurement ingredient_name"
+Only return the consolidated ingredients, no explanations."""
+
+            response = openai_client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": f"Consolidate these ingredients:\n\n{ingredients_text}"}
+                ],
+                temperature=0.1,
+                max_tokens=1000
+            )
+
+            consolidated_text = response.choices[0].message.content.strip()
+
+            # Parse the consolidated ingredients back into the expected format
+            consolidated_ingredients = []
+            for line in consolidated_text.split('\n'):
+                line = line.strip()
+                if not line:
+                    continue
+
+                # Parse the consolidated ingredient
+                match = re.match(r'^(\d+(?:/\d+)?(?:\.\d+)?)\s+(\w+)\s+(.*)', line)
+                if match:
+                    quantity, measurement, ingredient_name = match.groups()
+                    consolidated_ingredients.append({
+                        'quantity': quantity.strip(),
+                        'measurement': measurement.strip(),
+                        'ingredient_name': ingredient_name.strip()
+                    })
+
+            return consolidated_ingredients
+
+        except Exception as e:
+            print(f"=== OPENAI CONSOLIDATION ERROR ===")
+            print(f"OpenAI API error: {e}")
+            print("Falling back to original ingredients")
+            print(f"=== END OPENAI CONSOLIDATION ERROR ===")
+            return ingredients_list
+
 def connect_db(app):
     db.app = app
     db.init_app(app)
