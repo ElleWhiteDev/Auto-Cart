@@ -898,4 +898,78 @@ p {
   .navbar-brand {
     font-size: var(--text-xl);
   }
+
+  /* Mobile Modal Product Layout */
+  .my-modal {
+    width: 98vw;
+    max-width: 98vw;
+    max-height: 85vh;
+    margin: var(--space-1);
+  }
+
+  .selection-option {
+    position: relative;
+    margin-bottom: var(--space-3);
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .selection-label {
+    flex-direction: column;
+    align-items: center;
+    padding: var(--space-5);
+    min-height: auto;
+    gap: var(--space-3);
+    width: 100%;
+    box-sizing: border-box;
+    text-align: center;
+  }
+
+  .selection-label img {
+    width: 80px;
+    height: 80px;
+    flex-shrink: 0;
+  }
+
+  .selection-label .product-info {
+    width: 100%;
+    max-width: 100%;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+  }
+
+  .selection-label .product-name {
+    font-size: var(--text-base);
+    line-height: 1.4;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+  }
+
+  .selection-label .product-brand {
+    font-size: var(--text-sm);
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+
+  .selection-label .product-price {
+    font-size: var(--text-xl);
+    margin-top: var(--space-2);
+    font-weight: var(--font-bold);
+  }
+
+  .selection-radio {
+    position: absolute;
+    top: var(--space-3);
+    left: var(--space-3);
+    z-index: 1;
+  }
+
+  .modal-body {
+    padding: var(--space-3);
+  }
+
+  .selection-options {
+    width: 100%;
+  }
 }
