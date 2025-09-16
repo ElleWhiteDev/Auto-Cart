@@ -325,8 +325,15 @@ class GroceryList(db.Model):
         try:
             msg = Message("Your Grocery List & Recipes", recipients=[recipient])
 
-            # Build email body
-            email_body = f"Here is your grocery list:\n\n{grocery_list.format_grocery_list()}"
+            # Build email body with grocery list items (not recipe ingredients)
+            email_body = "Here is your grocery list:\n\n"
+
+            # Get all items from the grocery list
+            for recipe_ingredient in grocery_list.recipe_ingredients:
+                if recipe_ingredient.quantity and recipe_ingredient.quantity > 0 and recipe_ingredient.measurement:
+                    email_body += f"• {recipe_ingredient.quantity} {recipe_ingredient.measurement} {recipe_ingredient.ingredient_name}\n"
+                else:
+                    email_body += f"• {recipe_ingredient.ingredient_name}\n"
 
             # Add selected recipes if any
             if selected_recipe_ids:
@@ -410,23 +417,33 @@ class GroceryList(db.Model):
                 for ing in ingredients_list
             ])
 
-            system_prompt = """You are an intelligent grocery list consolidator. Your task is to combine similar ingredients while preserving accurate quantities and measurements.
+            system_prompt = """You are an intelligent grocery list consolidator. Your task is to combine similar ingredients while preserving accurate quantities and important variety distinctions.
 
-Rules for consolidation:
-1. Combine ingredients that are the same base item, regardless of preparation method
-3. Add quantities together when combining
-4. Use the simplest form of the ingredient name (remove preparation methods for grocery list)
-5. Standardize measurements to most common form:
-   - Use "cup" instead of "c" or "C"
-   - Use "tbsp" instead of "tablespoon"
-   - Use "tsp" instead of "teaspoon"
-   - Use "lb" instead of "pound"
+GROUPING RULES:
 
-Examples:
-- "2 cup diced onions" + "1 cup chopped onions" + "0.5 cup onions" = "3.5 cup onions"
-- "1 tbsp fresh basil" + "2 tsp dried basil" = keep separate (different units)
+**Group together (same base ingredient):**
+- Different preparation methods: "chopped onion", "diced onion", "sliced onion", "minced onion" → all become "onion"
+- Generic vs specific: "tomatoes", "diced tomatoes" → both become "tomatoes"
+- All butter types: "butter", "unsalted butter", "salted butter", "melted butter" → all become "butter"
 
+**SKIP these ingredients (do not include in output):**
+- Water in any form: "water", "cold water", "warm water", "boiling water"
+
+**Keep separate (different varieties that matter for shopping):**
+- Color/variety specifications: "yellow onion", "red onion", "white onion" → keep as separate items
+- Different types: "roma tomatoes", "cherry tomatoes", "grape tomatoes" → keep separate
+- Different cuts of meat: "chicken breast", "chicken thighs", "ground chicken" → keep separate
+- Different dairy types: "whole milk", "2% milk", "skim milk" → keep separate
+- Different cheese types: "cheddar cheese", "mozzarella cheese" → keep separate
+
+**Quantity consolidation:**
+- Add quantities together when combining ingredients
+- Convert to simplest fraction form when possible
+- Use the most common measurement unit when combining
+
+**Output format:**
 Return the consolidated list with one ingredient per line in format: "quantity measurement ingredient_name"
+Use the simplest, most grocery-store-friendly name for each ingredient.
 Only return the consolidated ingredients, no explanations."""
 
             response = openai_client.chat.completions.create(

@@ -430,6 +430,46 @@ def clear_grocery_list():
     return redirect(url_for('homepage'))
 
 
+def parse_simple_ingredient(ingredient_text):
+    """Simple ingredient parser for basic ingredients without complex formatting."""
+    import re
+
+    ingredient_text = ingredient_text.strip()
+    if not ingredient_text:
+        return []
+
+    # Try to match pattern: "number unit ingredient" (e.g., "2 cups flour")
+    pattern = r'^(\d+(?:/\d+)?(?:\.\d+)?)\s+(\w+)\s+(.*)'
+    match = re.match(pattern, ingredient_text)
+
+    if match:
+        quantity, measurement, ingredient_name = match.groups()
+        return [{
+            "quantity": quantity.strip(),
+            "measurement": measurement.strip(),
+            "ingredient_name": ingredient_name.strip()
+        }]
+
+    # Try to match pattern: "number ingredient" (e.g., "2 apples")
+    pattern = r'^(\d+(?:/\d+)?(?:\.\d+)?)\s+(.*)'
+    match = re.match(pattern, ingredient_text)
+
+    if match:
+        quantity, ingredient_name = match.groups()
+        return [{
+            "quantity": quantity.strip(),
+            "measurement": "item",
+            "ingredient_name": ingredient_name.strip()
+        }]
+
+    # Default: treat as single item without unit (e.g., "pickles")
+    return [{
+        "quantity": "",
+        "measurement": "",
+        "ingredient_name": ingredient_text
+    }]
+
+
 @app.route('/add_manual_ingredient', methods=['POST'])
 @require_login
 def add_manual_ingredient():
@@ -441,11 +481,16 @@ def add_manual_ingredient():
         return redirect(url_for('homepage'))
 
     try:
-        # Parse the ingredient using the same logic as recipes
+        # Try to parse the ingredient using OpenAI first, then fallback to simple parsing
         parsed_ingredients = Recipe.parse_ingredients(ingredient_text)
 
+        # If OpenAI parsing fails or returns empty, use simple manual parsing
         if not parsed_ingredients:
-            flash('Could not parse ingredient. Please use format like "2 cups flour"', 'error')
+            # Simple manual parsing for basic ingredients
+            parsed_ingredients = parse_simple_ingredient(ingredient_text)
+
+        if not parsed_ingredients:
+            flash('Could not parse ingredient. Please use format like "2 cups flour" or just "pickles"', 'error')
             return redirect(url_for('homepage'))
 
         grocery_list = g.grocery_list
@@ -466,28 +511,32 @@ def add_manual_ingredient():
         # Process new ingredients
         for ingredient_data in parsed_ingredients:
             quantity_string = ingredient_data["quantity"]
-
-            # Convert quantity to float
-            if "/" in quantity_string:
-                from fractions import Fraction
-                quantity = float(Fraction(quantity_string))
-            elif Recipe.is_float(quantity_string):
-                quantity = float(quantity_string)
-            else:
-                flash(f'Invalid quantity for ingredient: {ingredient_data["ingredient_name"]}', 'error')
-                continue
-
             ingredient_name = ingredient_data["ingredient_name"]
             measurement = ingredient_data["measurement"]
+
+            # Handle ingredients without quantities (like "pickles")
+            if not quantity_string or quantity_string == "":
+                quantity = 0  # Use 0 for display purposes, but we'll handle this specially
+            else:
+                # Convert quantity to float
+                if "/" in quantity_string:
+                    from fractions import Fraction
+                    quantity = float(Fraction(quantity_string))
+                elif Recipe.is_float(quantity_string):
+                    quantity = float(quantity_string)
+                else:
+                    flash(f'Invalid quantity for ingredient: {ingredient_data["ingredient_name"]}', 'error')
+                    continue
 
             # Check if we can combine with existing ingredient
             combined = False
             for existing_entry in existing_ingredients[ingredient_name]:
                 if existing_entry["measurement"] == measurement:
-                    # Update existing ingredient quantity
-                    existing_entry["ingredient_obj"].quantity += quantity
-                    combined = True
-                    break
+                    # Only combine if both have quantities, otherwise treat as separate
+                    if quantity > 0 and existing_entry["ingredient_obj"].quantity > 0:
+                        existing_entry["ingredient_obj"].quantity += quantity
+                        combined = True
+                        break
 
             if not combined:
                 # Create new ingredient
@@ -500,13 +549,11 @@ def add_manual_ingredient():
                 grocery_list.recipe_ingredients.append(new_ingredient)
 
         db.session.commit()
-        flash('Ingredient added successfully!', 'success')
+        return jsonify({'success': True, 'message': 'Ingredient added successfully!'})
 
     except Exception as e:
         db.session.rollback()
-        flash('Error adding ingredient. Please try again.', 'error')
-
-    return redirect(url_for('homepage'))
+        return jsonify({'success': False, 'error': 'Error adding ingredient. Please try again.'}), 400
 
 
 # Email functionality
@@ -618,27 +665,26 @@ def delete_ingredient():
     ingredient_id = request.form.get('ingredient_id')
 
     if not ingredient_id:
-        flash('Invalid ingredient', 'error')
-        return redirect(url_for('homepage'))
+        return jsonify({'success': False, 'error': 'Invalid ingredient'}), 400
 
     from models import RecipeIngredient
     ingredient = RecipeIngredient.query.get(ingredient_id)
 
     if not ingredient:
-        flash('Ingredient not found', 'error')
-        return redirect(url_for('homepage'))
+        return jsonify({'success': False, 'error': 'Ingredient not found'}), 404
 
     # Check if ingredient belongs to user's grocery list
     if ingredient not in g.grocery_list.recipe_ingredients:
-        flash('Unauthorized', 'error')
-        return redirect(url_for('homepage'))
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
 
-    g.grocery_list.recipe_ingredients.remove(ingredient)
-    db.session.delete(ingredient)
-    db.session.commit()
-
-    flash('Ingredient removed successfully!', 'success')
-    return redirect(url_for('homepage'))
+    try:
+        g.grocery_list.recipe_ingredients.remove(ingredient)
+        db.session.delete(ingredient)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Ingredient removed successfully!'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': 'Failed to remove ingredient'}), 500
 
 
 @app.before_request

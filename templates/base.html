@@ -2,51 +2,75 @@
 <html lang="en">
 	<head>
 		<meta charset="UTF-8" />
-		<title>Auto Cart</title>
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>{% block title %}Auto Cart - Smart Grocery Shopping{% endblock %}</title>
+		<meta name="description" content="Auto Cart helps you create smart grocery lists from your favorite recipes. Streamline your shopping experience with AI-powered ingredient consolidation.">
 
+		<!-- Bootstrap CSS (minimal usage) -->
 		<link
 			rel="stylesheet"
-			href="https://unpkg.com/bootstrap/dist/css/bootstrap.css"
+			href="https://unpkg.com/bootstrap@5.3.0/dist/css/bootstrap-grid.min.css"
 		/>
-		<script src="https://unpkg.com/bootstrap"></script>
 
+		<!-- Font Awesome Icons -->
 		<link
 			rel="stylesheet"
-			href="https://use.fontawesome.com/releases/v5.3.1/css/all.css"
+			href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
 		/>
+
+		<!-- Our Design System -->
+		<link rel="stylesheet" href="/static/stylesheets/design-system.css" />
 		<link rel="stylesheet" href="/static/stylesheets/style.css" />
-		<script src="/static/js/main.js"></script>
+
+		<!-- JavaScript -->
+		<script src="/static/js/main.js" defer></script>
 	</head>
 
 	<body class="{% block body_class %}{% endblock %}">
-		<nav>
-			<div class="navbar-brand">
-				<a class="nav-link" href="{{url_for('homepage')}}" id="nav-all"
-					>Auto Cart</a
-				>
-			</div>
-			<div class="nav-right">
-				{% if g.user is none %}
-				<a class="nav-link" href="{{url_for('login')}}" id="nav-login">Login</a>
-				<a class="nav-link" href="{{url_for('register')}}" id="nav-register"
-					>Register</a
-				>
-				{% else %}
-				<a class="nav-link" href="{{url_for('user_view')}}" id="nav-username"
-					>{{ g.user.username }}
-				</a>
-				<a class="nav-link" id="nav-logout" href="{{url_for('logout')}}"
-					><small>logout</small></a
-				>
-				{% endif %}
+		<!-- Navigation -->
+		<nav class="navbar">
+			<div class="container">
+				<div class="flex justify-between items-center w-100">
+					<a href="{{url_for('homepage')}}" class="navbar-brand">
+						<i class="fas fa-shopping-cart mr-2"></i>Auto Cart
+					</a>
+					<div class="nav-right">
+						{% if g.user is none %}
+						<a class="nav-link" href="{{url_for('login')}}">
+							<i class="fas fa-sign-in-alt"></i> Login
+						</a>
+						<a class="nav-link" href="{{url_for('register')}}">
+							<i class="fas fa-user-plus"></i> Register
+						</a>
+						{% else %}
+						<a class="nav-link" href="{{url_for('user_view')}}">
+							<i class="fas fa-user"></i> {{ g.user.username }}
+						</a>
+						<a class="nav-link" href="{{url_for('logout')}}">
+							<i class="fas fa-sign-out-alt"></i> Logout
+						</a>
+						{% endif %}
+					</div>
+				</div>
 			</div>
 		</nav>
 
-		<div class="container">
-			{% for category, message in get_flashed_messages(with_categories=True) %}
-			<div class="alert alert-{{ category }}">{{ message }}</div>
-			{% endfor %} {% block content %} {% endblock %}
-		</div>
+		<!-- Main Content -->
+		<main class="section-sm">
+			<div class="container">
+				<!-- Flash Messages -->
+				{% for category, message in get_flashed_messages(with_categories=True) %}
+				<div class="alert alert-{{ category }}">
+					<i class="fas fa-{% if category == 'success' %}check-circle{% elif category == 'danger' %}exclamation-triangle{% elif category == 'warning' %}exclamation-circle{% else %}info-circle{% endif %}"></i>
+					{{ message }}
+				</div>
+				{% endfor %}
+
+				<!-- Page Content -->
+				{% block content %}{% endblock %}
+			</div>
+		</main>
+
 		{% block scripts %}{% endblock %}
 	</body>
 </html>

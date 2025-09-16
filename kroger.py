@@ -493,10 +493,32 @@ def parse_kroger_products(json_response: Dict) -> List[Dict[str, str]]:
         items_info = product_data.get('items', [{}])
         price_info = items_info[0].get('price', {}) if items_info else {}
 
+        # Extract image URL (prefer medium size, fallback to other sizes)
+        image_url = None
+        images = product_data.get('images', [])
+        if images:
+            # Look for front-facing image
+            front_image = next((img for img in images if img.get('perspective') == 'front'), images[0])
+            sizes = front_image.get('sizes', [])
+            if sizes:
+                # Prefer medium size, fallback to other available sizes
+                size_preference = ['medium', 'large', 'small', 'thumbnail', 'xlarge']
+                for preferred_size in size_preference:
+                    size_obj = next((s for s in sizes if s.get('size') == preferred_size), None)
+                    if size_obj:
+                        image_url = size_obj.get('url')
+                        break
+                # If no preferred size found, use the first available
+                if not image_url and sizes:
+                    image_url = sizes[0].get('url')
+
         product = {
             'name': product_data.get('description', 'N/A'),
             'id': product_data.get('upc', 'N/A'),
-            'price': price_info.get('regular', 'N/A')
+            'price': price_info.get('regular', 'N/A'),
+            'image_url': image_url,
+            'brand': product_data.get('brand', ''),
+            'size': items_info[0].get('size', '') if items_info else ''
         }
         items_to_choose_from.append(product)
 

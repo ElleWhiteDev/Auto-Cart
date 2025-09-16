@@ -1,7 +1,48 @@
-/* General */
+/* ===================================
+   DESIGN SYSTEM COMPATIBILITY LAYER
+   =================================== */
+
+/* Override body font to use design system */
 body {
-	font-family: Arimo, sans-serif;
+	font-family: var(--font-family-primary, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif) !important;
+	background-color: var(--gray-50, #f8fafc) !important;
+	color: var(--gray-800, #1e293b) !important;
 }
+
+/* Legacy button compatibility */
+.button-54-smaller,
+.button-56,
+.button-56-red,
+.btn-submit {
+	background-color: var(--primary-blue, #004c91);
+	color: var(--white, #ffffff);
+	border: 2px solid var(--primary-blue, #004c91);
+	border-radius: var(--radius-lg, 0.5rem);
+	padding: var(--space-3, 0.75rem) var(--space-6, 1.5rem);
+	font-weight: var(--font-medium, 500);
+	transition: all var(--transition-fast, 150ms ease-in-out);
+	text-decoration: none;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.button-56-red {
+	background-color: var(--error, #ef4444);
+	border-color: var(--error, #ef4444);
+}
+
+.button-54-smaller,
+.button-56,
+.button-56-red,
+.btn-submit {
+	&:hover {
+		transform: translateY(-1px);
+		box-shadow: var(--shadow-md, 0 4px 6px -1px rgb(0 0 0 / 0.1));
+	}
+}
+
+/* General */
 
 h4 {
 	font-size: 1rem;
@@ -80,37 +121,394 @@ a {
 	border-radius: 12px;
 }
 
-/* Modals */
-.modal-container {
-    display: none;
-    position: fixed;
-    z-index: 1;
-    padding-top: 100px;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    overflow: auto;
-    background-color: rgb(0,0,0);
-    background-color: rgba(0,0,0,0.4);
+/* Legacy modal styles removed - using design system modals */
+
+/* Removed conflicting .my-modal style - using design system */
+
+/* Removed specific modal styling - using design system */
+
+/* Product Selection Styling */
+.product-options {
+	display: flex;
+	flex-direction: column;
+	gap: 15px;
+	margin: 20px 0;
+	max-height: 400px;
+	overflow-y: auto;
+	padding: 10px;
 }
 
-.my-modal {
-    background-color: #fefefe;
-    margin: auto;
-    padding: 20px;
-    border: 1px solid #888;
-    width: 80%;
+.product-option {
+	position: relative;
+	border: 2px solid #e0e0e0;
+	border-radius: 8px;
+	transition: all 0.2s ease;
+	background-color: #fff;
 }
 
-#modal-ingredient .my-modal {
-	width: 80%;
-	max-width: 95%;
+.product-option:hover {
+	border-color: #007bff;
+	box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
 }
 
-.modal-container:target {
+.product-radio {
+	position: absolute;
+	left: 15px;
+	top: 50%;
+	transform: translateY(-50%);
+	width: 18px;
+	height: 18px;
+	margin: 0;
+	cursor: pointer;
+	z-index: 2;
+}
+
+.product-label {
 	display: block;
+	cursor: pointer;
+	padding: 15px 15px 15px 50px;
+	margin: 0;
+	width: 100%;
+	box-sizing: border-box;
 }
+
+.product-content {
+	display: flex;
+	align-items: center;
+	gap: 15px;
+}
+
+.product-image {
+	flex-shrink: 0;
+	width: 80px;
+	height: 80px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background-color: #f8f9fa;
+	border-radius: 6px;
+	overflow: hidden;
+}
+
+.product-image img {
+	max-width: 100%;
+	max-height: 100%;
+	object-fit: contain;
+}
+
+.product-info {
+	flex-grow: 1;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.product-name {
+	font-weight: 600;
+	font-size: 16px;
+	color: #333;
+	line-height: 1.3;
+}
+
+.product-brand {
+	font-size: 14px;
+	color: #666;
+	font-weight: 500;
+}
+
+.product-size {
+	font-size: 13px;
+	color: #888;
+}
+
+.product-price {
+	font-size: 18px;
+	font-weight: 700;
+	color: #007bff;
+	margin-top: 5px;
+}
+
+.product-option input[type="radio"]:checked + .product-label {
+	background-color: #f0f8ff;
+}
+
+.product-option input[type="radio"]:checked {
+	border-color: #007bff;
+}
+
+.product-option:has(input[type="radio"]:checked) {
+	border-color: #007bff;
+	background-color: #f0f8ff;
+}
+
+/* Modal Actions */
+.modal-actions {
+	display: flex;
+	gap: 10px;
+	justify-content: center;
+	margin: 20px 0;
+}
+
+.modal-actions .btn {
+	flex: 1;
+	max-width: 150px;
+	padding: 12px 20px;
+	font-weight: 600;
+}
+
+.modal-navigation {
+	text-align: center;
+	margin-top: 15px;
+}
+
+.modal-navigation .btn {
+	margin: 0 10px;
+	padding: 8px 16px;
+	text-decoration: none;
+	color: #666;
+	border: 1px solid #ddd;
+	border-radius: 4px;
+	transition: all 0.2s ease;
+}
+
+.modal-navigation .btn:hover {
+	background-color: #f8f9fa;
+	border-color: #007bff;
+	color: #007bff;
+}
+
+/* General Modal Form Styling */
+.modal-form {
+	width: 100%;
+	margin: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 20px;
+}
+
+.form-group {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.form-label {
+	font-weight: 600;
+	color: #333;
+	font-size: 14px;
+}
+
+.form-input {
+	padding: 12px 16px;
+	border: 2px solid #e0e0e0;
+	border-radius: 6px;
+	font-size: 16px;
+	transition: border-color 0.2s ease;
+	width: 100%;
+	box-sizing: border-box;
+}
+
+.form-input:focus {
+	outline: none;
+	border-color: #007bff;
+	box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+/* Store Selection Styling */
+.store-options {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	margin: 20px 0;
+}
+
+.store-option {
+	position: relative;
+	border: 2px solid #e0e0e0;
+	border-radius: 8px;
+	transition: all 0.2s ease;
+	background-color: #fff;
+}
+
+.store-option:hover {
+	border-color: #007bff;
+	box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
+}
+
+.store-radio {
+	position: absolute;
+	left: 15px;
+	top: 50%;
+	transform: translateY(-50%);
+	width: 18px;
+	height: 18px;
+	margin: 0;
+	cursor: pointer;
+}
+
+.store-label {
+	display: block;
+	cursor: pointer;
+	padding: 15px 15px 15px 50px;
+	margin: 0;
+	width: 100%;
+	box-sizing: border-box;
+}
+
+.store-info {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.store-address {
+	font-weight: 600;
+	font-size: 16px;
+	color: #333;
+}
+
+.store-city {
+	font-size: 14px;
+	color: #666;
+}
+
+.store-option input[type="radio"]:checked + .store-label {
+	background-color: #f0f8ff;
+}
+
+.store-option:has(input[type="radio"]:checked) {
+	border-color: #007bff;
+	background-color: #f0f8ff;
+}
+
+/* Email Modal Styling */
+.email-type-selection {
+	margin: 20px 0;
+}
+
+.email-type-selection h5 {
+	margin-bottom: 15px;
+	color: #333;
+	font-weight: 600;
+}
+
+.email-options {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.email-option {
+	position: relative;
+	border: 2px solid #e0e0e0;
+	border-radius: 8px;
+	transition: all 0.2s ease;
+	background-color: #fff;
+}
+
+.email-option:hover {
+	border-color: #007bff;
+	box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
+}
+
+.email-radio {
+	position: absolute;
+	left: 15px;
+	top: 50%;
+	transform: translateY(-50%);
+	width: 18px;
+	height: 18px;
+	margin: 0;
+	cursor: pointer;
+}
+
+.email-label {
+	display: block;
+	cursor: pointer;
+	padding: 15px 15px 15px 50px;
+	margin: 0;
+	width: 100%;
+	box-sizing: border-box;
+}
+
+.email-option-content {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.email-option-title {
+	font-weight: 600;
+	font-size: 16px;
+	color: #333;
+}
+
+.email-option-desc {
+	font-size: 14px;
+	color: #666;
+}
+
+.email-option input[type="radio"]:checked + .email-label {
+	background-color: #f0f8ff;
+}
+
+.email-option:has(input[type="radio"]:checked) {
+	border-color: #007bff;
+	background-color: #f0f8ff;
+}
+
+/* Recipe Selection in Email Modal */
+.recipe-selection {
+	margin: 20px 0;
+}
+
+.recipe-selection h5 {
+	margin-bottom: 15px;
+	color: #333;
+	font-weight: 600;
+}
+
+.recipe-checkboxes {
+	max-height: 200px;
+	overflow-y: auto;
+	border: 1px solid #e0e0e0;
+	border-radius: 6px;
+	padding: 10px;
+	background-color: #f8f9fa;
+}
+
+.recipe-checkbox-item {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 8px 0;
+	border-bottom: 1px solid #e0e0e0;
+}
+
+.recipe-checkbox-item:last-child {
+	border-bottom: none;
+}
+
+.recipe-checkbox {
+	width: 18px;
+	height: 18px;
+	margin: 0;
+	cursor: pointer;
+}
+
+.recipe-checkbox-label {
+	cursor: pointer;
+	font-size: 14px;
+	color: #333;
+	flex-grow: 1;
+}
+
+.recipe-checkbox:checked + .recipe-checkbox-label {
+	font-weight: 600;
+	color: #007bff;
+}
+
+/* Removed conflicting modal target style - using design system */
 
 .modal-actions {
 	display: flex;
@@ -129,10 +527,7 @@ a {
 	padding: 10px;
 }
 
-.modal-container.active {
-    display: block;
-    /* rest of your styling for active state */
-}
+/* Removed conflicting .modal-container.active style - using design system */
 
 /* Forms */
 
@@ -278,13 +673,84 @@ nav {
 	margin-bottom: 20px;
 }
 
-.recipe-item,
+/* Removed conflicting recipe-item style - using design system styles */
 .list-item {
 	padding: 5px;
 	border-bottom: 1px solid #ccc;
 }
 
 /* responsive queries for tightening things up for mobile. */
+
+/* Mobile responsiveness for product selection modal */
+@media (max-width: 768px) {
+	#modal-ingredient .my-modal {
+		width: 95%;
+		margin: 20px auto;
+		padding: 15px;
+	}
+
+	.product-content {
+		flex-direction: column;
+		text-align: center;
+		gap: 10px;
+	}
+
+	.product-image {
+		width: 60px;
+		height: 60px;
+		align-self: center;
+	}
+
+	.product-label {
+		padding: 12px 12px 12px 40px;
+	}
+
+	.product-radio {
+		left: 12px;
+	}
+
+	.product-name {
+		font-size: 14px;
+	}
+
+	.product-price {
+		font-size: 16px;
+	}
+
+	.modal-actions {
+		flex-direction: column;
+		gap: 8px;
+	}
+
+	.modal-actions .btn {
+		max-width: none;
+	}
+
+	/* Store and Email Modal Mobile Styles */
+	.store-label, .email-label {
+		padding: 12px 12px 12px 40px;
+	}
+
+	.store-radio, .email-radio {
+		left: 12px;
+	}
+
+	.store-address, .email-option-title {
+		font-size: 14px;
+	}
+
+	.store-city, .email-option-desc {
+		font-size: 12px;
+	}
+
+	.form-input {
+		font-size: 16px; /* Prevents zoom on iOS */
+	}
+
+	.recipe-checkboxes {
+		max-height: 150px;
+	}
+}
 
 
 /* Unified Button System */

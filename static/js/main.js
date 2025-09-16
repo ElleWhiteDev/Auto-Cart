@@ -1,7 +1,37 @@
 // Kroger authentication
 function openKrogerAuth() {
-    window.open('/authenticate', '_blank');
+    window.location.href = '/authenticate';
 }
+
+// Modal functionality
+function openModal(modalId) {
+    console.log('Opening modal:', modalId);
+    const modal = document.getElementById(modalId);
+    console.log('Modal element:', modal);
+    if (modal) {
+        modal.style.display = 'flex';
+        modal.style.alignItems = 'center';
+        modal.style.justifyContent = 'center';
+        modal.style.padding = '1rem';
+        console.log('Modal opened successfully');
+    } else {
+        console.error('Modal not found:', modalId);
+    }
+}
+
+function closeModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+// Close modal when clicking outside
+document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('modal-container')) {
+        e.target.style.display = 'none';
+    }
+});
 
 // AI Recipe extraction
 document.addEventListener('DOMContentLoaded', function() {
@@ -120,25 +150,93 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Manual ingredient form
+    const manualIngredientForm = document.getElementById('manual-ingredient-form');
+    if (manualIngredientForm) {
+        manualIngredientForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const input = document.getElementById('manual-ingredient-input');
+            const ingredientText = input.value.trim();
+
+            if (!ingredientText) {
+                showFlashMessage('Please enter an ingredient', 'danger');
+                return;
+            }
+
+            // Show loading state
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+            try {
+                const formData = new FormData();
+                formData.append('ingredient_text', ingredientText);
+
+                const response = await fetch('/add_manual_ingredient', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showFlashMessage(result.message, 'success');
+                    input.value = ''; // Clear the input
+                    // Refresh the page immediately to show the new ingredient
+                    window.location.reload();
+                } else {
+                    showFlashMessage(result.error || 'Failed to add ingredient', 'danger');
+                }
+            } catch (error) {
+                showFlashMessage('Network error. Please try again.', 'danger');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            }
+        });
+    }
+
     // Delete ingredient functionality
     const deleteIngredientBtns = document.querySelectorAll('.delete-ingredient-btn');
     deleteIngredientBtns.forEach(btn => {
-        btn.addEventListener('click', function() {
+        btn.addEventListener('click', async function() {
             const ingredientId = this.getAttribute('data-ingredient-id');
+            const listItem = this.closest('li');
 
-            // Remove the confirm dialog
-            const form = document.createElement('form');
-            form.method = 'POST';
-            form.action = '/delete_ingredient';
+            // Disable button during request
+            this.disabled = true;
+            const originalText = this.innerHTML;
+            this.innerHTML = '...';
 
-            const input = document.createElement('input');
-            input.type = 'hidden';
-            input.name = 'ingredient_id';
-            input.value = ingredientId;
+            try {
+                const formData = new FormData();
+                formData.append('ingredient_id', ingredientId);
 
-            form.appendChild(input);
-            document.body.appendChild(form);
-            form.submit();
+                const response = await fetch('/delete_ingredient', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    // Remove the ingredient from the DOM
+                    listItem.remove();
+                    showFlashMessage(result.message, 'success');
+                } else {
+                    showFlashMessage(result.error || 'Failed to remove ingredient', 'danger');
+                    // Re-enable button on error
+                    this.disabled = false;
+                    this.innerHTML = originalText;
+                }
+            } catch (error) {
+                showFlashMessage('Network error. Please try again.', 'danger');
+                // Re-enable button on error
+                this.disabled = false;
+                this.innerHTML = originalText;
+            }
         });
     });
 });
@@ -170,8 +268,20 @@ function showFlashMessage(message, category) {
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     `;
 
-    const form = document.querySelector('#user_form');
-    form.insertBefore(flashDiv, form.firstChild);
+    // Try to find the form first, otherwise use the grocery list area
+    let targetElement = document.querySelector('#user_form');
+    if (!targetElement) {
+        targetElement = document.querySelector('.grocery-list-content');
+    }
+    if (!targetElement) {
+        targetElement = document.querySelector('.container');
+    }
+
+    if (targetElement) {
+        targetElement.insertBefore(flashDiv, targetElement.firstChild);
+    } else {
+        document.body.insertBefore(flashDiv, document.body.firstChild);
+    }
 
     setTimeout(() => {
         flashDiv.remove();
