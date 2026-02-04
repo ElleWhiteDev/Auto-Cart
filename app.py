@@ -226,8 +226,11 @@ def homepage():
     logger.debug(f"Selected recipe IDs: {selected_recipe_ids}")
     logger.debug(f"User recipe IDs: {[recipe.id for recipe in recipes]}")
 
+    # Get all users for email selection
+    all_users = User.query.all()
+
     form = AddRecipeForm()
-    return render_template('index.html', form=form, recipes=recipes, selected_recipe_ids=selected_recipe_ids)
+    return render_template('index.html', form=form, recipes=recipes, selected_recipe_ids=selected_recipe_ids, all_users=all_users)
 
 
 @app.route('/register', methods=["GET", "POST"])
@@ -618,24 +621,44 @@ def email_modal():
 @app.route('/send-email', methods=['POST'])
 @require_login
 def send_grocery_list_email():
-    """Send grocery list and selected recipes to user supplied email"""
-    email = request.form['email']
+    """Send grocery list and selected recipes to user supplied email(s)"""
+    # Get selected user emails and custom email
+    selected_user_emails = request.form.getlist('user_emails')
+    custom_email = request.form.get('custom_email', '').strip()
+
+    # Combine all emails
+    all_emails = list(selected_user_emails)
+    if custom_email:
+        all_emails.append(custom_email)
+
+    if not all_emails:
+        flash('Please select at least one recipient or enter an email address', 'danger')
+        return redirect(url_for('homepage') + '#email-modal')
+
     email_type = request.form.get('email_type', 'list_and_recipes')
     selected_recipe_ids = request.form.getlist('recipe_ids')
     grocery_list = g.grocery_list
 
     try:
-        if email_type == 'recipes_only':
-            # Send only recipes
-            GroceryList.send_recipes_only_email(email, selected_recipe_ids, mail)
-            flash("Recipes sent successfully!", "success")
-        else:
-            # Send grocery list and recipes (current functionality)
-            if grocery_list:
-                GroceryList.send_email(email, grocery_list, selected_recipe_ids, mail)
-                flash("List sent successfully!", "success")
+        # Send to all selected emails
+        for email in all_emails:
+            if email_type == 'recipes_only':
+                # Send only recipes
+                GroceryList.send_recipes_only_email(email, selected_recipe_ids, mail)
             else:
-                flash("No grocery list found", "error")
+                # Send grocery list and recipes (current functionality)
+                if grocery_list:
+                    GroceryList.send_email(email, grocery_list, selected_recipe_ids, mail)
+                else:
+                    flash("No grocery list found", "error")
+                    return redirect(url_for('homepage'))
+
+        # Success message
+        recipient_count = len(all_emails)
+        if email_type == 'recipes_only':
+            flash(f"Recipes sent successfully to {recipient_count} recipient(s)!", "success")
+        else:
+            flash(f"List sent successfully to {recipient_count} recipient(s)!", "success")
     except Exception as e:
         logger.error(f"Email error: {e}", exc_info=True)
         flash("Email service is currently unavailable. Please try again later.", "danger")
@@ -737,6 +760,43 @@ def delete_ingredient():
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': 'Failed to remove ingredient'}), 500
+
+
+@app.route('/update_ingredient', methods=['POST'])
+@require_login
+def update_ingredient():
+    """Update a specific ingredient in the grocery list"""
+    ingredient_id = request.form.get('ingredient_id')
+    quantity = request.form.get('quantity')
+    measurement = request.form.get('measurement', '').strip()
+    name = request.form.get('name', '').strip()
+
+    if not ingredient_id or not name:
+        return jsonify({'success': False, 'error': 'Invalid ingredient data'}), 400
+
+    from models import RecipeIngredient
+    ingredient = RecipeIngredient.query.get(ingredient_id)
+
+    if not ingredient:
+        return jsonify({'success': False, 'error': 'Ingredient not found'}), 404
+
+    # Check if ingredient belongs to user's grocery list
+    if ingredient not in g.grocery_list.recipe_ingredients:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    try:
+        # Update ingredient fields
+        ingredient.ingredient_name = name
+        ingredient.quantity = float(quantity) if quantity else None
+        ingredient.measurement = measurement if measurement else None
+
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Ingredient updated successfully!'})
+    except ValueError:
+        return jsonify({'success': False, 'error': 'Invalid quantity value'}), 400
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': 'Failed to update ingredient'}), 500
 
 
 @app.before_request

@@ -614,18 +614,37 @@ p {
   color: var(--white);
   padding: var(--space-6);
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
 }
 
-.grocery-list-header h3 {
+.grocery-list-title {
   margin: 0;
   font-size: var(--text-xl);
   font-weight: var(--font-semibold);
+  text-align: center;
 }
 
 .grocery-list-content {
   padding: var(--space-4);
+}
+
+.clear-button-container {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--space-3);
+}
+
+.btn-outline-danger {
+  background-color: transparent;
+  color: var(--error);
+  border: 2px solid var(--error);
+}
+
+.btn-outline-danger:hover:not(:disabled) {
+  background-color: var(--error);
+  color: var(--white);
+  border-color: var(--error);
 }
 
 .grocery-list ul {

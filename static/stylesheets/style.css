@@ -128,7 +128,9 @@ body {
 .search-input-group .btn {
 	white-space: nowrap;
 	flex-shrink: 0;
-	padding: var(--space-3, 12px) var(--space-5, 20px);
+	padding: var(--space-2, 8px) var(--space-4, 16px);
+	height: auto;
+	min-height: auto;
 	align-self: stretch;
 }
 
@@ -201,14 +203,15 @@ body {
 	font-size: var(--text-base, 16px);
 	font-weight: var(--font-semibold, 600);
 	transition: border-color var(--transition-fast, 0.2s ease);
-	appearance: auto; /* Show spinner controls */
-	-moz-appearance: textfield; /* Firefox: show spinner */
 }
 
+/* Show spinner controls in all browsers */
 .quantity-input::-webkit-inner-spin-button,
 .quantity-input::-webkit-outer-spin-button {
-	opacity: 1; /* Show spinner arrows in Chrome/Safari */
-	height: 30px;
+	-webkit-appearance: inner-spin-button;
+	opacity: 1;
+	height: 100%;
+	cursor: pointer;
 }
 
 .quantity-input:focus {
@@ -674,7 +677,8 @@ input[type="number"]::-webkit-outer-spin-button {
 	margin: 0;
 }
 
-.recipe-selection-box {
+.recipe-selection-box,
+.email-selection-box {
 	max-height: 240px;
 	overflow-y: auto;
 	border: 2px solid var(--gray-200, #e0e0e0);
@@ -683,7 +687,8 @@ input[type="number"]::-webkit-outer-spin-button {
 	background: var(--gray-50, #f8f9fa);
 }
 
-.recipe-selection-box .recipe-item {
+.recipe-selection-box .recipe-item,
+.email-selection-box .recipe-item {
 	padding: var(--space-3, 12px);
 	margin-bottom: var(--space-2, 8px);
 	background: white;
@@ -691,12 +696,14 @@ input[type="number"]::-webkit-outer-spin-button {
 	transition: all var(--transition-fast, 0.2s ease);
 }
 
-.recipe-selection-box .recipe-item:hover {
+.recipe-selection-box .recipe-item:hover,
+.email-selection-box .recipe-item:hover {
 	background: var(--gray-100, #f0f0f0);
 	transform: translateX(4px);
 }
 
-.recipe-selection-box .recipe-item:last-child {
+.recipe-selection-box .recipe-item:last-child,
+.email-selection-box .recipe-item:last-child {
 	margin-bottom: 0;
 }
 
@@ -1320,4 +1327,94 @@ nav {
 		width: 100%;
 		display: flex;
 	}
+}
+
+/* ===================================
+   GROCERY LIST ITEM EDITING
+   =================================== */
+
+.grocery-item-content {
+	display: flex;
+	align-items: center;
+	gap: var(--space-2, 8px);
+	flex: 1;
+}
+
+.grocery-item-text {
+	cursor: pointer;
+	flex: 1;
+	padding: var(--space-1, 4px);
+	border-radius: var(--radius-sm, 4px);
+	transition: background-color var(--transition-fast, 0.2s ease);
+}
+
+.grocery-item-text:hover {
+	background-color: var(--gray-100, #f0f0f0);
+}
+
+.grocery-item-edit {
+	display: flex;
+	gap: var(--space-2, 8px);
+	align-items: center;
+	flex: 1;
+}
+
+.grocery-item-edit input {
+	padding: var(--space-2, 8px);
+	border: 2px solid var(--gray-200, #e0e0e0);
+	border-radius: var(--radius-sm, 4px);
+	font-size: var(--text-sm, 14px);
+	transition: border-color var(--transition-fast, 0.2s ease);
+}
+
+.grocery-item-edit input:focus {
+	outline: none;
+	border-color: var(--primary-blue, #007bff);
+}
+
+.grocery-item-edit .edit-quantity {
+	width: 60px;
+	text-align: center;
+}
+
+.grocery-item-edit .edit-measurement {
+	width: 80px;
+}
+
+.grocery-item-edit .edit-name {
+	flex: 1;
+	min-width: 120px;
+}
+
+.grocery-item-edit .btn-save,
+.grocery-item-edit .btn-cancel {
+	padding: var(--space-2, 8px);
+	border: none;
+	border-radius: var(--radius-sm, 4px);
+	cursor: pointer;
+	transition: all var(--transition-fast, 0.2s ease);
+	width: 32px;
+	height: 32px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+}
+
+.grocery-item-edit .btn-save {
+	background-color: var(--success, #10b981);
+	color: white;
+}
+
+.grocery-item-edit .btn-save:hover {
+	background-color: var(--success-dark, #059669);
+}
+
+.grocery-item-edit .btn-cancel {
+	background-color: var(--gray-400, #9ca3af);
+	color: white;
+}
+
+.grocery-item-edit .btn-cancel:hover {
+	background-color: var(--gray-500, #6b7280);
 }

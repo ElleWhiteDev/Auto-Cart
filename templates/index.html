@@ -124,15 +124,19 @@
 	<!-- Grocery List - Full Width on Mobile, Half on Desktop -->
 	<div class="grocery-list">
 		<div class="grocery-list-header">
-			<h3><i class="fas fa-list-ul mr-2"></i>Your Grocery List</h3>
-			<form method="POST" action="{{ url_for('clear_grocery_list') }}" style="display: inline;">
-				<button type="submit" class="btn btn-sm btn-outline text-white border-white">
-					<i class="fas fa-trash"></i> Clear
-				</button>
-			</form>
+			<h3 class="grocery-list-title"><i class="fas fa-list-ul mr-2"></i>Your Grocery List</h3>
 		</div>
 
 		<div class="grocery-list-content">
+			<!-- Clear Button -->
+			<div class="clear-button-container">
+				<form method="POST" action="{{ url_for('clear_grocery_list') }}">
+					<button type="submit" class="btn btn-sm btn-outline-danger">
+						<i class="fas fa-trash mr-1"></i> Clear List
+					</button>
+				</form>
+			</div>
+
 			<!-- Action Buttons -->
 			<div class="action-buttons mb-4">
 				<a class="btn btn-secondary" href="#email-modal" id="email-modal-trigger">
@@ -146,15 +150,28 @@
 			<!-- Grocery Items -->
 			<ul class="m-0">
 				{% for ingredient in g.grocery_list.recipe_ingredients %}
-				<li class="grocery-item">
-					<span class="grocery-item-text">
-						{% if ingredient.quantity and ingredient.quantity > 0 and ingredient.measurement %}
-							<strong>{{ ingredient.quantity}} {{ ingredient.measurement }}</strong>
-							{{ ingredient.ingredient_name }}
-						{% else %}
-							{{ ingredient.ingredient_name }}
-						{% endif %}
-					</span>
+				<li class="grocery-item" data-ingredient-id="{{ ingredient.id }}">
+					<div class="grocery-item-content">
+						<span class="grocery-item-text" onclick="editIngredient({{ ingredient.id }})">
+							{% if ingredient.quantity and ingredient.quantity > 0 and ingredient.measurement %}
+								<strong class="ingredient-quantity">{{ ingredient.quantity}} {{ ingredient.measurement }}</strong>
+								<span class="ingredient-name">{{ ingredient.ingredient_name }}</span>
+							{% else %}
+								<span class="ingredient-name">{{ ingredient.ingredient_name }}</span>
+							{% endif %}
+						</span>
+						<div class="grocery-item-edit" style="display: none;">
+							<input type="number" class="edit-quantity" value="{{ ingredient.quantity or 1 }}" min="0" step="0.1" placeholder="Qty">
+							<input type="text" class="edit-measurement" value="{{ ingredient.measurement or '' }}" placeholder="unit">
+							<input type="text" class="edit-name" value="{{ ingredient.ingredient_name }}" placeholder="Ingredient name">
+							<button type="button" class="btn-save" onclick="saveIngredient({{ ingredient.id }})">
+								<i class="fas fa-check"></i>
+							</button>
+							<button type="button" class="btn-cancel" onclick="cancelEdit({{ ingredient.id }})">
+								<i class="fas fa-times"></i>
+							</button>
+						</div>
+					</div>
 					<button type="button" class="grocery-item-remove delete-ingredient-btn"
 							data-ingredient-id="{{ ingredient.id }}" title="Remove ingredient">
 						<i class="fas fa-times"></i>
@@ -291,7 +308,7 @@
 						<input type="text" id="custom-search" name="custom_search"
 							   class="form-input"
 							   placeholder="e.g., organic chicken breast" />
-						<button type="submit" class="btn btn-primary">
+						<button type="submit" class="btn btn-primary" id="search-btn">
 							<i class="fas fa-search mr-2"></i>Search
 						</button>
 					</div>
@@ -418,13 +435,36 @@
         </div>
         <div class="modal-body">
             <form action="/send-email" method="post" class="modal-form">
-                <!-- Email Input -->
+                <!-- User Email Selection -->
                 <div class="form-group">
-                    <label for="email" class="form-label">
-                        <i class="fas fa-at mr-1"></i>Email Address
+                    <label class="form-label">
+                        <i class="fas fa-users mr-1"></i>Select Recipients
                     </label>
-                    <input type="email" id="email" name="email" class="form-input"
-                           placeholder="your.email@example.com" required>
+                    <div class="email-selection-box">
+                        {% if all_users %}
+                            {% for user in all_users %}
+                            <div class="recipe-item">
+                                <input type="checkbox" name="user_emails" value="{{ user.email }}"
+                                       class="recipe-checkbox"
+                                       id="user-email-{{ user.id }}"
+                                       {% if user.id == g.user.id %}checked{% endif %}>
+                                <label class="recipe-name" for="user-email-{{ user.id }}">
+                                    {{ user.username }} ({{ user.email }})
+                                </label>
+                            </div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Custom Email Input -->
+                <div class="form-group">
+                    <label for="custom-email" class="form-label">
+                        <i class="fas fa-at mr-1"></i>Or Enter Custom Email
+                        <span class="text-sm text-gray-500 font-normal">(optional)</span>
+                    </label>
+                    <input type="email" id="custom-email" name="custom_email" class="form-input"
+                           placeholder="someone@example.com">
                 </div>
 
                 <!-- Email Type Selection -->
@@ -563,5 +603,92 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 });
+
+// Add loading state to search button
+const searchForm = document.getElementById('custom-search-form');
+const searchBtn = document.getElementById('search-btn');
+
+if (searchForm && searchBtn) {
+    searchForm.addEventListener('submit', function() {
+        searchBtn.disabled = true;
+        searchBtn.innerHTML = '<span class="spinner-border spinner-border-sm mr-2" role="status"></span>Searching...';
+    });
+}
+
+// Grocery list item editing functions
+function editIngredient(ingredientId) {
+    const item = document.querySelector(`li[data-ingredient-id="${ingredientId}"]`);
+    if (!item) return;
+
+    const textSpan = item.querySelector('.grocery-item-text');
+    const editDiv = item.querySelector('.grocery-item-edit');
+
+    textSpan.style.display = 'none';
+    editDiv.style.display = 'flex';
+
+    // Focus on the name input
+    const nameInput = editDiv.querySelector('.edit-name');
+    nameInput.focus();
+    nameInput.select();
+}
+
+function cancelEdit(ingredientId) {
+    const item = document.querySelector(`li[data-ingredient-id="${ingredientId}"]`);
+    if (!item) return;
+
+    const textSpan = item.querySelector('.grocery-item-text');
+    const editDiv = item.querySelector('.grocery-item-edit');
+
+    textSpan.style.display = 'inline';
+    editDiv.style.display = 'none';
+}
+
+async function saveIngredient(ingredientId) {
+    const item = document.querySelector(`li[data-ingredient-id="${ingredientId}"]`);
+    if (!item) return;
+
+    const editDiv = item.querySelector('.grocery-item-edit');
+    const quantity = editDiv.querySelector('.edit-quantity').value;
+    const measurement = editDiv.querySelector('.edit-measurement').value;
+    const name = editDiv.querySelector('.edit-name').value.trim();
+
+    if (!name) {
+        alert('Ingredient name cannot be empty');
+        return;
+    }
+
+    try {
+        const formData = new FormData();
+        formData.append('ingredient_id', ingredientId);
+        formData.append('quantity', quantity);
+        formData.append('measurement', measurement);
+        formData.append('name', name);
+
+        const response = await fetch('/update_ingredient', {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            // Update the display text
+            const textSpan = item.querySelector('.grocery-item-text');
+            const quantityNum = parseFloat(quantity);
+
+            if (quantityNum > 0 && measurement) {
+                textSpan.innerHTML = `<strong class="ingredient-quantity">${quantity} ${measurement}</strong> <span class="ingredient-name">${name}</span>`;
+            } else {
+                textSpan.innerHTML = `<span class="ingredient-name">${name}</span>`;
+            }
+
+            cancelEdit(ingredientId);
+        } else {
+            alert(result.error || 'Failed to update ingredient');
+        }
+    } catch (error) {
+        alert('Network error. Please try again.');
+    }
+}
 </script>
 {% endblock %}

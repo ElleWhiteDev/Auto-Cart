@@ -1,6 +1,10 @@
 // Kroger authentication
 function openKrogerAuth() {
-    window.location.href = '/authenticate';
+    // Open Kroger authentication in a new tab
+    window.open('/authenticate', '_blank');
+
+    // Close any open modals
+    window.location.hash = 'modal-closed';
 }
 
 // Modal functionality
