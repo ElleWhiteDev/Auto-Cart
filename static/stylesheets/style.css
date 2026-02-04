@@ -912,7 +912,7 @@ nav {
 
 .navbar-brand {
 	font-weight: var(--font-bold, bold);
-	color: #000;
+	color: var(--white, #ffffff);
 	font-size: var(--text-xl, 1.25rem);
 	white-space: nowrap;
 }

@@ -465,7 +465,10 @@ p {
 .text-gray-700 { color: var(--gray-700); }
 .text-gray-800 { color: var(--gray-800); }
 
-.bg-primary { background-color: var(--primary-green); }
+.bg-primary {
+  background-color: var(--primary-green);
+  color: var(--white);
+}
 .bg-accent { background-color: var(--accent-orange); }
 .bg-white { background-color: var(--white); }
 .bg-gray-50 { background-color: var(--gray-50); }
@@ -566,6 +569,7 @@ p {
   margin: 0;
   font-size: var(--text-xl);
   font-weight: var(--font-semibold);
+  color: var(--white);
 }
 
 .recipe-list {
