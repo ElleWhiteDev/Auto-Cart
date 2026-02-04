@@ -6,6 +6,7 @@ from functools import wraps
 from urllib.parse import urlencode
 from flask import session, flash, redirect, url_for, g
 from typing import Optional, Dict, Any, List, Tuple
+from fractions import Fraction
 
 # Session keys
 CURR_USER_KEY = "curr_user"
@@ -49,22 +50,6 @@ def initialize_session_defaults():
             session[key] = default_value
 
 
-def clear_kroger_session_data():
-    """Clear Kroger-related session data after cart operations."""
-    session_keys_to_clear = [
-        'products_for_cart',
-        'items_to_choose_from',
-        'location_id',
-        'stores',
-        'ingredient_names'
-    ]
-
-    for key in session_keys_to_clear:
-        session.pop(key, None)
-
-    session['show_modal'] = False
-
-
 def encode_client_credentials(client_id: str, client_secret: str) -> str:
     """Encode client credentials for API authentication."""
     client_credentials = f"{client_id}:{client_secret}"
@@ -94,3 +79,38 @@ def validate_required_fields(**kwargs) -> List[str]:
         if not value or (isinstance(value, str) and not value.strip()):
             missing_fields.append(field_name)
     return missing_fields
+
+
+def parse_quantity_string(quantity_string: str) -> Optional[float]:
+    """
+    Parse a quantity string into a float value.
+    Handles fractions (e.g., "1/2", "3/4") and decimal numbers.
+
+    Args:
+        quantity_string: String representation of a quantity
+
+    Returns:
+        Float value or None if parsing fails
+    """
+    if not quantity_string or quantity_string.strip() == "":
+        return 0.0
+
+    quantity_string = str(quantity_string).strip()
+
+    try:
+        # Handle fractions
+        if "/" in quantity_string:
+            return float(Fraction(quantity_string))
+        # Handle regular floats/ints
+        return float(quantity_string)
+    except (ValueError, ZeroDivisionError):
+        return None
+
+
+def is_valid_float(value: str) -> bool:
+    """Check if a value can be converted to float."""
+    try:
+        float(value)
+        return True
+    except (ValueError, TypeError):
+        return False

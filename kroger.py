@@ -6,6 +6,7 @@ import base64
 from typing import Optional, Dict, Any, List, Tuple
 from urllib.parse import urlencode
 from flask import session, redirect, url_for, g
+from logging_config import logger
 
 
 class KrogerAPIService:
@@ -53,7 +54,7 @@ class KrogerAPIService:
             response.raise_for_status()
             return response
         except requests.exceptions.RequestException as e:
-            print(f"Kroger API request failed: {e}")
+            logger.error(f"Kroger API request failed: {e}", exc_info=True)
             return None
 
     def _safe_get_json_value(self, response_json: Dict[str, Any], key: str, default: Any = None) -> Any:
@@ -124,7 +125,7 @@ class KrogerAPIService:
             response_json = response.json()
             return self._safe_get_json_value(response_json, 'data', {}).get('id')
 
-        print("Failed to get profile ID:", response.content if response else "No response")
+        logger.warning(f"Failed to get profile ID: {response.content if response else 'No response'}")
         return None
 
     def get_stores(self, zipcode: str, token: str, limit: int = 5) -> Optional[List[Tuple[str, str, str]]]:
@@ -171,7 +172,7 @@ class KrogerAPIService:
         if response and response.status_code == 200:
             return response.json()
 
-        print(f"Failed to fetch data for ingredient: {ingredient}")
+        logger.warning(f"Failed to fetch data for ingredient: {ingredient}")
         return None
 
     def add_items_to_cart(self, items: List[Dict], token: str) -> bool:
@@ -188,27 +189,27 @@ class KrogerAPIService:
             }
             prepared_items.append(prepared_item)
 
-        print(f"=== ADD ITEMS TO CART DEBUG ===")
-        print(f"Prepared items: {prepared_items}")
+        logger.debug(f"Adding {len(prepared_items)} items to cart")
+        logger.debug(f"Prepared items: {prepared_items}")
 
         url = f"{self.base_url}/cart/add"
         headers = self._get_auth_headers(token)
         headers['Content-Type'] = 'application/json'
 
         data = json.dumps({'items': prepared_items})
-        print(f"Request data: {data}")
+        logger.debug(f"Request data: {data}")
 
         response = self._make_request('PUT', url, headers, data)
 
         if response:
-            print(f"Response status: {response.status_code}")
-            print(f"Response text: {response.text}")
+            logger.debug(f"Response status: {response.status_code}")
+            logger.debug(f"Response text: {response.text}")
 
         if response and 200 <= response.status_code < 300:
-            print("Successfully added items to cart")
+            logger.info("Successfully added items to cart")
             return True
 
-        print(f"Failed to add items to cart (status code: {response.status_code if response else 'No response'})")
+        logger.error(f"Failed to add items to cart (status code: {response.status_code if response else 'No response'})")
         return False
 
 
@@ -280,29 +281,55 @@ class KrogerSessionManager:
         session['current_ingredient_detail'] = current_ingredient_detail
 
     @staticmethod
-    def add_product_to_cart(product_id: str) -> bool:
-        """Add selected product to cart session."""
+    def add_product_to_cart(product_id: str, quantity: int = 1) -> bool:
+        """Add selected product to cart session with quantity."""
         # Initialize session defaults if they don't exist
         if 'products_for_cart' not in session:
             session['products_for_cart'] = []
         if 'items_to_choose_from' not in session:
             session['items_to_choose_from'] = []
 
-        print(f"=== ADD PRODUCT TO CART DEBUG ===")
-        print(f"Product ID to add: {product_id}")
-        print(f"Current items_to_choose_from: {session.get('items_to_choose_from', [])}")
-        print(f"Current products_for_cart: {session.get('products_for_cart', [])}")
+        logger.debug(f"Adding product {product_id} with quantity {quantity} to cart")
+        logger.debug(f"Current items_to_choose_from: {session.get('items_to_choose_from', [])}")
+        logger.debug(f"Current products_for_cart: {session.get('products_for_cart', [])}")
 
         for item in session.get('items_to_choose_from', []):
-            print(f"Checking item: {item}")
+            logger.debug(f"Checking item: {item}")
             if item['id'] == product_id:
-                session['products_for_cart'].append(item['id'])
+                # Store product with quantity
+                session['products_for_cart'].append({
+                    'upc': item['id'],
+                    'quantity': quantity
+                })
                 session['items_to_choose_from'] = []
-                print(f"Added {product_id} to cart. New cart: {session['products_for_cart']}")
+                logger.info(f"Added {product_id} (qty: {quantity}) to cart. New cart: {session['products_for_cart']}")
                 return True
 
-        print(f"Product {product_id} not found in items_to_choose_from")
+        logger.warning(f"Product {product_id} not found in items_to_choose_from")
         return False
+
+    @staticmethod
+    def add_multiple_products_to_cart(product_ids: List[str], quantities: List[int]) -> bool:
+        """Add multiple selected products to cart session."""
+        if 'products_for_cart' not in session:
+            session['products_for_cart'] = []
+        if 'items_to_choose_from' not in session:
+            session['items_to_choose_from'] = []
+
+        logger.debug(f"Adding multiple products: {product_ids} with quantities: {quantities}")
+
+        items_dict = {item['id']: item for item in session.get('items_to_choose_from', [])}
+
+        for product_id, quantity in zip(product_ids, quantities):
+            if product_id in items_dict:
+                session['products_for_cart'].append({
+                    'upc': product_id,
+                    'quantity': quantity
+                })
+                logger.info(f"Added {product_id} (qty: {quantity}) to cart")
+
+        session['items_to_choose_from'] = []
+        return True
 
     @staticmethod
     def has_more_ingredients() -> bool:
@@ -310,12 +337,29 @@ class KrogerSessionManager:
         return bool(session.get('ingredient_details'))
 
     @staticmethod
-    def get_cart_products() -> List[str]:
-        """Get products selected for cart."""
+    def get_cart_products() -> List[Dict[str, Any]]:
+        """Get products selected for cart with quantities."""
         cart_products = session.get('products_for_cart', [])
-        print(f"=== GET CART PRODUCTS DEBUG ===")
-        print(f"Cart products: {cart_products}")
+        logger.debug(f"Getting cart products: {cart_products}")
         return cart_products
+
+    @staticmethod
+    def track_skipped_ingredient(ingredient_name: str):
+        """Track ingredients that were skipped."""
+        if 'skipped_ingredients' not in session:
+            session['skipped_ingredients'] = []
+        session['skipped_ingredients'].append(ingredient_name)
+        logger.info(f"Skipped ingredient: {ingredient_name}")
+
+    @staticmethod
+    def get_skipped_ingredients() -> List[str]:
+        """Get list of skipped ingredients."""
+        return session.get('skipped_ingredients', [])
+
+    @staticmethod
+    def clear_skipped_ingredients():
+        """Clear the skipped ingredients list."""
+        session.pop('skipped_ingredients', None)
 
 
 class KrogerWorkflow:
@@ -328,30 +372,30 @@ class KrogerWorkflow:
     def handle_authentication(self, user, oauth_base_url: str, redirect_url: str) -> str:
         """Handle Kroger authentication workflow with persistent tokens."""
         # Check if we have existing tokens
-        if user.oath_token and user.refresh_token:
-            print("FOUND EXISTING TOKENS - TESTING VALIDITY")
+        if user.oauth_token and user.refresh_token:
+            logger.info("Found existing tokens - testing validity")
 
             # Test if current token is valid by making a simple API call
-            if self._test_token_validity(user.oath_token):
-                print("EXISTING TOKEN IS VALID - SKIPPING AUTH")
+            if self._test_token_validity(user.oauth_token):
+                logger.info("Existing token is valid - skipping auth")
                 return url_for('homepage') + '#modal-zipcode'
 
-            print("EXISTING TOKEN INVALID - ATTEMPTING REFRESH")
+            logger.info("Existing token invalid - attempting refresh")
             # Try to refresh the token
             new_access_token, new_refresh_token = self.kroger_service.refresh_access_token(user.refresh_token)
 
             if new_access_token and new_refresh_token:
-                print("TOKEN REFRESH SUCCESSFUL")
-                user.oath_token = new_access_token
+                logger.info("Token refresh successful")
+                user.oauth_token = new_access_token
                 user.refresh_token = new_refresh_token
                 # Save to database
                 from models import db
                 db.session.commit()
                 return url_for('homepage') + '#modal-zipcode'
             else:
-                print("TOKEN REFRESH FAILED - CLEARING TOKENS")
+                logger.warning("Token refresh failed - clearing tokens")
                 # Clear invalid tokens
-                user.oath_token = None
+                user.oauth_token = None
                 user.refresh_token = None
                 user.profile_id = None
                 from models import db
@@ -360,7 +404,7 @@ class KrogerWorkflow:
         # No valid tokens - redirect to OAuth
         scope = 'cart.basic:write product.compact profile.compact'
         auth_url = self.kroger_service.build_oauth_url(oauth_base_url, redirect_url, scope)
-        print("NO VALID TOKENS - REDIRECTING TO AUTH")
+        logger.info("No valid tokens - redirecting to auth")
         return auth_url
 
     def _test_token_validity(self, token: str) -> bool:
@@ -369,7 +413,7 @@ class KrogerWorkflow:
             profile_id = self.kroger_service.get_profile_id(token)
             return profile_id is not None
         except Exception as e:
-            print(f"Token validation failed: {e}")
+            logger.debug(f"Token validation failed: {e}")
             return False
 
     def handle_callback(self, authorization_code: str, user, redirect_url: str) -> bool:
@@ -378,19 +422,19 @@ class KrogerWorkflow:
             access_token, refresh_token = self.kroger_service.get_access_token(authorization_code, redirect_url)
             if access_token and refresh_token:
                 profile_id = self.kroger_service.get_profile_id(access_token)
-                user.oath_token = access_token
+                user.oauth_token = access_token
                 user.refresh_token = refresh_token
                 user.profile_id = profile_id
                 # Save to database
                 from models import db
                 db.session.commit()
-                print("NEW TOKENS SAVED TO DATABASE")
+                logger.info("New tokens saved to database")
                 return True
             else:
-                print("Failed to get tokens from authorization code")
+                logger.error("Failed to get tokens from authorization code")
                 return False
         except Exception as e:
-            print(f"Error in callback handling: {e}")
+            logger.error(f"Error in callback handling: {e}", exc_info=True)
             return False
 
     def handle_location_search(self, zipcode: str, token: str) -> str:
@@ -435,16 +479,32 @@ class KrogerWorkflow:
 
     def handle_send_to_cart(self, token: str) -> str:
         """Handle sending items to Kroger cart and return redirect URL."""
-        selected_upcs = self.session_manager.get_cart_products()
-        print(f"=== SEND TO CART DEBUG ===")
-        print(f"Selected UPCs: {selected_upcs}")
-        print(f"Number of items: {len(selected_upcs)}")
+        cart_products = self.session_manager.get_cart_products()
+        logger.info(f"Sending {len(cart_products)} items to cart")
+        logger.debug(f"Cart products: {cart_products}")
 
-        items = [{"quantity": 1, "upc": upc, "modality": "PICKUP"} for upc in selected_upcs]
-        print(f"Items to send: {items}")
+        # Build items list with quantities
+        items = []
+        for product in cart_products:
+            # Handle both old format (string) and new format (dict)
+            if isinstance(product, dict):
+                items.append({
+                    "quantity": product.get('quantity', 1),
+                    "upc": product.get('upc'),
+                    "modality": "PICKUP"
+                })
+            else:
+                # Legacy format - just a UPC string
+                items.append({
+                    "quantity": 1,
+                    "upc": product,
+                    "modality": "PICKUP"
+                })
+
+        logger.debug(f"Items to send: {items}")
 
         success = self.kroger_service.add_items_to_cart(items, token)
-        print(f"Add to cart success: {success}")
+        logger.info(f"Add to cart success: {success}")
 
         self.session_manager.clear_kroger_session_data()
 
@@ -455,28 +515,28 @@ class KrogerWorkflow:
 
     def ensure_valid_token(self, user) -> Optional[str]:
         """Ensure user has a valid token, refreshing if necessary."""
-        if not user.oath_token or not user.refresh_token:
+        if not user.oauth_token or not user.refresh_token:
             return None
 
         # Test current token
-        if self._test_token_validity(user.oath_token):
-            return user.oath_token
+        if self._test_token_validity(user.oauth_token):
+            return user.oauth_token
 
         # Try to refresh
-        print("Token expired, attempting refresh...")
+        logger.info("Token expired, attempting refresh...")
         new_access_token, new_refresh_token = self.kroger_service.refresh_access_token(user.refresh_token)
 
         if new_access_token and new_refresh_token:
-            user.oath_token = new_access_token
+            user.oauth_token = new_access_token
             user.refresh_token = new_refresh_token
             from models import db
             db.session.commit()
-            print("Token refreshed successfully")
+            logger.info("Token refreshed successfully")
             return new_access_token
 
         # Refresh failed - clear tokens
-        print("Token refresh failed - clearing tokens")
-        user.oath_token = None
+        logger.warning("Token refresh failed - clearing tokens")
+        user.oauth_token = None
         user.refresh_token = None
         user.profile_id = None
         from models import db
@@ -492,6 +552,17 @@ def parse_kroger_products(json_response: Dict) -> List[Dict[str, str]]:
     for product_data in products_data:
         items_info = product_data.get('items', [{}])
         price_info = items_info[0].get('price', {}) if items_info else {}
+
+        # Extract fulfillment information
+        fulfillment_info = items_info[0].get('fulfillment', {}) if items_info else {}
+        # Only set availability if fulfillment data exists, otherwise None (unknown)
+        pickup_available = None
+        if fulfillment_info and 'pickup' in fulfillment_info:
+            pickup_available = fulfillment_info.get('pickup')
+
+        # Extract aisle location if available
+        aisle_locations = product_data.get('aisleLocations', [])
+        aisle = aisle_locations[0].get('description', '') if aisle_locations else ''
 
         # Extract image URL (prefer medium size, fallback to other sizes)
         image_url = None
@@ -518,7 +589,9 @@ def parse_kroger_products(json_response: Dict) -> List[Dict[str, str]]:
             'price': price_info.get('regular', 'N/A'),
             'image_url': image_url,
             'brand': product_data.get('brand', ''),
-            'size': items_info[0].get('size', '') if items_info else ''
+            'size': items_info[0].get('size', '') if items_info else '',
+            'available': pickup_available,
+            'aisle': aisle
         }
         items_to_choose_from.append(product)
 

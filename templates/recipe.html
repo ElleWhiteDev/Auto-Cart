@@ -44,14 +44,16 @@ block content %}
 			{% endfor %}
 		</p>
 
-		<div class="btn-container">
+		<div class="recipe-actions">
 			<button class="button-56" type="submit">Update</button>
 		</div>
 	</form>
 
 	<!-- Separate delete form -->
-	<form method="POST" action="{{ url_for('delete_recipe', recipe_id=recipe.id) }}" style="margin-top: 10px;">
-		<button type="submit" class="button-56-red">Delete Recipe</button>
+	<form method="POST" action="{{ url_for('delete_recipe', recipe_id=recipe.id) }}">
+		<div class="recipe-actions">
+			<button type="submit" class="button-56-red">Delete Recipe</button>
+		</div>
 	</form>
 </div>
 

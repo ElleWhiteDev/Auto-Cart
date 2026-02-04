@@ -8,13 +8,14 @@ from flask import Flask, render_template, request, flash, redirect, session, g, 
 from flask_mail import Mail
 from sqlalchemy.exc import IntegrityError
 from flask_bcrypt import Bcrypt
+from logging_config import logger
 
 from models import db, connect_db, User, Recipe, GroceryList, RecipeIngredient
 from forms import UserAddForm, AddRecipeForm, LoginForm, UpdatePasswordForm, UpdateEmailForm
 from app_config import config
 from utils import (
     require_login, do_login, do_logout, initialize_session_defaults,
-    CURR_USER_KEY, CURR_GROCERY_LIST_KEY
+    CURR_USER_KEY, CURR_GROCERY_LIST_KEY, parse_quantity_string
 )
 from kroger import KrogerAPIService, KrogerSessionManager, KrogerWorkflow
 from recipe_scraper import scrape_recipe_data
@@ -101,7 +102,7 @@ def callback():
 def location_search():
     """Send request to Kroger API for locations"""
     zipcode = request.form.get('zipcode')
-    redirect_url = kroger_workflow.handle_location_search(zipcode, g.user.oath_token)
+    redirect_url = kroger_workflow.handle_location_search(zipcode, g.user.oauth_token)
     return redirect(redirect_url)
 
 
@@ -114,28 +115,83 @@ def select_store():
     return redirect(redirect_url)
 
 
-@app.route('/product-search')
+@app.route('/product-search', methods=['GET', 'POST'])
 @require_login
 def kroger_product_search():
     """Search Kroger for ingredients based on name and present user with options."""
-    redirect_url = kroger_workflow.handle_product_search(g.user.oath_token)
+    # Handle custom search if provided
+    if request.method == 'POST':
+        custom_search = request.form.get('custom_search', '').strip()
+        if custom_search:
+            # Perform custom search
+            from kroger import parse_kroger_products
+            response = kroger_service.search_products(
+                custom_search,
+                session.get('location_id'),
+                g.user.oauth_token
+            )
+            if response:
+                products = parse_kroger_products(response)
+                # Get current ingredient detail or create a generic one
+                current_ingredient = session.get('current_ingredient_detail', {
+                    'name': custom_search,
+                    'quantity': '1',
+                    'measurement': 'unit'
+                })
+                kroger_session_manager.store_product_choices(products, current_ingredient)
+            return redirect(url_for('homepage') + '#modal-ingredient')
+
+    # Default behavior - search for next ingredient
+    redirect_url = kroger_workflow.handle_product_search(g.user.oauth_token)
     return redirect(redirect_url)
 
 
 @app.route('/item-choice', methods=['POST'])
 @require_login
 def item_choice():
-    """Store user selected product ID in session"""
-    chosen_id = request.form.get('product_id')
-    redirect_url = kroger_workflow.handle_item_choice(chosen_id)
-    return redirect(redirect_url)
+    """Store user selected product ID(s) and quantities in session"""
+    # Support both single and multiple selections
+    product_ids = request.form.getlist('product_id')
+    quantities = request.form.getlist('quantity')
+
+    if not product_ids:
+        flash('Please select at least one product', 'warning')
+        return redirect(url_for('kroger_product_search'))
+
+    # Ensure we have quantities for all products
+    if len(quantities) < len(product_ids):
+        quantities.extend(['1'] * (len(product_ids) - len(quantities)))
+
+    # Convert quantities to integers
+    quantities = [int(q) if q.isdigit() and int(q) > 0 else 1 for q in quantities]
+
+    # Add products to cart
+    if len(product_ids) == 1:
+        kroger_session_manager.add_product_to_cart(product_ids[0], quantities[0])
+    else:
+        kroger_session_manager.add_multiple_products_to_cart(product_ids, quantities)
+
+    # Check if there are more ingredients
+    if kroger_session_manager.has_more_ingredients():
+        return redirect(url_for('kroger_product_search'))
+    else:
+        return redirect(url_for('kroger_send_to_cart'))
 
 
 @app.route('/send-to-cart', methods=['POST', 'GET'])
 @require_login
 def kroger_send_to_cart():
     """Add selected products to user's Kroger cart"""
-    redirect_url = kroger_workflow.handle_send_to_cart(g.user.oath_token)
+    # Check if there are skipped ingredients
+    skipped = kroger_session_manager.get_skipped_ingredients()
+
+    # If there are skipped ingredients and we haven't confirmed yet, show modal
+    if skipped and not request.args.get('confirmed'):
+        return redirect(url_for('homepage') + '#modal-skipped')
+
+    # Clear skipped ingredients and proceed to cart
+    kroger_session_manager.clear_skipped_ingredients()
+    redirect_url = kroger_workflow.handle_send_to_cart(g.user.oauth_token)
     return redirect(redirect_url)
 
 
@@ -143,6 +199,12 @@ def kroger_send_to_cart():
 @require_login
 def skip_ingredient():
     """Skip current ingredient and move to next one"""
+    # Track the skipped ingredient
+    current_ingredient = session.get('current_ingredient_detail', {})
+    if current_ingredient:
+        ingredient_name = f"{current_ingredient.get('quantity', '')} {current_ingredient.get('measurement', '')} {current_ingredient.get('name', 'Unknown')}".strip()
+        kroger_session_manager.track_skipped_ingredient(ingredient_name)
+
     if kroger_session_manager.has_more_ingredients():
         return redirect(url_for('kroger_product_search'))
     else:
@@ -152,17 +214,17 @@ def skip_ingredient():
 # User management routes
 @app.route('/')
 def homepage():
-    """Show homepage with recipes and grocery list"""
+    """Show homepage with recipes and grocery list - requires login"""
+    # Redirect to login if not authenticated
+    if not g.user:
+        return redirect(url_for('login'))
+
     initialize_session_defaults()
 
-    if g.user:
-        recipes = Recipe.query.filter_by(user_id=g.user.id).all()
-        selected_recipe_ids = session.get('selected_recipe_ids', [])
-        print(f"DEBUG: selected_recipe_ids = {selected_recipe_ids}")
-        print(f"DEBUG: recipe IDs = {[recipe.id for recipe in recipes]}")
-    else:
-        recipes = []
-        selected_recipe_ids = []
+    recipes = Recipe.query.filter_by(user_id=g.user.id).all()
+    selected_recipe_ids = session.get('selected_recipe_ids', [])
+    logger.debug(f"Selected recipe IDs: {selected_recipe_ids}")
+    logger.debug(f"User recipe IDs: {[recipe.id for recipe in recipes]}")
 
     form = AddRecipeForm()
     return render_template('index.html', form=form, recipes=recipes, selected_recipe_ids=selected_recipe_ids)
@@ -222,7 +284,7 @@ def logout():
     """Handle logout of user."""
     do_logout()
     flash('Successfully logged out', 'success')
-    return redirect(url_for('homepage'))
+    return redirect(url_for('login'))
 
 
 @app.route('/profile')
@@ -285,7 +347,7 @@ def delete_account():
     db.session.delete(user)
     db.session.commit()
     flash('Account deleted successfully', 'success')
-    return redirect(url_for('homepage'))
+    return redirect(url_for('login'))
 
 
 # Recipe management routes
@@ -310,16 +372,11 @@ def add_recipe():
             return redirect(url_for('homepage'))
         except Exception as error:
             db.session.rollback()
-            print(f"=== RECIPE CREATION ERROR ===")
-            print(f"Error: {error}")
-            print(f"Error type: {type(error).__name__}")
-            import traceback
-            traceback.print_exc()
-            print(f"=== END ERROR DEBUG ===")
+            logger.error(f"Recipe creation error: {error}", exc_info=True)
             flash('Error Occurred. Please try again', 'danger')
             return redirect(url_for('homepage'))
     else:
-        print(f"Form validation failed: {form.errors}")
+        logger.warning(f"Form validation failed: {form.errors}")
         flash('Form validation failed. Please check your input.', 'danger')
     return redirect(url_for('homepage'))
 
@@ -363,8 +420,8 @@ def view_recipe(recipe_id):
             return redirect(url_for('homepage'))
         except Exception as error:
             db.session.rollback()
+            logger.error(f"Recipe update error: {error}", exc_info=True)
             flash('Error occurred. Please try again', 'danger')
-            print(error)
 
     return render_template('recipe.html', recipe=recipe, form=form)
 
@@ -401,6 +458,7 @@ def extract_recipe_form():
 
 # Grocery list management routes
 @app.route('/update_grocery_list', methods=['POST'])
+@require_login
 def update_grocery_list():
     """Add selected recipes to current grocery list"""
     selected_recipe_ids = request.form.getlist('recipe_ids')
@@ -514,19 +572,11 @@ def add_manual_ingredient():
             ingredient_name = ingredient_data["ingredient_name"]
             measurement = ingredient_data["measurement"]
 
-            # Handle ingredients without quantities (like "pickles")
-            if not quantity_string or quantity_string == "":
-                quantity = 0  # Use 0 for display purposes, but we'll handle this specially
-            else:
-                # Convert quantity to float
-                if "/" in quantity_string:
-                    from fractions import Fraction
-                    quantity = float(Fraction(quantity_string))
-                elif Recipe.is_float(quantity_string):
-                    quantity = float(quantity_string)
-                else:
-                    flash(f'Invalid quantity for ingredient: {ingredient_data["ingredient_name"]}', 'error')
-                    continue
+            # Convert quantity to float using shared utility
+            quantity = parse_quantity_string(quantity_string)
+            if quantity is None:
+                flash(f'Invalid quantity for ingredient: {ingredient_data["ingredient_name"]}', 'error')
+                continue
 
             # Check if we can combine with existing ingredient
             combined = False
@@ -558,6 +608,7 @@ def add_manual_ingredient():
 
 # Email functionality
 @app.route('/email-modal', methods=['GET', 'POST'])
+@require_login
 def email_modal():
     """Show email modal"""
     session['show_modal'] = True
@@ -565,6 +616,7 @@ def email_modal():
 
 
 @app.route('/send-email', methods=['POST'])
+@require_login
 def send_grocery_list_email():
     """Send grocery list and selected recipes to user supplied email"""
     email = request.form['email']
@@ -585,7 +637,7 @@ def send_grocery_list_email():
             else:
                 flash("No grocery list found", "error")
     except Exception as e:
-        print(f"Email error: {e}")
+        logger.error(f"Email error: {e}", exc_info=True)
         flash("Email service is currently unavailable. Please try again later.", "danger")
 
     return redirect(url_for('homepage'))
@@ -626,7 +678,7 @@ def standardize_ingredients():
             }
         })
     except Exception as e:
-        print(f"Error standardizing ingredients: {e}")
+        logger.error(f"Error standardizing ingredients: {e}", exc_info=True)
         return jsonify({'success': False, 'error': 'Failed to standardize ingredients. Please try again.'}), 500
 
 

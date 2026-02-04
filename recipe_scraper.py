@@ -6,6 +6,7 @@ import re
 from bs4 import BeautifulSoup
 from typing import Dict, List, Optional, Any
 from utils import safe_get_json_value
+from logging_config import logger
 
 
 def scrape_recipe_data(url: str) -> Dict[str, Any]:
@@ -68,7 +69,7 @@ def extract_jsonld_recipe(soup: BeautifulSoup) -> Optional[Dict[str, Any]]:
                 continue
 
     except Exception as e:
-        print(f"JSON-LD extraction error: {e}")
+        logger.debug(f"JSON-LD extraction error: {e}")
 
     return None
 
@@ -150,7 +151,7 @@ def extract_microdata_recipe(soup: BeautifulSoup) -> Optional[Dict[str, Any]]:
                 }
 
     except Exception as e:
-        print(f"Microdata extraction error: {e}")
+        logger.debug(f"Microdata extraction error: {e}")
 
     return None
 
@@ -218,6 +219,6 @@ def extract_html_patterns(soup: BeautifulSoup) -> Optional[Dict[str, Any]]:
             }
 
     except Exception as e:
-        print(f"HTML pattern extraction error: {e}")
+        logger.debug(f"HTML pattern extraction error: {e}")
 
     return None

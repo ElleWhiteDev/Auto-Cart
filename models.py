@@ -1,12 +1,13 @@
 import re
 import os
-from fractions import Fraction
 from collections import defaultdict
 from flask import g
 from flask_mail import Message
 from flask_bcrypt import Bcrypt
 from flask_sqlalchemy import SQLAlchemy
 from openai import OpenAI
+from utils import parse_quantity_string, is_valid_float
+from logging_config import logger
 
 bcrypt = Bcrypt()
 db = SQLAlchemy()
@@ -38,7 +39,7 @@ class User(db.Model):
 
     password = db.Column(db.Text, nullable=False)
 
-    oath_token = db.Column(db.Text, nullable=True)
+    oauth_token = db.Column(db.Text, nullable=True)
 
     refresh_token = db.Column(db.Text, nullable=True, unique=True)
 
@@ -122,15 +123,6 @@ class Recipe(db.Model):
 
     recipe_ingredients = db.relationship("RecipeIngredient", back_populates="recipe")
 
-    @staticmethod
-    def is_float(value):
-        """Ensure value is integer"""
-        try:
-            float(value)
-            return True
-        except ValueError:
-            return False
-
     @classmethod
     def clean_ingredients_with_openai(cls, ingredients_text):
         """Clean and standardize scraped ingredients using OpenAI."""
@@ -178,11 +170,8 @@ Return only the cleaned ingredients, one per line, with no additional text or ex
             return cleaned_text
 
         except Exception as e:
-            print(f"=== OPENAI ERROR DEBUG ===")
-            print(f"OpenAI API error: {e}")
-            print(f"Error type: {type(e).__name__}")
-            print("Falling back to original ingredients text")
-            print(f"=== END OPENAI ERROR DEBUG ===")
+            logger.error(f"OpenAI ingredient cleaning error: {e}", exc_info=True)
+            logger.info("Falling back to original ingredients text")
             return ingredients_text
 
     @classmethod
@@ -220,10 +209,8 @@ Return only the JSON array, no explanations."""
             return parsed_ingredients
 
         except Exception as e:
-            print(f"=== OPENAI PARSING ERROR ===")
-            print(f"OpenAI parsing error: {e}")
-            print("Falling back to simple parsing")
-            print(f"=== END OPENAI PARSING ERROR ===")
+            logger.error(f"OpenAI ingredient parsing error: {e}", exc_info=True)
+            logger.info("Falling back to simple parsing")
 
             # Fallback: simple parsing
             ingredients = ingredients_text.split("\n")
@@ -301,13 +288,10 @@ class GroceryList(db.Model):
         for ingredient_data in consolidated_ingredients:
             quantity_string = str(ingredient_data["quantity"])
 
-            # Convert quantity to float
-            if "/" in quantity_string:
-                quantity = float(Fraction(quantity_string))
-            elif Recipe.is_float(quantity_string):
-                quantity = float(quantity_string)
-            else:
-                print(f"Skipping ingredient: {ingredient_data['ingredient_name']} - Invalid quantity.")
+            # Convert quantity to float using shared utility
+            quantity = parse_quantity_string(quantity_string)
+            if quantity is None:
+                logger.warning(f"Skipping ingredient with invalid quantity: {ingredient_data['ingredient_name']}")
                 continue
 
             recipe_ingredient = RecipeIngredient(
@@ -330,7 +314,11 @@ class GroceryList(db.Model):
 
             # Get all items from the grocery list
             for recipe_ingredient in grocery_list.recipe_ingredients:
-                if recipe_ingredient.quantity and recipe_ingredient.quantity > 0 and recipe_ingredient.measurement:
+                # Skip default "1 unit" prefix - only show quantity if it's meaningful
+                if (recipe_ingredient.quantity and
+                    recipe_ingredient.quantity > 0 and
+                    recipe_ingredient.measurement and
+                    not (recipe_ingredient.quantity == 1.0 and recipe_ingredient.measurement == "unit")):
                     email_body += f"• {recipe_ingredient.quantity} {recipe_ingredient.measurement} {recipe_ingredient.ingredient_name}\n"
                 else:
                     email_body += f"• {recipe_ingredient.ingredient_name}\n"
@@ -348,7 +336,14 @@ class GroceryList(db.Model):
 
                         email_body += "\nINGREDIENTS:\n"
                         for ingredient in recipe.recipe_ingredients:
-                            email_body += f"• {ingredient.quantity} {ingredient.measurement} {ingredient.ingredient_name}\n"
+                            # Skip default "1 unit" prefix - only show quantity if it's meaningful
+                            if (ingredient.quantity and
+                                ingredient.quantity > 0 and
+                                ingredient.measurement and
+                                not (ingredient.quantity == 1.0 and ingredient.measurement == "unit")):
+                                email_body += f"• {ingredient.quantity} {ingredient.measurement} {ingredient.ingredient_name}\n"
+                            else:
+                                email_body += f"• {ingredient.ingredient_name}\n"
 
                         if recipe.notes:
                             email_body += f"\nINSTRUCTIONS/NOTES:\n{recipe.notes}\n"
@@ -359,7 +354,7 @@ class GroceryList(db.Model):
             mail.send(msg)
 
         except Exception as e:
-            print(f"Failed to send email: {e}")
+            logger.error(f"Failed to send grocery list email: {e}", exc_info=True)
             raise e
 
     @classmethod
@@ -380,7 +375,14 @@ class GroceryList(db.Model):
 
                         email_body += "\nINGREDIENTS:\n"
                         for ingredient in recipe.recipe_ingredients:
-                            email_body += f"• {ingredient.quantity} {ingredient.measurement} {ingredient.ingredient_name}\n"
+                            # Skip default "1 unit" prefix - only show quantity if it's meaningful
+                            if (ingredient.quantity and
+                                ingredient.quantity > 0 and
+                                ingredient.measurement and
+                                not (ingredient.quantity == 1.0 and ingredient.measurement == "unit")):
+                                email_body += f"• {ingredient.quantity} {ingredient.measurement} {ingredient.ingredient_name}\n"
+                            else:
+                                email_body += f"• {ingredient.ingredient_name}\n"
 
                         if recipe.notes:
                             email_body += f"\nINSTRUCTIONS/NOTES:\n{recipe.notes}\n"
@@ -395,7 +397,7 @@ class GroceryList(db.Model):
             mail.send(msg)
 
         except Exception as e:
-            print(f"Failed to send email: {e}")
+            logger.error(f"Failed to send recipes email: {e}", exc_info=True)
             raise e
 
     def format_grocery_list(self):
@@ -465,8 +467,9 @@ Only return the consolidated ingredients, no explanations."""
                 if not line:
                     continue
 
-                # Parse the consolidated ingredient
-                match = re.match(r'^(\d+(?:/\d+)?(?:\.\d+)?)\s+(\w+)\s+(.*)', line)
+                # Parse the consolidated ingredient - improved regex to handle mixed numbers and decimals
+                # Matches: "2 cups flour", "1/2 cup sugar", "1.5 lb beef", "2 1/2 tbsp salt"
+                match = re.match(r'^(\d+(?:\s+\d+/\d+|\.\d+|/\d+)?)\s+(\S+)\s+(.*)', line)
                 if match:
                     quantity, measurement, ingredient_name = match.groups()
                     consolidated_ingredients.append({
@@ -474,14 +477,20 @@ Only return the consolidated ingredients, no explanations."""
                         'measurement': measurement.strip(),
                         'ingredient_name': ingredient_name.strip()
                     })
+                else:
+                    # Fallback: if parsing fails, keep the ingredient with default values
+                    logger.warning(f"Could not parse consolidated ingredient: {line}")
+                    consolidated_ingredients.append({
+                        'quantity': '1',
+                        'measurement': 'unit',
+                        'ingredient_name': line
+                    })
 
             return consolidated_ingredients
 
         except Exception as e:
-            print(f"=== OPENAI CONSOLIDATION ERROR ===")
-            print(f"OpenAI API error: {e}")
-            print("Falling back to original ingredients")
-            print(f"=== END OPENAI CONSOLIDATION ERROR ===")
+            logger.error(f"OpenAI ingredient consolidation error: {e}", exc_info=True)
+            logger.info("Falling back to original ingredients")
             return ingredients_list
 
 def connect_db(app):

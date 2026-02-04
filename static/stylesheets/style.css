@@ -1,30 +1,43 @@
 /* ===================================
-   DESIGN SYSTEM COMPATIBILITY LAYER
+   AUTO-CART MOBILE-FIRST STYLES
+   Consolidated and DRY CSS
    =================================== */
 
-/* Override body font to use design system */
+/* ===================================
+   BASE OVERRIDES
+   =================================== */
+
 body {
 	font-family: var(--font-family-primary, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif) !important;
 	background-color: var(--gray-50, #f8fafc) !important;
 	color: var(--gray-800, #1e293b) !important;
+	/* Prevent text size adjustment on mobile */
+	-webkit-text-size-adjust: 100%;
+	-moz-text-size-adjust: 100%;
+	-ms-text-size-adjust: 100%;
 }
 
-/* Legacy button compatibility */
+/* ===================================
+   LEGACY BUTTON COMPATIBILITY
+   =================================== */
+
 .button-54-smaller,
 .button-56,
-.button-56-red,
-.btn-submit {
+.button-56-red {
 	background-color: var(--primary-blue, #004c91);
 	color: var(--white, #ffffff);
 	border: 2px solid var(--primary-blue, #004c91);
-	border-radius: var(--radius-lg, 0.5rem);
-	padding: var(--space-3, 0.75rem) var(--space-6, 1.5rem);
-	font-weight: var(--font-medium, 500);
+	border-radius: var(--radius-md, 6px);
+	padding: var(--space-3, 12px) var(--space-5, 20px);
+	font-weight: var(--font-semibold, 600);
 	transition: all var(--transition-fast, 150ms ease-in-out);
 	text-decoration: none;
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
+	gap: var(--space-2, 8px);
+	/* Mobile-friendly touch target */
+	min-height: 44px;
 }
 
 .button-56-red {
@@ -32,26 +45,189 @@ body {
 	border-color: var(--error, #ef4444);
 }
 
-.button-54-smaller,
-.button-56,
-.button-56-red,
-.btn-submit {
-	&:hover {
-		transform: translateY(-1px);
-		box-shadow: var(--shadow-md, 0 4px 6px -1px rgb(0 0 0 / 0.1));
-	}
+.button-54-smaller:hover,
+.button-56:hover,
+.button-56-red:hover {
+	transform: translateY(-1px);
+	box-shadow: var(--shadow-md, 0 4px 6px -1px rgb(0 0 0 / 0.1));
 }
 
-/* General */
+/* Profile Actions Layout */
+.profile-actions {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-3, 12px);
+	margin-bottom: var(--space-5, 20px);
+}
+
+.profile-actions .button-56,
+.profile-actions .button-56-red {
+	width: 100%;
+}
+
+/* Recipe Actions Layout - Same size buttons */
+.recipe-actions {
+	display: flex;
+	justify-content: center;
+	margin-top: var(--space-3, 12px);
+}
+
+.recipe-actions .button-56,
+.recipe-actions .button-56-red {
+	width: 100%;
+	max-width: 400px;
+}
+
+/* Ingredient Highlight in Modal */
+.ingredient-highlight {
+	background: linear-gradient(135deg, #f0f8ff 0%, #e6f3ff 100%);
+	border-left: 4px solid var(--primary-blue, #007bff);
+	padding: var(--space-4, 16px);
+	margin: var(--space-4, 16px) 0;
+	border-radius: var(--radius-md, 6px);
+	text-align: left;
+}
+
+.ingredient-label {
+	font-size: var(--text-sm, 14px);
+	color: var(--gray-600, #666);
+	font-weight: var(--font-medium, 500);
+	margin-bottom: var(--space-1, 4px);
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+	text-align: left;
+}
+
+.ingredient-name {
+	font-size: var(--text-xl, 20px);
+	color: var(--gray-900, #111);
+	font-weight: var(--font-bold, 700);
+	line-height: 1.3;
+	text-align: left;
+}
+
+/* Custom Search Container */
+.custom-search-container {
+	background-color: var(--gray-50, #f8f9fa);
+	border-radius: var(--radius-md, 6px);
+	padding: var(--space-4, 16px);
+	margin-bottom: var(--space-5, 20px);
+	border: 1px solid var(--gray-200, #e0e0e0);
+}
+
+.search-input-group {
+	display: flex;
+	gap: var(--space-3, 12px);
+	align-items: stretch;
+}
+
+.search-input-group .form-input {
+	flex: 1;
+}
+
+.search-input-group .btn {
+	white-space: nowrap;
+	flex-shrink: 0;
+	padding: var(--space-3, 12px) var(--space-5, 20px);
+	align-self: stretch;
+}
+
+/* Manual Ingredient Add Button */
+#manual-ingredient-form .flex {
+	display: flex;
+	align-items: stretch;
+	gap: var(--space-2, 8px);
+}
+
+#manual-ingredient-form .btn {
+	padding: 0;
+	width: 48px;
+	height: 48px;
+	min-height: auto;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	font-size: var(--text-lg, 18px);
+}
+
+/* Availability Badges */
+.availability-badge {
+	display: inline-flex;
+	align-items: center;
+	padding: var(--space-1, 4px) var(--space-2, 8px);
+	border-radius: var(--radius-full, 9999px);
+	font-size: var(--text-xs, 12px);
+	font-weight: var(--font-semibold, 600);
+	white-space: nowrap;
+}
+
+.availability-badge.available {
+	background-color: #d1fae5;
+	color: #065f46;
+}
+
+.availability-badge.unavailable {
+	background-color: #fee2e2;
+	color: #991b1b;
+}
+
+/* Quantity Container - Right aligned with fixed width */
+.quantity-container {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+	margin-left: auto;
+	padding-left: var(--space-4, 16px);
+	min-width: 80px;
+	flex-shrink: 0;
+}
+
+.quantity-label {
+	display: block;
+	font-size: var(--text-xs, 12px);
+	color: var(--gray-600, #666);
+	margin-bottom: var(--space-1, 4px);
+	text-align: right;
+	font-weight: var(--font-medium, 500);
+}
+
+.quantity-input {
+	width: 70px;
+	padding: var(--space-2, 8px);
+	border: 2px solid var(--gray-200, #e0e0e0);
+	border-radius: var(--radius-md, 6px);
+	text-align: center;
+	font-size: var(--text-base, 16px);
+	font-weight: var(--font-semibold, 600);
+	transition: border-color var(--transition-fast, 0.2s ease);
+	appearance: auto; /* Show spinner controls */
+	-moz-appearance: textfield; /* Firefox: show spinner */
+}
+
+.quantity-input::-webkit-inner-spin-button,
+.quantity-input::-webkit-outer-spin-button {
+	opacity: 1; /* Show spinner arrows in Chrome/Safari */
+	height: 30px;
+}
+
+.quantity-input:focus {
+	outline: none;
+	border-color: var(--primary-blue, #007bff);
+}
+
+/* ===================================
+   GENERAL UTILITIES
+   =================================== */
 
 h4 {
-	font-size: 1rem;
+	font-size: var(--text-base, 1rem);
 	margin: 0;
 }
 
 h5 {
-	font-size: 0.9rem;
-	font-weight: lighter;
+	font-size: var(--text-sm, 0.9rem);
+	font-weight: var(--font-light, 300);
 }
 
 a {
@@ -60,49 +236,60 @@ a {
 
 .btn-container {
 	text-align: center;
-	margin-top: 10px;
+	margin-top: var(--space-3, 10px);
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-2, 0.5rem);
+	justify-content: center;
 }
 
 .btn-container a {
-  display: flex;
-  justify-content: center;
-  max-width: 135px;
-  text-align: center;
-  align-items: center;
+	display: flex;
+	justify-content: center;
+	min-width: 135px;
+	text-align: center;
+	align-items: center;
+	/* Mobile: allow buttons to stack */
+	flex: 1 1 auto;
 }
-
 
 .btn:hover {
 	cursor: pointer;
 }
 
-/* Site layout */
+/* ===================================
+   LAYOUT COMPONENTS
+   =================================== */
 
 .container {
-	margin: 8px;
-	padding: 8px;
-  margin-left: auto;
-  margin-right: auto;
+	margin: var(--space-2, 8px);
+	padding: var(--space-2, 8px);
+	margin-left: auto;
+	margin-right: auto;
 	display: flex;
 	flex-direction: column;
 	text-align: center;
+	max-width: 1400px;
 }
 
 .sidebar form {
-    width: 100% !important;
-    margin: 0 !important;
+	width: 100% !important;
+	margin: 0 !important;
 }
 
 .sidebar {
-    padding-left: 5px;
-    text-align: left;
+	padding-left: var(--space-2, 5px);
+	text-align: left;
 }
 
 .sidebar input[type="checkbox"] {
-	padding: 2px;
-	margin-right: 5px;
+	padding: var(--space-1, 2px);
+	margin-right: var(--space-2, 5px);
 	width: auto;
 	display: inline-block;
+	/* Mobile-friendly touch target */
+	min-width: 20px;
+	min-height: 20px;
 }
 
 .grocery-list ul {
@@ -112,61 +299,96 @@ a {
 }
 
 .export-btn {
-	margin-left: 69%;
-	margin-top: 2%;
+	margin-left: auto;
+	margin-top: var(--space-2, 2%);
 }
 
 .border {
-	border: 1px solid lightgray;
-	border-radius: 12px;
+	border: 1px solid var(--gray-300, lightgray);
+	border-radius: var(--radius-xl, 12px);
 }
 
-/* Legacy modal styles removed - using design system modals */
+/* Mobile: Stack layout */
+@media (max-width: 768px) {
+	.container {
+		margin: var(--space-1, 4px);
+		padding: var(--space-1, 4px);
+	}
 
-/* Removed conflicting .my-modal style - using design system */
+	.export-btn {
+		margin-left: 0;
+		margin-top: var(--space-3, 12px);
+		width: 100%;
+	}
+}
 
-/* Removed specific modal styling - using design system */
+/* ===================================
+   PRODUCT SELECTION COMPONENTS
+   Consolidated and mobile-optimized
+   =================================== */
 
-/* Product Selection Styling */
 .product-options {
 	display: flex;
 	flex-direction: column;
-	gap: 15px;
-	margin: 20px 0;
+	gap: var(--space-4, 15px);
+	margin: var(--space-5, 20px) 0;
 	max-height: 400px;
 	overflow-y: auto;
-	padding: 10px;
+	padding: var(--space-3, 10px);
 }
 
-.product-option {
+/* Shared option styling for products, stores, etc. */
+.product-option,
+.store-option,
+.email-option {
 	position: relative;
-	border: 2px solid #e0e0e0;
-	border-radius: 8px;
-	transition: all 0.2s ease;
-	background-color: #fff;
+	border: 2px solid var(--gray-200, #e0e0e0);
+	border-radius: var(--radius-lg, 8px);
+	transition: all var(--transition-fast, 0.2s ease);
+	background-color: var(--white, #fff);
 }
 
-.product-option:hover {
-	border-color: #007bff;
-	box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
+.product-option:hover,
+.store-option:hover,
+.email-option:hover {
+	border-color: var(--primary-blue, #007bff);
+	box-shadow: var(--shadow-sm, 0 2px 8px rgba(0, 123, 255, 0.1));
 }
 
-.product-radio {
-	position: absolute;
-	left: 15px;
-	top: 50%;
-	transform: translateY(-50%);
-	width: 18px;
-	height: 18px;
+/* Shared radio/checkbox styling */
+.product-radio,
+.store-radio,
+.email-radio,
+.selection-radio,
+.selection-checkbox {
+	width: 20px;
+	height: 20px;
 	margin: 0;
 	cursor: pointer;
+	accent-color: var(--primary-blue, #007bff);
+	flex-shrink: 0;
+	/* Mobile-friendly touch target */
+	min-width: 20px;
+	min-height: 20px;
+}
+
+.product-radio,
+.store-radio,
+.email-radio {
+	position: absolute;
+	left: var(--space-4, 15px);
+	top: 50%;
+	transform: translateY(-50%);
 	z-index: 2;
 }
 
-.product-label {
+/* Shared label styling */
+.product-label,
+.store-label,
+.email-label {
 	display: block;
 	cursor: pointer;
-	padding: 15px 15px 15px 50px;
+	padding: var(--space-4, 15px) var(--space-4, 15px) var(--space-4, 15px) 50px;
 	margin: 0;
 	width: 100%;
 	box-sizing: border-box;
@@ -175,7 +397,7 @@ a {
 .product-content {
 	display: flex;
 	align-items: center;
-	gap: 15px;
+	gap: var(--space-4, 15px);
 }
 
 .product-image {
@@ -185,8 +407,8 @@ a {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	background-color: #f8f9fa;
-	border-radius: 6px;
+	background-color: var(--gray-50, #f8f9fa);
+	border-radius: var(--radius-md, 6px);
 	overflow: hidden;
 }
 
@@ -196,293 +418,338 @@ a {
 	object-fit: contain;
 }
 
-.product-info {
+.product-info,
+.store-info {
 	flex-grow: 1;
 	display: flex;
 	flex-direction: column;
-	gap: 4px;
+	gap: var(--space-1, 4px);
 }
 
-.product-name {
-	font-weight: 600;
-	font-size: 16px;
-	color: #333;
+.product-name,
+.store-address {
+	font-weight: var(--font-semibold, 600);
+	font-size: var(--text-base, 16px);
+	color: var(--gray-800, #333);
 	line-height: 1.3;
 }
 
-.product-brand {
-	font-size: 14px;
-	color: #666;
-	font-weight: 500;
+.product-brand,
+.store-city {
+	font-size: var(--text-sm, 14px);
+	color: var(--gray-600, #666);
+	font-weight: var(--font-medium, 500);
 }
 
 .product-size {
-	font-size: 13px;
-	color: #888;
+	font-size: var(--text-sm, 13px);
+	color: var(--gray-500, #888);
 }
 
 .product-price {
-	font-size: 18px;
-	font-weight: 700;
-	color: #007bff;
-	margin-top: 5px;
+	font-size: var(--text-lg, 18px);
+	font-weight: var(--font-bold, 700);
+	color: var(--primary-blue, #007bff);
+	margin-top: var(--space-1, 5px);
 }
 
-.product-option input[type="radio"]:checked + .product-label {
+/* Checked states */
+.product-option input[type="radio"]:checked + .product-label,
+.product-option input[type="checkbox"]:checked + .product-label,
+.store-option input[type="radio"]:checked + .store-label,
+.email-option input[type="radio"]:checked + .email-label {
 	background-color: #f0f8ff;
 }
 
-.product-option input[type="radio"]:checked {
-	border-color: #007bff;
-}
-
-.product-option:has(input[type="radio"]:checked) {
-	border-color: #007bff;
+.product-option:has(input:checked),
+.store-option:has(input:checked),
+.email-option:has(input:checked) {
+	border-color: var(--primary-blue, #007bff);
 	background-color: #f0f8ff;
 }
 
-/* Modal Actions */
+/* Mobile optimizations */
+@media (max-width: 768px) {
+	.product-content {
+		flex-direction: column;
+		text-align: center;
+		gap: var(--space-3, 10px);
+	}
+
+	.product-image {
+		width: 60px;
+		height: 60px;
+		align-self: center;
+	}
+
+	.product-label,
+	.store-label,
+	.email-label {
+		padding: var(--space-3, 12px) var(--space-3, 12px) var(--space-3, 12px) 40px;
+	}
+
+	.product-radio,
+	.store-radio,
+	.email-radio {
+		left: var(--space-3, 12px);
+	}
+
+	.product-name,
+	.store-address {
+		font-size: var(--text-sm, 14px);
+	}
+
+	.product-price {
+		font-size: var(--text-base, 16px);
+	}
+}
+
+/* ===================================
+   MODAL ACTIONS & NAVIGATION
+   Standardized button placement in modals
+   =================================== */
+
 .modal-actions {
 	display: flex;
-	gap: 10px;
+	gap: var(--space-3, 12px);
 	justify-content: center;
-	margin: 20px 0;
+	margin-top: var(--space-6, 24px);
+	flex-wrap: wrap;
 }
 
 .modal-actions .btn {
-	flex: 1;
-	max-width: 150px;
-	padding: 12px 20px;
-	font-weight: 600;
+	flex: 1 1 auto;
+	min-width: 140px;
+	padding: var(--space-3, 12px) var(--space-6, 24px);
+	font-weight: var(--font-semibold, 600);
 }
 
-.modal-navigation {
-	text-align: center;
-	margin-top: 15px;
+/* Single button in modal actions - full width on mobile */
+.modal-actions .btn:only-child {
+	max-width: 300px;
 }
 
-.modal-navigation .btn {
-	margin: 0 10px;
-	padding: 8px 16px;
-	text-decoration: none;
-	color: #666;
-	border: 1px solid #ddd;
-	border-radius: 4px;
-	transition: all 0.2s ease;
+.modal-footer {
+	display: flex;
+	gap: var(--space-3, 12px);
+	justify-content: center;
+	padding: var(--space-6, 24px) var(--space-8, 32px) var(--space-8, 32px);
+	border-top: 1px solid var(--gray-200, #e0e0e0);
 }
 
-.modal-navigation .btn:hover {
-	background-color: #f8f9fa;
-	border-color: #007bff;
-	color: #007bff;
+.modal-footer .btn {
+	min-width: 120px;
 }
 
-/* General Modal Form Styling */
+/* Mobile: Stack modal actions */
+@media (max-width: 768px) {
+	.modal-actions {
+		flex-direction: column;
+		gap: var(--space-3, 12px);
+	}
+
+	.modal-actions .btn {
+		width: 100%;
+		max-width: none;
+	}
+
+	.modal-footer {
+		flex-direction: column;
+	}
+
+	.modal-footer .btn {
+		width: 100%;
+	}
+}
+
+/* ===================================
+   FORM COMPONENTS
+   Mobile-optimized with proper touch targets
+   =================================== */
+
 .modal-form {
 	width: 100%;
 	margin: 0;
 	display: flex;
 	flex-direction: column;
-	gap: 20px;
+	gap: var(--space-5, 20px);
 }
 
 .form-group {
 	display: flex;
 	flex-direction: column;
-	gap: 8px;
+	gap: var(--space-2, 8px);
 }
 
 .form-label {
-	font-weight: 600;
-	color: #333;
-	font-size: 14px;
+	font-weight: var(--font-semibold, 600);
+	color: var(--gray-800, #333);
+	font-size: var(--text-sm, 14px);
 }
 
-.form-input {
-	padding: 12px 16px;
-	border: 2px solid #e0e0e0;
-	border-radius: 6px;
-	font-size: 16px;
-	transition: border-color 0.2s ease;
+.form-input,
+.form-textarea,
+.form-select,
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="search"],
+textarea,
+select {
+	padding: var(--space-3, 12px) var(--space-4, 16px);
+	border: 2px solid var(--gray-200, #e0e0e0);
+	border-radius: var(--radius-md, 6px);
+	/* Prevent zoom on iOS - 16px minimum */
+	font-size: 16px !important;
+	transition: border-color var(--transition-fast, 0.2s ease);
 	width: 100%;
 	box-sizing: border-box;
+	/* Mobile-friendly touch target */
+	min-height: 44px;
 }
 
-.form-input:focus {
+.form-input:focus,
+.form-textarea:focus,
+.form-select:focus,
+input:focus,
+textarea:focus,
+select:focus {
 	outline: none;
-	border-color: #007bff;
+	border-color: var(--primary-blue, #007bff);
 	box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
 }
 
-/* Store Selection Styling */
-.store-options {
-	display: flex;
-	flex-direction: column;
-	gap: 12px;
-	margin: 20px 0;
+/* Number inputs - mobile friendly */
+input[type="number"] {
+	-moz-appearance: textfield;
+	appearance: textfield;
 }
 
-.store-option {
-	position: relative;
-	border: 2px solid #e0e0e0;
-	border-radius: 8px;
-	transition: all 0.2s ease;
-	background-color: #fff;
-}
-
-.store-option:hover {
-	border-color: #007bff;
-	box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
-}
-
-.store-radio {
-	position: absolute;
-	left: 15px;
-	top: 50%;
-	transform: translateY(-50%);
-	width: 18px;
-	height: 18px;
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+	-webkit-appearance: none;
 	margin: 0;
-	cursor: pointer;
 }
 
-.store-label {
-	display: block;
-	cursor: pointer;
-	padding: 15px 15px 15px 50px;
-	margin: 0;
-	width: 100%;
-	box-sizing: border-box;
-}
+/* ===================================
+   STORE & EMAIL SELECTION
+   Using shared styles from product selection above
+   =================================== */
 
-.store-info {
-	display: flex;
-	flex-direction: column;
-	gap: 4px;
-}
-
-.store-address {
-	font-weight: 600;
-	font-size: 16px;
-	color: #333;
-}
-
-.store-city {
-	font-size: 14px;
-	color: #666;
-}
-
-.store-option input[type="radio"]:checked + .store-label {
-	background-color: #f0f8ff;
-}
-
-.store-option:has(input[type="radio"]:checked) {
-	border-color: #007bff;
-	background-color: #f0f8ff;
-}
-
-/* Email Modal Styling */
-.email-type-selection {
-	margin: 20px 0;
-}
-
-.email-type-selection h5 {
-	margin-bottom: 15px;
-	color: #333;
-	font-weight: 600;
-}
-
+.store-options,
 .email-options {
 	display: flex;
 	flex-direction: column;
-	gap: 12px;
+	gap: var(--space-3, 12px);
+	margin: var(--space-5, 20px) 0;
 }
 
-.email-option {
-	position: relative;
-	border: 2px solid #e0e0e0;
-	border-radius: 8px;
-	transition: all 0.2s ease;
-	background-color: #fff;
+/* Store and email specific info containers already styled above */
+
+/* ===================================
+   EMAIL MODAL SPECIFIC STYLES
+   =================================== */
+
+.email-modal-content {
+	max-width: 600px;
+	width: 90vw;
 }
 
-.email-option:hover {
-	border-color: #007bff;
-	box-shadow: 0 2px 8px rgba(0, 123, 255, 0.1);
+.email-modal-content .modal-header {
+	background: linear-gradient(135deg, var(--primary-blue, #007bff) 0%, #0056b3 100%);
+	color: white;
+	padding: var(--space-6, 24px);
+	border-radius: var(--radius-lg, 8px) var(--radius-lg, 8px) 0 0;
+	margin: calc(var(--space-6, 24px) * -1) calc(var(--space-6, 24px) * -1) var(--space-5, 20px);
 }
 
-.email-radio {
-	position: absolute;
-	left: 15px;
-	top: 50%;
-	transform: translateY(-50%);
-	width: 18px;
-	height: 18px;
+.email-modal-content .modal-title {
+	color: white;
+	margin-bottom: var(--space-2, 8px);
+}
+
+.email-modal-content .modal-description {
+	color: rgba(255, 255, 255, 0.9);
 	margin: 0;
-	cursor: pointer;
 }
 
-.email-label {
-	display: block;
-	cursor: pointer;
-	padding: 15px 15px 15px 50px;
-	margin: 0;
-	width: 100%;
-	box-sizing: border-box;
+.recipe-selection-box {
+	max-height: 240px;
+	overflow-y: auto;
+	border: 2px solid var(--gray-200, #e0e0e0);
+	border-radius: var(--radius-md, 6px);
+	padding: var(--space-3, 12px);
+	background: var(--gray-50, #f8f9fa);
+}
+
+.recipe-selection-box .recipe-item {
+	padding: var(--space-3, 12px);
+	margin-bottom: var(--space-2, 8px);
+	background: white;
+	border-radius: var(--radius-sm, 4px);
+	transition: all var(--transition-fast, 0.2s ease);
+}
+
+.recipe-selection-box .recipe-item:hover {
+	background: var(--gray-100, #f0f0f0);
+	transform: translateX(4px);
+}
+
+.recipe-selection-box .recipe-item:last-child {
+	margin-bottom: 0;
+}
+
+.email-type-selection,
+.recipe-selection {
+	margin: var(--space-5, 20px) 0;
+}
+
+.email-type-selection h5,
+.recipe-selection h5 {
+	margin-bottom: var(--space-4, 15px);
+	color: var(--gray-800, #333);
+	font-weight: var(--font-semibold, 600);
 }
 
 .email-option-content {
 	display: flex;
 	flex-direction: column;
-	gap: 4px;
+	gap: var(--space-1, 4px);
 }
 
 .email-option-title {
-	font-weight: 600;
-	font-size: 16px;
-	color: #333;
+	font-weight: var(--font-semibold, 600);
+	font-size: var(--text-base, 16px);
+	color: var(--gray-800, #333);
 }
 
 .email-option-desc {
-	font-size: 14px;
-	color: #666;
+	font-size: var(--text-sm, 14px);
+	color: var(--gray-600, #666);
 }
 
-.email-option input[type="radio"]:checked + .email-label {
-	background-color: #f0f8ff;
-}
-
-.email-option:has(input[type="radio"]:checked) {
-	border-color: #007bff;
-	background-color: #f0f8ff;
-}
-
-/* Recipe Selection in Email Modal */
-.recipe-selection {
-	margin: 20px 0;
-}
-
-.recipe-selection h5 {
-	margin-bottom: 15px;
-	color: #333;
-	font-weight: 600;
-}
+/* ===================================
+   RECIPE CHECKBOX SELECTION
+   =================================== */
 
 .recipe-checkboxes {
 	max-height: 200px;
 	overflow-y: auto;
-	border: 1px solid #e0e0e0;
-	border-radius: 6px;
-	padding: 10px;
-	background-color: #f8f9fa;
+	border: 1px solid var(--gray-200, #e0e0e0);
+	border-radius: var(--radius-md, 6px);
+	padding: var(--space-3, 10px);
+	background-color: var(--gray-50, #f8f9fa);
 }
 
 .recipe-checkbox-item {
 	display: flex;
 	align-items: center;
-	gap: 10px;
-	padding: 8px 0;
-	border-bottom: 1px solid #e0e0e0;
+	gap: var(--space-3, 10px);
+	padding: var(--space-2, 8px) 0;
+	border-bottom: 1px solid var(--gray-200, #e0e0e0);
+	/* Mobile-friendly touch target */
+	min-height: 44px;
 }
 
 .recipe-checkbox-item:last-child {
@@ -490,91 +757,98 @@ a {
 }
 
 .recipe-checkbox {
-	width: 18px;
-	height: 18px;
+	width: 20px;
+	height: 20px;
 	margin: 0;
 	cursor: pointer;
+	accent-color: var(--primary-blue, #007bff);
+	flex-shrink: 0;
 }
 
 .recipe-checkbox-label {
 	cursor: pointer;
-	font-size: 14px;
-	color: #333;
+	font-size: var(--text-sm, 14px);
+	color: var(--gray-800, #333);
 	flex-grow: 1;
+	/* Better tap target */
+	padding: var(--space-2, 8px) 0;
 }
 
 .recipe-checkbox:checked + .recipe-checkbox-label {
-	font-weight: 600;
-	color: #007bff;
+	font-weight: var(--font-semibold, 600);
+	color: var(--primary-blue, #007bff);
 }
 
-/* Removed conflicting modal target style - using design system */
+/* Mobile: Larger checkboxes */
+@media (max-width: 768px) {
+	.recipe-checkboxes {
+		max-height: 150px;
+	}
 
-.modal-actions {
-	display: flex;
-	justify-content: space-between;
-	margin-top: 20px;
+	.recipe-checkbox {
+		width: 24px;
+		height: 24px;
+	}
 }
 
-.modal-actions form,
-.modal-actions a {
-	flex: 1;
-	margin: 0 10px;
-}
-
-.modal-actions .btn {
-	width: 100%;
-	padding: 10px;
-}
-
-/* Removed conflicting .modal-container.active style - using design system */
-
-/* Forms */
+/* ===================================
+   LEGACY FORM STYLES
+   Mobile-optimized
+   =================================== */
 
 form {
 	display: flex;
 	flex-direction: column;
-	width: 50%;
-	margin: 8px auto 0;
+	width: 100%;
+	max-width: 600px;
+	margin: var(--space-2, 8px) auto 0;
+	padding: 0 var(--space-2, 8px);
 }
 
 form label {
-	font-size: 0.9rem;
-	font-weight: 700;
+	font-size: var(--text-sm, 0.9rem);
+	font-weight: var(--font-bold, 700);
 	display: inline-block;
 	text-align: right;
-	margin-right: 5px;
+	margin-right: var(--space-2, 5px);
+	margin-bottom: var(--space-1, 4px);
 }
 
 form input {
-	width: 50%;
-	padding: 5px;
-	margin-bottom: 15px;
-	border: 1px solid lightgray;
-	border-radius: 3px;
+	width: 100%;
+	padding: var(--space-3, 12px);
+	margin-bottom: var(--space-4, 15px);
+	border: 2px solid var(--gray-300, lightgray);
+	border-radius: var(--radius-md, 6px);
+	/* Prevent zoom on iOS */
+	font-size: 16px !important;
+	min-height: 44px;
 }
 
 form input:focus {
 	outline: none;
-	box-shadow: 0 0 4px 1px darkgray;
+	border-color: var(--primary-blue, #007bff);
+	box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
 }
 
 form > button:hover {
-	background-color: dimgray;
+	background-color: var(--gray-600, dimgray);
 }
 
 form > hr {
 	margin: 0;
-	border: 1px solid lightgray;
+	border: 1px solid var(--gray-300, lightgray);
 }
 
 .login-input label {
-	width: 70px;
+	width: auto;
+	min-width: 70px;
 }
 
 .scrollable-box {
-	height: 400px;
+	max-height: 400px;
 	overflow-y: auto;
+	-webkit-overflow-scrolling: touch;
 }
 
 #user_form {
@@ -585,407 +859,465 @@ form > hr {
 	width: 100%;
 }
 
-/* Navigation bar */
+/* Mobile: Full width forms, left-aligned labels */
+@media (max-width: 768px) {
+	form {
+		width: 100%;
+		padding: 0 var(--space-3, 12px);
+	}
+
+	form label {
+		text-align: left;
+		margin-right: 0;
+		display: block;
+	}
+
+	form input {
+		width: 100%;
+	}
+
+	.scrollable-box {
+		max-height: 300px;
+	}
+}
+
+/* ===================================
+   NAVIGATION BAR
+   Mobile-responsive with hamburger support
+   =================================== */
 
 nav {
 	display: flex;
-	background-color: #fee6e3;
 	align-items: center;
-	padding: 10px 20px;
-	border-radius: 3px 3px 0 0;
-	background: #f0f2f0; /* fallback for old browsers */
-	background: -webkit-linear-gradient(
-		to right,
-		#000c40,
-		#f0f2f0
-	); /* Chrome 10-25, Safari 5.1-6 */
-	background: linear-gradient(
-		to right,
-		#000c40,
-		#f0f2f0
-	); /* W3C, IE 10+/ Edge, Firefox 16+, Chrome 26+, Opera 12+, Safari 7+ */
-}
-
-nav {
-    display: flex;
-    align-items: center;
-    padding: 10px 20px;
-    border-radius: 5px; /* Adjusted for a more pronounced curve */
-    background: linear-gradient(to right, #fee6e3, #007bff); /* Blue to peach gradient */
-    box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2); /* Adding a subtle shadow for depth */
+	justify-content: space-between;
+	padding: var(--space-3, 10px) var(--space-5, 20px);
+	border-radius: var(--radius-md, 5px);
+	background: linear-gradient(to right, #fee6e3, var(--primary-blue, #007bff));
+	box-shadow: var(--shadow-md, 0 4px 8px 0 rgba(0, 0, 0, 0.2));
+	flex-wrap: wrap;
+	gap: var(--space-2, 8px);
 }
 
 .navbar-brand {
-    font-weight: bold;
-    color: #000; /* Changed to white for better visibility on gradient */
-    font-size: 1.25rem;
+	font-weight: var(--font-bold, bold);
+	color: #000;
+	font-size: var(--text-xl, 1.25rem);
+	white-space: nowrap;
 }
 
 .nav-link {
-    font-size: 0.85rem;
-    margin: 0 10px;
-    color: #000; /* Consistent color with the brand */
-    text-transform: uppercase;
+	font-size: var(--text-sm, 0.85rem);
+	margin: 0 var(--space-3, 10px);
+	color: #000;
+	text-transform: uppercase;
+	text-decoration: none;
+	padding: var(--space-2, 8px);
+	border-radius: var(--radius-sm, 4px);
+	transition: all var(--transition-fast, 0.2s);
+	/* Mobile-friendly touch target */
+	min-height: 44px;
+	display: inline-flex;
+	align-items: center;
 }
 
 .nav-link:hover {
-    color: #ffd700; /* Adjusted hover color for a gold-like effect */
-    text-decoration: none;
+	color: #ffd700;
+	background-color: rgba(255, 255, 255, 0.1);
+	text-decoration: none;
 }
 
 .nav-right {
-    margin-left: auto;
-    text-align: right;
+	margin-left: auto;
+	text-align: right;
+	display: flex;
+	align-items: center;
+	gap: var(--space-2, 8px);
+	flex-wrap: wrap;
 }
 
 .nav-left {
-    margin: 0 10px;
-    color: #ffffff;
+	margin: 0 var(--space-3, 10px);
+	color: #000;
+	display: flex;
+	align-items: center;
+	gap: var(--space-2, 8px);
 }
 
 #nav-username {
-    font-weight: bold;
-    color: #ffd700; /* Gold-like color to stand out */
+	font-weight: var(--font-bold, bold);
+	color: #ffd700;
+}
+
+/* Mobile: Stack navigation */
+@media (max-width: 768px) {
+	nav {
+		padding: var(--space-2, 8px) var(--space-3, 12px);
+		gap: var(--space-1, 4px);
+	}
+
+	.navbar-brand {
+		font-size: var(--text-lg, 1.125rem);
+	}
+
+	.nav-link {
+		font-size: var(--text-xs, 0.75rem);
+		margin: 0 var(--space-1, 4px);
+		padding: var(--space-1, 4px) var(--space-2, 8px);
+	}
+
+	.nav-right,
+	.nav-left {
+		flex-basis: 100%;
+		justify-content: center;
+		margin: var(--space-1, 4px) 0;
+	}
 }
 
 
-/* User page*/
+/* ===================================
+   USER PAGE LAYOUT
+   Mobile-responsive grid
+   =================================== */
 
 .user-page {
-	margin: 8px;
-	padding: 8px;
+	margin: var(--space-2, 8px);
+	padding: var(--space-2, 8px);
 	display: flex;
 	flex-direction: row;
 	justify-content: space-between;
+	gap: var(--space-4, 16px);
 }
 
 .user-recipes,
 .user-grocery-lists {
 	flex: 1;
-	margin: 0 10px;
+	min-width: 0; /* Prevent flex overflow */
 }
 
 .scrollable-list {
 	max-height: 500px;
-	overflow-y: scroll;
-	border: 1px solid #ccc;
-	padding: 10px;
-	margin-bottom: 20px;
+	overflow-y: auto;
+	-webkit-overflow-scrolling: touch;
+	border: 1px solid var(--gray-300, #ccc);
+	border-radius: var(--radius-lg, 8px);
+	padding: var(--space-3, 10px);
+	margin-bottom: var(--space-5, 20px);
 }
 
-/* Removed conflicting recipe-item style - using design system styles */
 .list-item {
-	padding: 5px;
-	border-bottom: 1px solid #ccc;
+	padding: var(--space-2, 8px);
+	border-bottom: 1px solid var(--gray-200, #ccc);
+	min-height: 44px;
+	display: flex;
+	align-items: center;
 }
 
-/* responsive queries for tightening things up for mobile. */
+.list-item:last-child {
+	border-bottom: none;
+}
 
-/* Mobile responsiveness for product selection modal */
+/* Mobile: Stack user page sections */
 @media (max-width: 768px) {
-	#modal-ingredient .my-modal {
-		width: 95%;
-		margin: 20px auto;
-		padding: 15px;
-	}
-
-	.product-content {
+	.user-page {
 		flex-direction: column;
-		text-align: center;
-		gap: 10px;
+		margin: var(--space-1, 4px);
+		padding: var(--space-1, 4px);
 	}
 
-	.product-image {
-		width: 60px;
-		height: 60px;
-		align-self: center;
+	.user-recipes,
+	.user-grocery-lists {
+		margin: 0;
+		width: 100%;
 	}
 
-	.product-label {
-		padding: 12px 12px 12px 40px;
+	.scrollable-list {
+		max-height: 300px;
+	}
+}
+
+/* ===================================
+   CONSOLIDATED MOBILE STYLES
+   All mobile-specific overrides in one place
+   =================================== */
+
+@media (max-width: 480px) {
+	/* Extra small devices */
+	:root {
+		--space-base: 0.75rem;
 	}
 
-	.product-radio {
-		left: 12px;
-	}
-
-	.product-name {
+	body {
 		font-size: 14px;
 	}
 
-	.product-price {
-		font-size: 16px;
+	h1 { font-size: var(--text-2xl); }
+	h2 { font-size: var(--text-xl); }
+	h3 { font-size: var(--text-lg); }
+}
+
+@media (max-width: 768px) {
+	/* Tablets and phones */
+
+	/* Modal adjustments - already handled above but ensuring specificity */
+	#modal-ingredient .my-modal,
+	#modal-store .my-modal,
+	#modal-skipped .my-modal,
+	#email-modal .my-modal {
+		width: 95vw;
+		max-width: 95vw;
+		margin: var(--space-2, 8px) auto;
+		padding: var(--space-3, 12px);
 	}
 
-	.modal-actions {
-		flex-direction: column;
-		gap: 8px;
+	/* Ensure all touch targets are minimum 44x44px */
+	button,
+	.btn,
+	a.btn,
+	input[type="submit"],
+	input[type="button"],
+	input[type="checkbox"],
+	input[type="radio"] {
+		min-height: 44px;
+		min-width: 44px;
 	}
 
-	.modal-actions .btn {
-		max-width: none;
-	}
-
-	/* Store and Email Modal Mobile Styles */
-	.store-label, .email-label {
-		padding: 12px 12px 12px 40px;
-	}
-
-	.store-radio, .email-radio {
-		left: 12px;
-	}
-
-	.store-address, .email-option-title {
-		font-size: 14px;
-	}
-
-	.store-city, .email-option-desc {
-		font-size: 12px;
-	}
-
-	.form-input {
-		font-size: 16px; /* Prevents zoom on iOS */
-	}
-
-	.recipe-checkboxes {
-		max-height: 150px;
+	/* Larger tap targets for checkboxes/radios */
+	input[type="checkbox"],
+	input[type="radio"] {
+		width: 24px;
+		height: 24px;
 	}
 }
 
 
-/* Unified Button System */
+/* ===================================
+   UNIFIED BUTTON SYSTEM
+   Consolidated with design system
+   =================================== */
+
+/* Primary button - using design system variables */
 .btn-primary {
-  align-items: center;
-  background-color: #007bff;
-  border: 2px solid #0056b3;
-  border-radius: 8px;
-  box-sizing: border-box;
-  color: white;
-  cursor: pointer;
-  display: inline-flex;
-  font-family: Inter, sans-serif;
-  font-size: 14px;
-  font-weight: 500;
-  height: 40px;
-  justify-content: center;
-  line-height: 20px;
-  padding: 0 16px;
-  position: relative;
-  text-align: center;
-  text-decoration: none;
-  user-select: none;
-  -webkit-user-select: none;
-  touch-action: manipulation;
-  transition: all 0.2s ease;
+	align-items: center;
+	background-color: var(--primary-blue, #007bff);
+	border: 2px solid var(--primary-blue-dark, #0056b3);
+	border-radius: var(--radius-lg, 8px);
+	box-sizing: border-box;
+	color: var(--white, white);
+	cursor: pointer;
+	display: inline-flex;
+	font-family: var(--font-family-primary, Inter, sans-serif);
+	font-size: var(--text-sm, 14px);
+	font-weight: var(--font-medium, 500);
+	min-height: 44px;
+	justify-content: center;
+	line-height: 20px;
+	padding: var(--space-3, 12px) var(--space-4, 16px);
+	position: relative;
+	text-align: center;
+	text-decoration: none;
+	user-select: none;
+	-webkit-user-select: none;
+	touch-action: manipulation;
+	transition: all var(--transition-fast, 0.2s ease);
 }
 
-.btn-primary:hover {
-  background-color: #0056b3;
-  border-color: #004085;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
+.btn-primary:hover:not(:disabled) {
+	background-color: var(--primary-blue-dark, #0056b3);
+	border-color: #004085;
+	transform: translateY(-1px);
+	box-shadow: var(--shadow-md, 0 4px 8px rgba(0, 123, 255, 0.3));
 }
 
 .btn-primary:active {
-  transform: translateY(0);
-  box-shadow: 0 2px 4px rgba(0, 123, 255, 0.3);
+	transform: translateY(0);
+	box-shadow: 0 2px 4px rgba(0, 123, 255, 0.3);
+}
+
+/* Outline variants */
+.btn-outline,
+.btn-outline-primary,
+.btn-outline-secondary {
+	align-items: center;
+	background-color: transparent;
+	border: 2px solid var(--gray-300, #6c757d);
+	border-radius: var(--radius-lg, 8px);
+	box-sizing: border-box;
+	color: var(--gray-700, #6c757d);
+	cursor: pointer;
+	display: inline-flex;
+	font-family: var(--font-family-primary, Inter, sans-serif);
+	font-size: var(--text-sm, 14px);
+	font-weight: var(--font-medium, 500);
+	min-height: 44px;
+	justify-content: center;
+	line-height: 20px;
+	padding: var(--space-3, 12px) var(--space-4, 16px);
+	position: relative;
+	text-align: center;
+	text-decoration: none;
+	user-select: none;
+	-webkit-user-select: none;
+	touch-action: manipulation;
+	transition: all var(--transition-fast, 0.2s ease);
 }
 
 .btn-outline-primary {
-  align-items: center;
-  background-color: transparent;
-  border: 2px solid #007bff;
-  border-radius: 8px;
-  box-sizing: border-box;
-  color: #007bff;
-  cursor: pointer;
-  display: inline-flex;
-  font-family: Inter, sans-serif;
-  font-size: 14px;
-  font-weight: 500;
-  height: 40px;
-  justify-content: center;
-  line-height: 20px;
-  padding: 0 16px;
-  position: relative;
-  text-align: center;
-  text-decoration: none;
-  user-select: none;
-  -webkit-user-select: none;
-  touch-action: manipulation;
-  transition: all 0.2s ease;
+	border-color: var(--primary-blue, #007bff);
+	color: var(--primary-blue, #007bff);
 }
 
-.btn-outline-primary:hover {
-  background-color: #007bff;
-  color: white;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
+.btn-outline-primary:hover:not(:disabled) {
+	background-color: var(--primary-blue, #007bff);
+	color: var(--white, white);
+	transform: translateY(-1px);
+	box-shadow: var(--shadow-md, 0 4px 8px rgba(0, 123, 255, 0.3));
 }
 
-.btn-outline-secondary {
-  align-items: center;
-  background-color: transparent;
-  border: 2px solid #6c757d;
-  border-radius: 8px;
-  box-sizing: border-box;
-  color: #6c757d;
-  cursor: pointer;
-  display: inline-flex;
-  font-family: Inter, sans-serif;
-  font-size: 14px;
-  font-weight: 500;
-  height: 40px;
-  justify-content: center;
-  line-height: 20px;
-  padding: 0 16px;
-  position: relative;
-  text-align: center;
-  text-decoration: none;
-  user-select: none;
-  -webkit-user-select: none;
-  touch-action: manipulation;
-  transition: all 0.2s ease;
+.btn-outline-secondary:hover:not(:disabled) {
+	background-color: var(--gray-600, #6c757d);
+	color: var(--white, white);
+	transform: translateY(-1px);
+	box-shadow: 0 4px 8px rgba(108, 117, 125, 0.3);
 }
 
-.btn-outline-secondary:hover {
-  background-color: #6c757d;
-  color: white;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(108, 117, 125, 0.3);
-}
-
+/* Button sizes */
 .btn-sm {
-  height: 32px;
-  font-size: 12px;
-  padding: 0 12px;
+	min-height: 36px;
+	font-size: var(--text-xs, 12px);
+	padding: var(--space-2, 8px) var(--space-3, 12px);
 }
 
 .btn-lg {
-  height: 48px;
-  font-size: 16px;
-  padding: 0 24px;
+	min-height: 52px;
+	font-size: var(--text-base, 16px);
+	padding: var(--space-4, 16px) var(--space-6, 24px);
 }
 
-/* Submit button - special styling */
+/* Submit button - special 3D styling */
 .btn-submit {
-  align-items: center;
-  background-color: #fee6e3;
-  border: 2px solid #111;
-  border-radius: 8px;
-  box-sizing: border-box;
-  color: #111;
-  cursor: pointer;
-  display: inline-flex;
-  font-family: Inter, sans-serif;
-  font-size: 16px;
-  font-weight: 600;
-  height: 48px;
-  justify-content: center;
-  line-height: 24px;
-  padding: 0 32px;
-  position: relative;
-  text-align: center;
-  text-decoration: none;
-  user-select: none;
-  -webkit-user-select: none;
-  touch-action: manipulation;
+	align-items: center;
+	background-color: #fee6e3;
+	border: 2px solid #111;
+	border-radius: var(--radius-lg, 8px);
+	box-sizing: border-box;
+	color: #111;
+	cursor: pointer;
+	display: inline-flex;
+	font-family: var(--font-family-primary, Inter, sans-serif);
+	font-size: var(--text-base, 16px);
+	font-weight: var(--font-semibold, 600);
+	min-height: 52px;
+	justify-content: center;
+	line-height: 24px;
+	padding: var(--space-3, 12px) var(--space-8, 32px);
+	position: relative;
+	text-align: center;
+	text-decoration: none;
+	user-select: none;
+	-webkit-user-select: none;
+	touch-action: manipulation;
 }
 
 .btn-submit:after {
-  background-color: #111;
-  border-radius: 8px;
-  content: "";
-  display: block;
-  height: 48px;
-  left: 0;
-  width: 100%;
-  position: absolute;
-  top: -2px;
-  transform: translate(8px, 8px);
-  transition: transform .2s ease-out;
-  z-index: -1;
+	background-color: #111;
+	border-radius: var(--radius-lg, 8px);
+	content: "";
+	display: block;
+	height: 100%;
+	left: 0;
+	width: 100%;
+	position: absolute;
+	top: -2px;
+	transform: translate(8px, 8px);
+	transition: transform var(--transition-fast, 0.2s) ease-out;
+	z-index: -1;
 }
 
-.btn-submit:hover:after {
-  transform: translate(0, 0);
+.btn-submit:hover:not(:disabled):after {
+	transform: translate(0, 0);
 }
 
 .btn-submit:active {
-  background-color: #ffdeda;
+	background-color: #ffdeda;
 }
 
 /* Danger button */
 .btn-danger {
-  align-items: center;
-  background-color: #dc3545;
-  border: 2px solid #c82333;
-  border-radius: 8px;
-  box-sizing: border-box;
-  color: white;
-  cursor: pointer;
-  display: inline-flex;
-  font-family: Inter, sans-serif;
-  font-size: 14px;
-  font-weight: 500;
-  height: 40px;
-  justify-content: center;
-  line-height: 20px;
-  padding: 0 16px;
-  position: relative;
-  text-align: center;
-  text-decoration: none;
-  user-select: none;
-  -webkit-user-select: none;
-  touch-action: manipulation;
-  transition: all 0.2s ease;
+	align-items: center;
+	background-color: var(--error, #dc3545);
+	border: 2px solid #c82333;
+	border-radius: var(--radius-lg, 8px);
+	box-sizing: border-box;
+	color: var(--white, white);
+	cursor: pointer;
+	display: inline-flex;
+	font-family: var(--font-family-primary, Inter, sans-serif);
+	font-size: var(--text-sm, 14px);
+	font-weight: var(--font-medium, 500);
+	min-height: 44px;
+	justify-content: center;
+	line-height: 20px;
+	padding: var(--space-3, 12px) var(--space-4, 16px);
+	position: relative;
+	text-align: center;
+	text-decoration: none;
+	user-select: none;
+	-webkit-user-select: none;
+	touch-action: manipulation;
+	transition: all var(--transition-fast, 0.2s ease);
 }
 
-.btn-danger:hover {
-  background-color: #c82333;
-  border-color: #bd2130;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
+.btn-danger:hover:not(:disabled) {
+	background-color: #c82333;
+	border-color: #bd2130;
+	transform: translateY(-1px);
+	box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
 }
 
 /* Disabled state for all buttons */
 .btn:disabled,
 .btn-primary:disabled,
+.btn-outline:disabled,
 .btn-outline-primary:disabled,
 .btn-outline-secondary:disabled,
 .btn-submit:disabled,
 .btn-danger:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none !important;
-  box-shadow: none !important;
+	opacity: 0.6;
+	cursor: not-allowed;
+	transform: none !important;
+	box-shadow: none !important;
 }
 
 .btn:disabled:hover,
 .btn-primary:disabled:hover,
+.btn-outline:disabled:hover,
 .btn-outline-primary:disabled:hover,
 .btn-outline-secondary:disabled:hover,
 .btn-submit:disabled:hover,
 .btn-danger:disabled:hover {
-  background-color: inherit;
-  color: inherit;
-  border-color: inherit;
+	background-color: inherit;
+	color: inherit;
+	border-color: inherit;
 }
 
-/* Ensure buttons don't interfere with modals */
+/* Z-index management */
 .btn-outline-secondary,
-.btn-outline-primary {
-    position: relative;
-    z-index: 1; /* Lower z-index for buttons */
+.btn-outline-primary,
+.btn-outline {
+	position: relative;
+	z-index: 1;
 }
 
-/* Form elements should stay below modals */
-.form-group {
-    position: relative;
-    z-index: 1;
-}
-
+.form-group,
 .input-group {
-    position: relative;
-    z-index: 1;
+	position: relative;
+	z-index: 1;
+}
+
+/* Mobile: Full width buttons option */
+@media (max-width: 768px) {
+	.btn-block-mobile {
+		width: 100%;
+		display: flex;
+	}
 }

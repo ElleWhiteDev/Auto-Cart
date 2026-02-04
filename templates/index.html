@@ -208,11 +208,11 @@
 					<button type="submit" class="btn btn-primary">
 						<i class="fas fa-search mr-2"></i>Find Stores
 					</button>
+					<a href="#modal-closed" class="btn btn-outline">
+						<i class="fas fa-times mr-2"></i>Cancel
+					</a>
 				</div>
 			</form>
-		</div>
-		<div class="modal-footer">
-			<a href="#modal-closed" class="btn btn-outline">Cancel</a>
 		</div>
 	</div>
 </div>
@@ -241,17 +241,17 @@
 					{% endfor %}
 				</div>
 				<div class="modal-actions">
+					<a href="#modal-zipcode" class="btn btn-outline">
+						<i class="fas fa-arrow-left mr-2"></i>Back
+					</a>
 					<button type="submit" class="btn btn-primary">
 						<i class="fas fa-arrow-right mr-2"></i>Continue
 					</button>
+					<a href="#modal-closed" class="btn btn-outline">
+						<i class="fas fa-times mr-2"></i>Cancel
+					</a>
 				</div>
 			</form>
-		</div>
-		<div class="modal-footer">
-			<a href="#modal-zipcode" class="btn btn-outline">
-				<i class="fas fa-arrow-left mr-2"></i>Previous
-			</a>
-			<a href="#modal-closed" class="btn btn-outline">Cancel</a>
 		</div>
 	</div>
 </div>
@@ -262,12 +262,17 @@
 		<div class="modal-header">
 			<h2 class="modal-title">
 				<i class="fas fa-shopping-basket text-primary mr-2"></i>
-				Ingredient Select
+				Select Product
 			</h2>
 			{% if session['current_ingredient_detail'] %}
+			<div class="ingredient-highlight">
+				<div class="ingredient-label">Looking for:</div>
+				<div class="ingredient-name">
+					{{ session['current_ingredient_detail']['quantity'] }} {{ session['current_ingredient_detail']['measurement'] }} {{ session['current_ingredient_detail']['name'] }}
+				</div>
+			</div>
 			<p class="modal-description">
-				<strong>Looking for: {{ session['current_ingredient_detail']['quantity'] }} {{ session['current_ingredient_detail']['measurement'] }} {{ session['current_ingredient_detail']['name'] }}</strong><br>
-				Please select the item you'd like to add to your cart
+				Select the item you'd like to add to your cart, or search for a different product below
 			</p>
 			{% else %}
 			<p class="modal-description">
@@ -276,11 +281,28 @@
 			{% endif %}
 		</div>
 		<div class="modal-body">
-			<form method="POST" action="{{ url_for('item_choice') }}" id="ingredient-selection-form">
+			<!-- Custom Search Input -->
+			<div class="custom-search-container">
+				<form method="POST" action="{{ url_for('kroger_product_search') }}" id="custom-search-form">
+					<label for="custom-search" class="form-label">
+						<i class="fas fa-search mr-2"></i>Can't find what you're looking for?
+					</label>
+					<div class="search-input-group">
+						<input type="text" id="custom-search" name="custom_search"
+							   class="form-input"
+							   placeholder="e.g., organic chicken breast" />
+						<button type="submit" class="btn btn-primary">
+							<i class="fas fa-search mr-2"></i>Search
+						</button>
+					</div>
+				</form>
+			</div>
+
+			<form method="POST" action="{{ url_for('item_choice') }}" id="ingredient-selection-form" onsubmit="return validateIngredientSelection()">
 				<div class="selection-options">
 					{% for item in session['items_to_choose_from'] %}
 					<div class="selection-option">
-						<input type="radio" name="product_id" value="{{ item['id'] }}" id="product-{{ loop.index }}" class="selection-radio" />
+						<input type="checkbox" name="product_id" value="{{ item['id'] }}" id="product-{{ loop.index }}" class="selection-checkbox" />
 						<label for="product-{{ loop.index }}" class="selection-label">
 							<div class="flex gap-4 items-center">
 								{% if item['image_url'] %}
@@ -298,7 +320,30 @@
 									{% if item['size'] %}
 									<div class="text-sm text-gray-500">{{ item['size'] }}</div>
 									{% endif %}
-									<div class="text-lg font-bold text-primary">${{ item['price'] }}</div>
+									{% if item.get('aisle') %}
+									<div class="text-sm text-gray-500">
+										<i class="fas fa-map-marker-alt mr-1"></i>{{ item['aisle'] }}
+									</div>
+									{% endif %}
+									<div class="flex items-center gap-2">
+										<div class="text-lg font-bold text-primary">${{ item['price'] }}</div>
+										{% if item.get('available') == False %}
+										<span class="availability-badge unavailable">
+											<i class="fas fa-exclamation-circle mr-1"></i>Unavailable
+										</span>
+										{% elif item.get('available') == True %}
+										<span class="availability-badge available">
+											<i class="fas fa-check-circle mr-1"></i>Available
+										</span>
+										{% endif %}
+									</div>
+								</div>
+								<div class="quantity-container">
+									<label for="quantity-{{ loop.index }}" class="quantity-label">Qty:</label>
+									<input type="number" name="quantity" id="quantity-{{ loop.index }}"
+										   min="1" value="1"
+										   class="quantity-input"
+										   onclick="event.stopPropagation();" />
 								</div>
 							</div>
 						</label>
@@ -306,87 +351,147 @@
 					{% endfor %}
 				</div>
 				<div class="modal-actions">
-					<button type="submit" class="btn btn-primary">
-						<i class="fas fa-cart-plus mr-2"></i>Add to Cart
-					</button>
+					<a href="#modal-store" class="btn btn-outline">
+						<i class="fas fa-arrow-left mr-2"></i>Back
+					</a>
 					<button type="button" onclick="document.getElementById('skip-form').submit();" class="btn btn-outline">
 						<i class="fas fa-forward mr-2"></i>Skip
+					</button>
+					<button type="submit" class="btn btn-primary">
+						<i class="fas fa-cart-plus mr-2"></i>Add to Cart
 					</button>
 				</div>
 			</form>
 			<form method="POST" action="{{ url_for('skip_ingredient') }}" id="skip-form" style="display: none;">
 			</form>
 		</div>
-		<div class="modal-footer">
-			<a href="#modal-store" class="btn btn-outline">
-				<i class="fas fa-arrow-left mr-2"></i>Previous
-			</a>
-			<a href="#modal-closed" class="btn btn-outline">Cancel</a>
+	</div>
+</div>
+
+<!-- Skipped Ingredients Modal -->
+<div class="modal-container" id="modal-skipped">
+	<div class="my-modal">
+		<div class="modal-header">
+			<h2 class="modal-title">
+				<i class="fas fa-exclamation-triangle text-warning mr-2"></i>
+				Skipped Ingredients
+			</h2>
+			<p class="modal-description">
+				The following ingredients were skipped and won't be added to your cart:
+			</p>
+		</div>
+		<div class="modal-body">
+			{% if session.get('skipped_ingredients') %}
+			<div style="background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
+				<ul style="margin: 0; padding-left: 20px;">
+					{% for ingredient in session.get('skipped_ingredients', []) %}
+					<li style="margin-bottom: 8px; color: #856404;">{{ ingredient }}</li>
+					{% endfor %}
+				</ul>
+			</div>
+			<p style="color: #666; font-size: 14px;">
+				<i class="fas fa-info-circle mr-2"></i>
+				You can manually add these items to your cart later if needed.
+			</p>
+			{% endif %}
+			<div class="modal-actions">
+				<a href="#modal-closed" class="btn btn-outline">
+					<i class="fas fa-arrow-left mr-2"></i>Go Back
+				</a>
+				<a href="{{ url_for('kroger_send_to_cart', confirmed='true') }}" class="btn btn-primary">
+					<i class="fas fa-check mr-2"></i>Continue to Kroger
+				</a>
+			</div>
 		</div>
 	</div>
 </div>
 
 <!-- Email Modal -->
 <div id="email-modal" class="modal-container">
-    <div class="my-modal">
+    <div class="my-modal email-modal-content">
         <div class="modal-header">
             <h2 class="modal-title">
                 <i class="fas fa-envelope text-primary mr-2"></i>
                 Email Grocery List & Recipes
             </h2>
-            <p class="modal-description">Enter your email address and choose what to send</p>
+            <p class="modal-description">Send your grocery list and recipes to any email address</p>
         </div>
         <div class="modal-body">
             <form action="/send-email" method="post" class="modal-form">
+                <!-- Email Input -->
                 <div class="form-group">
-                    <label for="email" class="form-label">Email Address:</label>
-                    <input type="email" id="email" name="email" class="form-input" placeholder="Enter your email" required>
+                    <label for="email" class="form-label">
+                        <i class="fas fa-at mr-1"></i>Email Address
+                    </label>
+                    <input type="email" id="email" name="email" class="form-input"
+                           placeholder="your.email@example.com" required>
                 </div>
 
+                <!-- Email Type Selection -->
                 <div class="form-group">
-                    <label class="form-label">What to send:</label>
+                    <label class="form-label">
+                        <i class="fas fa-list-check mr-1"></i>What to send
+                    </label>
                     <div class="selection-options">
                         <div class="selection-option">
-                            <input type="radio" name="email_type" value="recipes_only" id="recipes-only" class="selection-radio">
-                            <label for="recipes-only" class="selection-label">
-                                <div class="font-semibold text-gray-800">Recipes Only</div>
-                                <div class="text-sm text-gray-600">Send selected recipes without grocery list</div>
+                            <input type="radio" name="email_type" value="list_and_recipes"
+                                   id="list-and-recipes" class="selection-radio" checked>
+                            <label for="list-and-recipes" class="selection-label">
+                                <div class="font-semibold text-gray-800">
+                                    <i class="fas fa-shopping-basket mr-1"></i>Grocery List & Recipes
+                                </div>
+                                <div class="text-sm text-gray-600">Complete list with selected recipes</div>
                             </label>
                         </div>
                         <div class="selection-option">
-                            <input type="radio" name="email_type" value="list_and_recipes" id="list-and-recipes" class="selection-radio" checked>
-                            <label for="list-and-recipes" class="selection-label">
-                                <div class="font-semibold text-gray-800">Grocery List & Recipes</div>
-                                <div class="text-sm text-gray-600">Send both grocery list and selected recipes</div>
+                            <input type="radio" name="email_type" value="recipes_only"
+                                   id="recipes-only" class="selection-radio">
+                            <label for="recipes-only" class="selection-label">
+                                <div class="font-semibold text-gray-800">
+                                    <i class="fas fa-book-open mr-1"></i>Recipes Only
+                                </div>
+                                <div class="text-sm text-gray-600">Just the recipes, no grocery list</div>
                             </label>
                         </div>
                     </div>
                 </div>
 
+                <!-- Recipe Selection -->
                 <div class="form-group">
-                    <label class="form-label">Include Recipes (optional):</label>
-                    <div class="max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-3">
-                        {% for recipe in recipes %}
-                        <div class="recipe-item">
-                            <input type="checkbox" name="recipe_ids" value="{{ recipe.id }}" class="recipe-checkbox email-recipe-checkbox"
-                                   id="email-recipe-{{ recipe.id }}">
-                            <label class="recipe-name" for="email-recipe-{{ recipe.id }}">
-                                {{ recipe.name }}
-                            </label>
-                        </div>
-                        {% endfor %}
+                    <label class="form-label">
+                        <i class="fas fa-utensils mr-1"></i>Select Recipes to Include
+                        <span class="text-sm text-gray-500 font-normal">(optional)</span>
+                    </label>
+                    <div class="recipe-selection-box">
+                        {% if recipes %}
+                            {% for recipe in recipes %}
+                            <div class="recipe-item">
+                                <input type="checkbox" name="recipe_ids" value="{{ recipe.id }}"
+                                       class="recipe-checkbox email-recipe-checkbox"
+                                       id="email-recipe-{{ recipe.id }}">
+                                <label class="recipe-name" for="email-recipe-{{ recipe.id }}">
+                                    {{ recipe.name }}
+                                </label>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <p class="text-gray-500 text-center py-3">
+                                <i class="fas fa-info-circle mr-1"></i>No recipes available
+                            </p>
+                        {% endif %}
                     </div>
                 </div>
 
+                <!-- Submit Button -->
                 <div class="modal-actions">
+                    <a href="#modal-closed" class="btn btn-outline">
+                        <i class="fas fa-times mr-2"></i>Cancel
+                    </a>
                     <button type="submit" class="btn btn-primary">
                         <i class="fas fa-paper-plane mr-2"></i>Send Email
                     </button>
                 </div>
             </form>
-        </div>
-        <div class="modal-footer">
-            <a href="#modal-closed" class="btn btn-outline">Cancel</a>
         </div>
     </div>
 </div>
@@ -407,6 +512,18 @@ if (updateGroceryListForm && updateGroceryListBtn) {
     });
 }
 
+// Add loading state to Add Recipe button
+const addRecipeForm = document.getElementById('user_form');
+const addRecipeBtn = addRecipeForm ? addRecipeForm.querySelector('button[type="submit"]') : null;
+
+if (addRecipeForm && addRecipeBtn) {
+    addRecipeForm.addEventListener('submit', function() {
+        // Show loading state
+        addRecipeBtn.disabled = true;
+        addRecipeBtn.innerHTML = '<span class="spinner-border spinner-border-sm mr-2" role="status"></span>Adding Recipe...';
+    });
+}
+
 // Sync email modal checkboxes with recipe box checkboxes
 document.getElementById('email-modal-trigger').addEventListener('click', function() {
     // When opening email modal, sync checkboxes
@@ -419,6 +536,31 @@ document.getElementById('email-modal-trigger').addEventListener('click', functio
         if (correspondingRecipeBox) {
             emailCheckbox.checked = correspondingRecipeBox.checked;
         }
+    });
+});
+
+// Validate ingredient selection - at least one item must be selected
+function validateIngredientSelection() {
+    const checkboxes = document.querySelectorAll('#ingredient-selection-form input[type="checkbox"]:checked');
+    if (checkboxes.length === 0) {
+        alert('Please select at least one item to add to your cart, or click "Skip" to continue.');
+        return false;
+    }
+    return true;
+}
+
+// Close modal when clicking outside of it
+document.addEventListener('DOMContentLoaded', function() {
+    const modalContainers = document.querySelectorAll('.modal-container');
+
+    modalContainers.forEach(container => {
+        container.addEventListener('click', function(e) {
+            // Only close if clicking directly on the modal-container (backdrop), not its children
+            if (e.target === container) {
+                // Navigate to #modal-closed to close the modal
+                window.location.hash = 'modal-closed';
+            }
+        });
     });
 });
 </script>

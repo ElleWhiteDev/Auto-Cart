@@ -775,15 +775,21 @@ p {
   font-weight: var(--font-semibold);
   color: var(--gray-900);
   margin: 0 0 var(--space-2) 0;
+  text-align: center;
 }
 
 .modal-description {
+  text-align: center;
   color: var(--gray-600);
   margin: 0;
 }
 
 .modal-body {
   padding: var(--space-6) var(--space-8);
+}
+
+.modal-body .form-label {
+  text-align: left;
 }
 
 .modal-footer {
