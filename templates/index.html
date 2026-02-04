@@ -145,11 +145,6 @@
 				<button type="button" onclick="openKrogerAuth()" class="btn btn-accent">
 					<i class="fas fa-shopping-cart mr-2"></i>Add to Cart
 				</button>
-				<form method="POST" action="{{ url_for('clear_kroger_cart') }}" style="display: inline;" onsubmit="return confirm('Are you sure you want to clear your Kroger cart? This will attempt to remove all items.');">
-					<button type="submit" class="btn btn-outline" title="Clear Kroger Cart">
-						<i class="fas fa-broom mr-2"></i>Clear Kroger Cart
-					</button>
-				</form>
 			</div>
 
 			<!-- Grocery Items -->
