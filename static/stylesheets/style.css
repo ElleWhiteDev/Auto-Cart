@@ -128,10 +128,11 @@ body {
 .search-input-group .btn {
 	white-space: nowrap;
 	flex-shrink: 0;
-	padding: var(--space-2, 8px) var(--space-4, 16px);
-	height: auto;
-	min-height: auto;
-	align-self: stretch;
+	padding: 8px 12px;
+	height: 44px;
+	min-height: 44px;
+	font-size: 14px;
+	line-height: 1.2;
 }
 
 /* Manual Ingredient Add Button */
@@ -203,15 +204,19 @@ body {
 	font-size: var(--text-base, 16px);
 	font-weight: var(--font-semibold, 600);
 	transition: border-color var(--transition-fast, 0.2s ease);
+	/* Override global number input styles to show spinners */
+	-moz-appearance: auto !important;
+	appearance: auto !important;
 }
 
-/* Show spinner controls in all browsers */
+/* Show spinner controls in all browsers - IMPORTANT: Override global styles */
 .quantity-input::-webkit-inner-spin-button,
 .quantity-input::-webkit-outer-spin-button {
-	-webkit-appearance: inner-spin-button;
-	opacity: 1;
+	-webkit-appearance: inner-spin-button !important;
+	opacity: 1 !important;
 	height: 100%;
 	cursor: pointer;
+	margin: 0;
 }
 
 .quantity-input:focus {

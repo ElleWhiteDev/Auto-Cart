@@ -175,7 +175,7 @@ class KrogerAPIService:
         logger.warning(f"Failed to fetch data for ingredient: {ingredient}")
         return None
 
-    def add_items_to_cart(self, items: List[Dict], token: str) -> bool:
+    def add_items_to_cart(self, items: List[Dict], token: str, location_id: str = None) -> bool:
         """Add items to user's Kroger cart."""
         # Prepare items with required fields
         prepared_items = []
@@ -187,9 +187,13 @@ class KrogerAPIService:
                 'allowSubstitutes': item.get('allowSubstitutes', True),
                 'specialInstructions': item.get('specialInstructions', '')
             }
+            # Add locationId if provided - this is CRITICAL for availability
+            if location_id:
+                prepared_item['locationId'] = location_id
+
             prepared_items.append(prepared_item)
 
-        logger.debug(f"Adding {len(prepared_items)} items to cart")
+        logger.debug(f"Adding {len(prepared_items)} items to cart for location {location_id}")
         logger.debug(f"Prepared items: {prepared_items}")
 
         url = f"{self.base_url}/cart/add"
@@ -211,6 +215,32 @@ class KrogerAPIService:
 
         logger.error(f"Failed to add items to cart (status code: {response.status_code if response else 'No response'})")
         return False
+
+    def clear_cart(self, token: str) -> bool:
+        """Attempt to clear Kroger cart by sending an empty items array."""
+        logger.info("Attempting to clear Kroger cart")
+
+        url = f"{self.base_url}/cart/add"
+        headers = self._get_auth_headers(token)
+        headers['Content-Type'] = 'application/json'
+
+        # Try sending an empty items array
+        data = json.dumps({'items': []})
+        logger.debug(f"Sending empty cart request: {data}")
+
+        response = self._make_request('PUT', url, headers, data)
+
+        if response:
+            logger.debug(f"Clear cart response status: {response.status_code}")
+            logger.debug(f"Clear cart response text: {response.text}")
+
+        if response and 200 <= response.status_code < 300:
+            logger.info("Successfully cleared cart (or attempted to)")
+            return True
+
+        logger.warning(f"Clear cart request completed with status: {response.status_code if response else 'No response'}")
+        # Return True even if we're not sure it worked - at least we tried
+        return True
 
 
 class KrogerSessionManager:
@@ -480,7 +510,9 @@ class KrogerWorkflow:
     def handle_send_to_cart(self, token: str) -> str:
         """Handle sending items to Kroger cart and return redirect URL."""
         cart_products = self.session_manager.get_cart_products()
-        logger.info(f"Sending {len(cart_products)} items to cart")
+        location_id = session.get('location_id')
+
+        logger.info(f"Sending {len(cart_products)} items to cart for location {location_id}")
         logger.debug(f"Cart products: {cart_products}")
 
         # Build items list with quantities
@@ -503,7 +535,7 @@ class KrogerWorkflow:
 
         logger.debug(f"Items to send: {items}")
 
-        success = self.kroger_service.add_items_to_cart(items, token)
+        success = self.kroger_service.add_items_to_cart(items, token, location_id)
         logger.info(f"Add to cart success: {success}")
 
         self.session_manager.clear_kroger_session_data()

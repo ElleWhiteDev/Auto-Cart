@@ -211,6 +211,31 @@ def skip_ingredient():
         return redirect(url_for('kroger_send_to_cart'))
 
 
+@app.route('/clear-kroger-cart', methods=['POST'])
+@require_login
+def clear_kroger_cart():
+    """Clear the Kroger cart"""
+    try:
+        # Check if user has Kroger authentication
+        if not g.user.oauth_token:
+            flash('Please authenticate with Kroger first', 'error')
+            return redirect(url_for('homepage'))
+
+        # Attempt to clear the cart
+        success = kroger_service.clear_cart(g.user.oauth_token)
+
+        if success:
+            flash('Attempted to clear Kroger cart. Please check your Kroger cart to verify.', 'success')
+        else:
+            flash('Could not clear Kroger cart. You may need to clear it manually on Kroger.com', 'warning')
+
+    except Exception as e:
+        logger.error(f"Error clearing Kroger cart: {e}")
+        flash('An error occurred while trying to clear the cart', 'error')
+
+    return redirect(url_for('homepage'))
+
+
 # User management routes
 @app.route('/')
 def homepage():

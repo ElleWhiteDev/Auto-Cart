@@ -145,6 +145,11 @@
 				<button type="button" onclick="openKrogerAuth()" class="btn btn-accent">
 					<i class="fas fa-shopping-cart mr-2"></i>Add to Cart
 				</button>
+				<form method="POST" action="{{ url_for('clear_kroger_cart') }}" style="display: inline;" onsubmit="return confirm('Are you sure you want to clear your Kroger cart? This will attempt to remove all items.');">
+					<button type="submit" class="btn btn-outline" title="Clear Kroger Cart">
+						<i class="fas fa-broom mr-2"></i>Clear Kroger Cart
+					</button>
+				</form>
 			</div>
 
 			<!-- Grocery Items -->
@@ -222,12 +227,12 @@
 					<input type="text" name="zipcode" id="zipcode" placeholder="Enter Zipcode" class="form-input" required />
 				</div>
 				<div class="modal-actions">
-					<button type="submit" class="btn btn-primary">
-						<i class="fas fa-search mr-2"></i>Find Stores
-					</button>
 					<a href="#modal-closed" class="btn btn-outline">
 						<i class="fas fa-times mr-2"></i>Cancel
 					</a>
+					<button type="submit" class="btn btn-primary">
+						<i class="fas fa-search mr-2"></i>Find Stores
+					</button>
 				</div>
 			</form>
 		</div>
@@ -374,7 +379,7 @@
 					<button type="button" onclick="document.getElementById('skip-form').submit();" class="btn btn-outline">
 						<i class="fas fa-forward mr-2"></i>Skip
 					</button>
-					<button type="submit" class="btn btn-primary">
+					<button type="submit" class="btn btn-primary" id="add-to-cart-btn">
 						<i class="fas fa-cart-plus mr-2"></i>Add to Cart
 					</button>
 				</div>
@@ -441,17 +446,30 @@
                         <i class="fas fa-users mr-1"></i>Select Recipients
                     </label>
                     <div class="email-selection-box">
+                        <!-- Current User (You) -->
+                        <div class="recipe-item">
+                            <input type="checkbox" name="user_emails" value="{{ g.user.email }}"
+                                   class="recipe-checkbox"
+                                   id="user-email-self"
+                                   checked>
+                            <label class="recipe-name" for="user-email-self">
+                                <strong>{{ g.user.username }} (You)</strong> - {{ g.user.email }}
+                            </label>
+                        </div>
+
+                        <!-- Other Users -->
                         {% if all_users %}
                             {% for user in all_users %}
-                            <div class="recipe-item">
-                                <input type="checkbox" name="user_emails" value="{{ user.email }}"
-                                       class="recipe-checkbox"
-                                       id="user-email-{{ user.id }}"
-                                       {% if user.id == g.user.id %}checked{% endif %}>
-                                <label class="recipe-name" for="user-email-{{ user.id }}">
-                                    {{ user.username }} ({{ user.email }})
-                                </label>
-                            </div>
+                                {% if user.id != g.user.id %}
+                                <div class="recipe-item">
+                                    <input type="checkbox" name="user_emails" value="{{ user.email }}"
+                                           class="recipe-checkbox"
+                                           id="user-email-{{ user.id }}">
+                                    <label class="recipe-name" for="user-email-{{ user.id }}">
+                                        {{ user.username }} ({{ user.email }})
+                                    </label>
+                                </div>
+                                {% endif %}
                             {% endfor %}
                         {% endif %}
                     </div>
@@ -527,7 +545,7 @@
                     <a href="#modal-closed" class="btn btn-outline">
                         <i class="fas fa-times mr-2"></i>Cancel
                     </a>
-                    <button type="submit" class="btn btn-primary">
+                    <button type="submit" class="btn btn-primary" id="send-email-btn">
                         <i class="fas fa-paper-plane mr-2"></i>Send Email
                     </button>
                 </div>
@@ -612,6 +630,28 @@ if (searchForm && searchBtn) {
     searchForm.addEventListener('submit', function() {
         searchBtn.disabled = true;
         searchBtn.innerHTML = '<span class="spinner-border spinner-border-sm mr-2" role="status"></span>Searching...';
+    });
+}
+
+// Add loading state to send email button
+const emailForm = document.querySelector('#email-modal form');
+const sendEmailBtn = document.getElementById('send-email-btn');
+
+if (emailForm && sendEmailBtn) {
+    emailForm.addEventListener('submit', function() {
+        sendEmailBtn.disabled = true;
+        sendEmailBtn.innerHTML = '<span class="spinner-border spinner-border-sm mr-2" role="status"></span>Sending...';
+    });
+}
+
+// Add loading state to add to cart button
+const ingredientForm = document.getElementById('ingredient-selection-form');
+const addToCartBtn = document.getElementById('add-to-cart-btn');
+
+if (ingredientForm && addToCartBtn) {
+    ingredientForm.addEventListener('submit', function() {
+        addToCartBtn.disabled = true;
+        addToCartBtn.innerHTML = '<span class="spinner-border spinner-border-sm mr-2" role="status"></span>Adding...';
     });
 }
 
