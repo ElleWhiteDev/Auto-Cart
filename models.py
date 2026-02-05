@@ -82,38 +82,73 @@ class MealPlanEntry(db.Model):
 
     @classmethod
     def send_meal_plan_email(cls, recipient, meal_entries, user_id, week_start, week_end, mail):
-        """Send meal plan with recipes the user is responsible for cooking."""
+        """Send full meal plan summary plus detailed breakdown of user's assigned recipes."""
         from flask_mail import Message
         try:
-            msg = Message(f"Your Meal Plan ({week_start.strftime('%b %d')} - {week_end.strftime('%b %d, %Y')})", recipients=[recipient])
+            msg = Message(f"Meal Plan ({week_start.strftime('%b %d')} - {week_end.strftime('%b %d, %Y')})", recipients=[recipient])
 
-            # Filter entries where user is assigned as cook
+            email_body = f"MEAL PLAN FOR THE WEEK\n"
+            email_body += f"{week_start.strftime('%B %d')} - {week_end.strftime('%B %d, %Y')}\n"
+            email_body += "="*70 + "\n\n"
+
+            # SECTION 1: Full meal plan summary
+            email_body += "FULL WEEK OVERVIEW\n"
+            email_body += "="*70 + "\n\n"
+
+            # Group all meals by date
+            from collections import defaultdict
+            all_meals_by_date = defaultdict(lambda: {'breakfast': [], 'lunch': [], 'dinner': []})
+            for entry in meal_entries:
+                if entry.meal_type in all_meals_by_date[entry.date]:
+                    all_meals_by_date[entry.date][entry.meal_type].append(entry)
+
+            # Display full week summary
+            for date in sorted(all_meals_by_date.keys()):
+                email_body += f"{date.strftime('%A, %B %d, %Y')}\n"
+                email_body += "-"*70 + "\n"
+
+                for meal_type in ['breakfast', 'lunch', 'dinner']:
+                    entries = all_meals_by_date[date][meal_type]
+                    if entries:
+                        meal_type_display = meal_type.upper()
+                        email_body += f"  {meal_type_display}:\n"
+                        for entry in entries:
+                            cook_name = entry.assigned_cook.username if entry.assigned_cook else "Unassigned"
+                            email_body += f"    • {entry.meal_name} (Cook: {cook_name})\n"
+                            if entry.notes:
+                                email_body += f"      Notes: {entry.notes}\n"
+
+                email_body += "\n"
+
+            # SECTION 2: User's assigned meals with full details
             my_meals = [entry for entry in meal_entries if entry.assigned_cook_user_id == user_id]
 
+            email_body += "\n" + "="*70 + "\n"
+            email_body += "YOUR ASSIGNED RECIPES (DETAILED)\n"
+            email_body += "="*70 + "\n\n"
+
             if not my_meals:
-                email_body = f"You have no meals assigned to you for the week of {week_start.strftime('%B %d')} - {week_end.strftime('%B %d, %Y')}.\n\n"
-                email_body += "Check the meal plan to see what others are cooking!"
+                email_body += "You have no meals assigned to you this week.\n"
+                email_body += "Enjoy the break! 😊\n"
             else:
-                email_body = f"Here are the meals you're responsible for cooking this week ({week_start.strftime('%B %d')} - {week_end.strftime('%B %d, %Y')}):\n\n"
-                email_body += "="*60 + "\n"
+                email_body += f"You are cooking {len(my_meals)} meal(s) this week:\n\n"
 
-                # Group by date
-                from collections import defaultdict
-                meals_by_date = defaultdict(list)
+                # Group user's meals by date
+                my_meals_by_date = defaultdict(list)
                 for entry in my_meals:
-                    meals_by_date[entry.date].append(entry)
+                    my_meals_by_date[entry.date].append(entry)
 
-                # Sort by date
-                for date in sorted(meals_by_date.keys()):
-                    email_body += f"\n{date.strftime('%A, %B %d, %Y')}\n"
-                    email_body += "-"*60 + "\n"
+                # Display detailed breakdown
+                for date in sorted(my_meals_by_date.keys()):
+                    email_body += f"{date.strftime('%A, %B %d, %Y')}\n"
+                    email_body += "-"*70 + "\n"
 
-                    for entry in meals_by_date[date]:
+                    for entry in my_meals_by_date[date]:
                         meal_type_display = entry.meal_type.upper() if entry.meal_type else "MEAL"
                         email_body += f"\n{meal_type_display}: {entry.meal_name}\n"
 
                         if entry.notes:
-                            email_body += f"Notes: {entry.notes}\n"
+                            email_body += f"Meal Notes: {entry.notes}\n"
 
                         # If it's a recipe with ingredients, include them
                         if entry.recipe:
@@ -137,7 +172,7 @@ class MealPlanEntry(db.Model):
 
                         email_body += "\n"
 
-                email_body += "="*60 + "\n"
+                email_body += "="*70 + "\n"
                 email_body += "\nHappy cooking! 👨‍🍳👩‍🍳\n"
 
             msg.body = email_body
