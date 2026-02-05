@@ -1802,6 +1802,67 @@ def admin_delete_user(user_id):
     return redirect(url_for('admin_dashboard'))
 
 
+@app.route('/admin/migrate-meal-plan', methods=['GET', 'POST'])
+@require_admin
+def migrate_meal_plan():
+    """One-time migration to make recipe_id nullable in meal_plan_entries"""
+    if request.method == 'GET':
+        return render_template('admin_migrate.html')
+
+    try:
+        from sqlalchemy import text
+
+        logger.info("Starting meal_plan_entries migration...")
+
+        # Create new table with nullable recipe_id
+        db.session.execute(text('''
+            CREATE TABLE meal_plan_entries_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                household_id INTEGER NOT NULL,
+                recipe_id INTEGER,
+                custom_meal_name VARCHAR(200),
+                date DATE NOT NULL,
+                meal_type VARCHAR(20),
+                assigned_cook_user_id INTEGER,
+                notes TEXT,
+                created_at DATETIME NOT NULL,
+                FOREIGN KEY (household_id) REFERENCES households(id) ON DELETE CASCADE,
+                FOREIGN KEY (recipe_id) REFERENCES recipes(id) ON DELETE CASCADE,
+                FOREIGN KEY (assigned_cook_user_id) REFERENCES users(id) ON DELETE SET NULL
+            )
+        '''))
+        logger.info("Created new table structure")
+
+        # Copy data from old table
+        db.session.execute(text('''
+            INSERT INTO meal_plan_entries_new
+            (id, household_id, recipe_id, custom_meal_name, date, meal_type, assigned_cook_user_id, notes, created_at)
+            SELECT id, household_id, recipe_id, custom_meal_name, date, meal_type, assigned_cook_user_id, notes, created_at
+            FROM meal_plan_entries
+        '''))
+        logger.info("Copied existing data")
+
+        # Drop old table
+        db.session.execute(text('DROP TABLE meal_plan_entries'))
+        logger.info("Dropped old table")
+
+        # Rename new table
+        db.session.execute(text('ALTER TABLE meal_plan_entries_new RENAME TO meal_plan_entries'))
+        logger.info("Renamed new table")
+
+        db.session.commit()
+        logger.info("Migration completed successfully!")
+
+        flash('✅ Migration completed successfully! Custom meals are now enabled.', 'success')
+        return redirect(url_for('admin_dashboard'))
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Migration error: {e}", exc_info=True)
+        flash(f'❌ Migration failed: {str(e)}', 'danger')
+        return redirect(url_for('admin_dashboard'))
+
+
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)

@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+
+{% block title %}Database Migration - Auto-Cart{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-warning text-dark">
+                    <h3 class="mb-0">
+                        <i class="fas fa-database"></i> Database Migration
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning" role="alert">
+                        <h5 class="alert-heading">
+                            <i class="fas fa-exclamation-triangle"></i> Important!
+                        </h5>
+                        <p>This migration will update the <code>meal_plan_entries</code> table to support custom meals.</p>
+                        <hr>
+                        <p class="mb-0"><strong>What this does:</strong></p>
+                        <ul>
+                            <li>Makes the <code>recipe_id</code> column nullable</li>
+                            <li>Enables adding custom meals (not from recipe box)</li>
+                            <li>Preserves all existing meal plan data</li>
+                        </ul>
+                    </div>
+
+                    <div class="alert alert-info" role="alert">
+                        <h6><i class="fas fa-info-circle"></i> Migration Steps:</h6>
+                        <ol class="mb-0">
+                            <li>Create new table with updated schema</li>
+                            <li>Copy all existing data</li>
+                            <li>Replace old table with new one</li>
+                        </ol>
+                    </div>
+
+                    <form method="POST" onsubmit="return confirm('Are you sure you want to run this migration? This will modify the database structure.');">
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-warning btn-lg">
+                                <i class="fas fa-play"></i> Run Migration
+                            </button>
+                            <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Back to Dashboard
+                            </a>
+                        </div>
+                    </form>
+
+                    <div class="mt-4">
+                        <h6>Current Status:</h6>
+                        <p class="text-muted small">
+                            If you're seeing errors about "NOT NULL constraint failed: meal_plan_entries.recipe_id",
+                            this migration will fix that issue.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
