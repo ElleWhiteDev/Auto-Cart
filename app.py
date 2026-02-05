@@ -1824,58 +1824,68 @@ def migrate_database():
     if request.method == 'GET':
         return render_template('admin_migrate.html')
 
+    from sqlalchemy import text
+
+    logger.info("Starting database migrations...")
+    migration_results = []
+
+    # Migration 1: Add is_admin column to users table if it doesn't exist
     try:
-        from sqlalchemy import text
-
-        logger.info("Starting database migrations...")
-        migration_results = []
-
-        # Migration 1: Add is_admin column to users table if it doesn't exist
+        logger.info("Checking for is_admin column...")
+        db.session.execute(text("SELECT is_admin FROM users LIMIT 1"))
+        db.session.commit()
+        migration_results.append("✓ is_admin column already exists")
+    except Exception as e:
+        db.session.rollback()  # Rollback the failed transaction
+        logger.info(f"is_admin column check failed: {e}")
         try:
-            logger.info("Checking for is_admin column...")
-            db.session.execute(text("SELECT is_admin FROM users LIMIT 1"))
-            migration_results.append("✓ is_admin column already exists")
-        except Exception:
             logger.info("Adding is_admin column to users table...")
             db.session.execute(text("ALTER TABLE users ADD COLUMN is_admin BOOLEAN DEFAULT FALSE"))
             db.session.commit()
             migration_results.append("✓ Added is_admin column to users table")
             logger.info("is_admin column added successfully")
+        except Exception as e2:
+            db.session.rollback()
+            migration_results.append(f"❌ Failed to add is_admin: {str(e2)[:100]}")
+            logger.error(f"Failed to add is_admin column: {e2}")
 
-        # Migration 2: Add custom_meal_name column to meal_plan_entries if it doesn't exist
+    # Migration 2: Add custom_meal_name column to meal_plan_entries if it doesn't exist
+    try:
+        logger.info("Checking for custom_meal_name column...")
+        db.session.execute(text("SELECT custom_meal_name FROM meal_plan_entries LIMIT 1"))
+        db.session.commit()
+        migration_results.append("✓ custom_meal_name column already exists")
+    except Exception as e:
+        db.session.rollback()  # Rollback the failed transaction
+        logger.info(f"custom_meal_name column check failed: {e}")
         try:
-            logger.info("Checking for custom_meal_name column...")
-            db.session.execute(text("SELECT custom_meal_name FROM meal_plan_entries LIMIT 1"))
-            migration_results.append("✓ custom_meal_name column already exists")
-        except Exception:
             logger.info("Adding custom_meal_name column to meal_plan_entries table...")
             db.session.execute(text("ALTER TABLE meal_plan_entries ADD COLUMN custom_meal_name VARCHAR(200)"))
             db.session.commit()
             migration_results.append("✓ Added custom_meal_name column to meal_plan_entries table")
             logger.info("custom_meal_name column added successfully")
+        except Exception as e2:
+            db.session.rollback()
+            migration_results.append(f"❌ Failed to add custom_meal_name: {str(e2)[:100]}")
+            logger.error(f"Failed to add custom_meal_name column: {e2}")
 
-        # Migration 3: Make recipe_id nullable in meal_plan_entries (PostgreSQL version)
-        try:
-            logger.info("Making recipe_id nullable in meal_plan_entries...")
-            db.session.execute(text("ALTER TABLE meal_plan_entries ALTER COLUMN recipe_id DROP NOT NULL"))
-            db.session.commit()
-            migration_results.append("✓ Made recipe_id nullable in meal_plan_entries table")
-            logger.info("recipe_id is now nullable")
-        except Exception as e:
-            # If it's already nullable or the command fails, that's okay
-            migration_results.append(f"⚠ recipe_id nullable status: {str(e)[:100]}")
-            logger.info(f"recipe_id nullable check: {e}")
-
-        logger.info("All migrations completed successfully!")
-
-        flash('✅ Database migrations completed! Results: ' + ' | '.join(migration_results), 'success')
-        return redirect(url_for('homepage'))
-
+    # Migration 3: Make recipe_id nullable in meal_plan_entries (PostgreSQL version)
+    try:
+        logger.info("Making recipe_id nullable in meal_plan_entries...")
+        db.session.execute(text("ALTER TABLE meal_plan_entries ALTER COLUMN recipe_id DROP NOT NULL"))
+        db.session.commit()
+        migration_results.append("✓ Made recipe_id nullable in meal_plan_entries table")
+        logger.info("recipe_id is now nullable")
     except Exception as e:
         db.session.rollback()
-        logger.error(f"Migration error: {e}", exc_info=True)
-        flash(f'❌ Migration failed: {str(e)}', 'danger')
-        return redirect(url_for('homepage'))
+        # If it's already nullable or the command fails, that's okay
+        migration_results.append(f"⚠ recipe_id nullable: {str(e)[:100]}")
+        logger.info(f"recipe_id nullable check: {e}")
+
+    logger.info("All migrations completed!")
+
+    flash('✅ Database migrations completed! Results: ' + ' | '.join(migration_results), 'success')
+    return redirect(url_for('homepage'))
 
 
 if __name__ == '__main__':
