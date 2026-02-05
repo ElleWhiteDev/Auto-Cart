@@ -253,11 +253,8 @@ def homepage():
 
     initialize_session_defaults()
 
-    # Get household recipes (both personal and shared)
-    recipes = Recipe.query.filter(
-        (Recipe.household_id == g.household.id) |
-        ((Recipe.user_id == g.user.id) & (Recipe.household_id.is_(None)))
-    ).all()
+    # Get all household recipes - all members can see all household recipes
+    recipes = Recipe.query.filter_by(household_id=g.household.id).all()
 
     selected_recipe_ids = session.get('selected_recipe_ids', [])
     logger.debug(f"Selected recipe IDs: {selected_recipe_ids}")
