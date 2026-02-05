@@ -1805,15 +1805,38 @@ def admin_delete_user(user_id):
 
     user = User.query.get_or_404(user_id)
     username = user.username
+    user_email = user.email
 
     try:
+        # Log what we're about to delete
+        logger.info(f"Attempting to delete user: {username} (ID: {user_id}, Email: {user_email})")
+
+        # Check household memberships
+        memberships = HouseholdMember.query.filter_by(user_id=user_id).all()
+        if memberships:
+            logger.info(f"User has {len(memberships)} household membership(s)")
+            # Delete household memberships first (should cascade automatically, but being explicit)
+            for membership in memberships:
+                db.session.delete(membership)
+
+        # Check if user owns any households as kroger_user
+        owned_households = Household.query.filter_by(kroger_user_id=user_id).all()
+        if owned_households:
+            logger.info(f"User is Kroger account for {len(owned_households)} household(s)")
+            # Set kroger_user_id to None for these households
+            for household in owned_households:
+                household.kroger_user_id = None
+
+        # Now delete the user (recipes, grocery lists, etc. should cascade)
         db.session.delete(user)
         db.session.commit()
-        flash(f'User "{username}" deleted successfully', 'success')
+
+        logger.info(f"Successfully deleted user: {username}")
+        flash(f'✅ User "{username}" ({user_email}) deleted successfully', 'success')
     except Exception as e:
         db.session.rollback()
-        logger.error(f"Error deleting user: {e}", exc_info=True)
-        flash('Error deleting user. Please try again.', 'danger')
+        logger.error(f"Error deleting user {username}: {e}", exc_info=True)
+        flash(f'❌ Error deleting user "{username}": {str(e)}', 'danger')
 
     return redirect(url_for('admin_dashboard'))
 
