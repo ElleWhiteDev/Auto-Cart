@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+
+{% block title %}Household Setup - Auto Cart{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 700px; margin: 2rem auto;">
+	<div class="card-header">
+		<h2><i class="fas fa-home"></i> Welcome to Auto Cart!</h2>
+	</div>
+	<div class="card-body">
+		<p class="text-muted mb-4">
+			To get started, you can either create a new household or join an existing one.
+		</p>
+
+		<div class="row">
+			<!-- Create Household Option -->
+			<div class="col-md-6 mb-4">
+				<div class="card h-100">
+					<div class="card-body">
+						<h4 class="card-title">
+							<i class="fas fa-plus-circle text-success"></i> Create Household
+						</h4>
+						<p class="card-text text-muted">
+							Start a new household and invite family members or roommates to join.
+						</p>
+						
+						<form method="POST" action="{{ url_for('household_setup') }}">
+							<input type="hidden" name="action" value="create">
+							<div class="form-group">
+								<label for="household_name">Household Name</label>
+								<input 
+									type="text" 
+									class="form-control" 
+									id="household_name" 
+									name="household_name" 
+									placeholder="e.g., Smith Family, Apartment 4B"
+									required
+								/>
+							</div>
+							<button type="submit" class="btn btn-success btn-block mt-3">
+								<i class="fas fa-plus-circle"></i> Create Household
+							</button>
+						</form>
+					</div>
+				</div>
+			</div>
+
+			<!-- Join Household Option -->
+			<div class="col-md-6 mb-4">
+				<div class="card h-100">
+					<div class="card-body">
+						<h4 class="card-title">
+							<i class="fas fa-user-plus text-primary"></i> Join Household
+						</h4>
+						<p class="card-text text-muted">
+							Join an existing household by entering the household owner's username.
+						</p>
+						
+						<form method="POST" action="{{ url_for('household_setup') }}">
+							<input type="hidden" name="action" value="join">
+							<div class="form-group">
+								<label for="join_code">Owner's Username</label>
+								<input 
+									type="text" 
+									class="form-control" 
+									id="join_code" 
+									name="join_code" 
+									placeholder="e.g., JohnSmith"
+									required
+								/>
+								<small class="form-text text-muted">
+									Ask the household owner for their username
+								</small>
+							</div>
+							<button type="submit" class="btn btn-primary btn-block mt-3">
+								<i class="fas fa-user-plus"></i> Join Household
+							</button>
+						</form>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="mt-4 p-3" style="background-color: #f8f9fa; border-radius: 8px;">
+			<h4 class="h6 mb-2"><i class="fas fa-info-circle"></i> What is a household?</h4>
+			<ul class="mb-0" style="font-size: 0.9rem;">
+				<li>Share recipes and grocery lists with household members</li>
+				<li>Collaborate on meal planning and shopping</li>
+				<li>Use a shared Kroger account for the household</li>
+				<li>Everyone can add items and manage lists together</li>
+			</ul>
+		</div>
+	</div>
+</div>
+{% endblock %}
+

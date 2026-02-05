@@ -10,11 +10,11 @@ from sqlalchemy.exc import IntegrityError
 from flask_bcrypt import Bcrypt
 from logging_config import logger
 
-from models import db, connect_db, User, Recipe, GroceryList, RecipeIngredient
-from forms import UserAddForm, AddRecipeForm, LoginForm, UpdatePasswordForm, UpdateEmailForm
+from models import db, connect_db, User, Recipe, GroceryList, RecipeIngredient, Household, HouseholdMember, MealPlanEntry, GroceryListItem
+from forms import UserAddForm, AddRecipeForm, LoginForm, UpdatePasswordForm, UpdateEmailForm, UpdateUsernameForm
 from app_config import config
 from utils import (
-    require_login, do_login, do_logout, initialize_session_defaults,
+    require_login, require_admin, do_login, do_logout, initialize_session_defaults,
     CURR_USER_KEY, CURR_GROCERY_LIST_KEY, parse_quantity_string
 )
 from kroger import KrogerAPIService, KrogerSessionManager, KrogerWorkflow
@@ -102,7 +102,17 @@ def callback():
 def location_search():
     """Send request to Kroger API for locations"""
     zipcode = request.form.get('zipcode')
-    redirect_url = kroger_workflow.handle_location_search(zipcode, g.user.oauth_token)
+
+    # Use household's Kroger user if set, otherwise current user
+    kroger_user = g.user
+    if g.household and g.household.kroger_user_id:
+        kroger_user = User.query.get(g.household.kroger_user_id)
+
+    if not kroger_user.oauth_token:
+        flash('Please connect a Kroger account first', 'danger')
+        return redirect(url_for('homepage'))
+
+    redirect_url = kroger_workflow.handle_location_search(zipcode, kroger_user.oauth_token)
     return redirect(redirect_url)
 
 
@@ -119,6 +129,15 @@ def select_store():
 @require_login
 def kroger_product_search():
     """Search Kroger for ingredients based on name and present user with options."""
+    # Get household's Kroger user
+    kroger_user = g.user
+    if g.household and g.household.kroger_user_id:
+        kroger_user = User.query.get(g.household.kroger_user_id)
+
+    if not kroger_user.oauth_token:
+        flash('Please connect a Kroger account first', 'danger')
+        return redirect(url_for('homepage'))
+
     # Handle custom search if provided
     if request.method == 'POST':
         custom_search = request.form.get('custom_search', '').strip()
@@ -128,7 +147,7 @@ def kroger_product_search():
             response = kroger_service.search_products(
                 custom_search,
                 session.get('location_id'),
-                g.user.oauth_token
+                kroger_user.oauth_token
             )
             if response:
                 products = parse_kroger_products(response)
@@ -142,7 +161,7 @@ def kroger_product_search():
             return redirect(url_for('homepage') + '#modal-ingredient')
 
     # Default behavior - search for next ingredient
-    redirect_url = kroger_workflow.handle_product_search(g.user.oauth_token)
+    redirect_url = kroger_workflow.handle_product_search(kroger_user.oauth_token)
     return redirect(redirect_url)
 
 
@@ -182,6 +201,15 @@ def item_choice():
 @require_login
 def kroger_send_to_cart():
     """Add selected products to user's Kroger cart"""
+    # Get household's Kroger user
+    kroger_user = g.user
+    if g.household and g.household.kroger_user_id:
+        kroger_user = User.query.get(g.household.kroger_user_id)
+
+    if not kroger_user.oauth_token:
+        flash('Please connect a Kroger account first', 'danger')
+        return redirect(url_for('homepage'))
+
     # Check if there are skipped ingredients
     skipped = kroger_session_manager.get_skipped_ingredients()
 
@@ -191,7 +219,7 @@ def kroger_send_to_cart():
 
     # Clear skipped ingredients and proceed to cart
     kroger_session_manager.clear_skipped_ingredients()
-    redirect_url = kroger_workflow.handle_send_to_cart(g.user.oauth_token)
+    redirect_url = kroger_workflow.handle_send_to_cart(kroger_user.oauth_token)
     return redirect(redirect_url)
 
 
@@ -219,18 +247,31 @@ def homepage():
     if not g.user:
         return redirect(url_for('login'))
 
+    # If user has no household, redirect to household creation
+    if not g.household:
+        return redirect(url_for('create_household'))
+
     initialize_session_defaults()
 
-    recipes = Recipe.query.filter_by(user_id=g.user.id).all()
+    # Get household recipes (both personal and shared)
+    recipes = Recipe.query.filter(
+        (Recipe.household_id == g.household.id) |
+        ((Recipe.user_id == g.user.id) & (Recipe.household_id.is_(None)))
+    ).all()
+
     selected_recipe_ids = session.get('selected_recipe_ids', [])
     logger.debug(f"Selected recipe IDs: {selected_recipe_ids}")
     logger.debug(f"User recipe IDs: {[recipe.id for recipe in recipes]}")
 
-    # Get all users for email selection
-    all_users = User.query.all()
+    # Get household members for email selection
+    household_members = HouseholdMember.query.filter_by(household_id=g.household.id).all()
+    household_users = [m.user for m in household_members]
+
+    # Get all household grocery lists
+    all_grocery_lists = GroceryList.query.filter_by(household_id=g.household.id).order_by(GroceryList.last_modified_at.desc()).all()
 
     form = AddRecipeForm()
-    return render_template('index.html', form=form, recipes=recipes, selected_recipe_ids=selected_recipe_ids, all_users=all_users)
+    return render_template('index.html', form=form, recipes=recipes, selected_recipe_ids=selected_recipe_ids, all_users=household_users, all_grocery_lists=all_grocery_lists)
 
 
 @app.route('/register', methods=["GET", "POST"])
@@ -258,7 +299,9 @@ def register():
             return render_template('register.html', form=form)
 
         do_login(user)
-        return redirect(url_for('homepage'))
+        # Redirect to household setup page
+        flash('Welcome! Please create or join a household to get started.', 'info')
+        return redirect(url_for('household_setup'))
     else:
         return render_template('register.html', form=form)
 
@@ -319,6 +362,52 @@ def update_email():
     return render_template('update_email.html', form=form)
 
 
+@app.route('/update-username', methods=['GET', 'POST'])
+@require_login
+def update_username():
+    """Update user username"""
+    form = UpdateUsernameForm()
+
+    if form.validate_on_submit():
+        if bcrypt.check_password_hash(g.user.password, form.password.data):
+            try:
+                old_username = g.user.username
+                new_username = form.username.data.strip()
+
+                g.user.username = new_username
+
+                # Update household name if user owns a household with the default naming pattern
+                owned_households = HouseholdMember.query.filter_by(
+                    user_id=g.user.id,
+                    role='owner'
+                ).all()
+
+                households_updated = []
+                for membership in owned_households:
+                    household = membership.household
+                    # Check if household name follows the pattern "{username}'s Household" (case-insensitive)
+                    if household.name.lower() == f"{old_username.lower()}'s household":
+                        household.name = f"{new_username}'s Household"
+                        households_updated.append(household.name)
+
+                db.session.commit()
+
+                # Expire all objects to ensure fresh data on next request
+                db.session.expire_all()
+
+                flash('Username updated successfully!', 'success')
+                if households_updated:
+                    flash(f'Household name updated to: {", ".join(households_updated)}', 'success')
+                return redirect(url_for('user_view'))
+            except IntegrityError:
+                db.session.rollback()
+                flash('Username already taken', 'danger')
+        else:
+            flash('Incorrect password', 'danger')
+
+    return render_template('update_username.html', form=form)
+
+
 @app.route('/update-password', methods=['GET', 'POST'])
 @require_login
 def update_password():
@@ -367,8 +456,19 @@ def add_recipe():
         notes = form.notes.data
         user_id = g.user.id
 
+        # All recipes are household recipes
+        visibility = 'household'
+
         try:
-            recipe = Recipe.create_recipe(ingredients_text, url, user_id, name, notes)
+            recipe = Recipe.create_recipe(
+                ingredients_text,
+                url,
+                user_id,
+                name,
+                notes,
+                household_id=g.household.id if g.household else None,
+                visibility=visibility
+            )
             db.session.add(recipe)
             db.session.commit()
             flash('Recipe created successfully!', 'success')
@@ -468,7 +568,136 @@ def update_grocery_list():
     session['selected_recipe_ids'] = selected_recipe_ids
 
     grocery_list = g.grocery_list
-    GroceryList.update_grocery_list(selected_recipe_ids, grocery_list=grocery_list)
+
+    # If no grocery list exists, create a default one
+    if not grocery_list and g.household:
+        grocery_list = GroceryList(
+            household_id=g.household.id,
+            user_id=g.user.id,
+            created_by_user_id=g.user.id,
+            name="Household Grocery List",
+            status='planning'
+        )
+        db.session.add(grocery_list)
+        db.session.commit()
+        session[CURR_GROCERY_LIST_KEY] = grocery_list.id
+        g.grocery_list = grocery_list
+
+    GroceryList.update_grocery_list(selected_recipe_ids, grocery_list=grocery_list, user_id=g.user.id)
+    return redirect(url_for('homepage'))
+
+
+@app.route('/grocery-list/create', methods=['POST'])
+@require_login
+def create_grocery_list():
+    """Create a new grocery list for the household"""
+    if not g.household:
+        flash('You must be in a household to create a grocery list', 'danger')
+        return redirect(url_for('homepage'))
+
+    list_name = request.form.get('list_name', '').strip()
+    if not list_name:
+        flash('Please enter a list name', 'danger')
+        return redirect(url_for('homepage'))
+
+    new_list = GroceryList(
+        household_id=g.household.id,
+        user_id=g.user.id,
+        created_by_user_id=g.user.id,
+        name=list_name,
+        status='planning'
+    )
+    db.session.add(new_list)
+    db.session.commit()
+
+    # Switch to the new list
+    session[CURR_GROCERY_LIST_KEY] = new_list.id
+
+    flash(f'Grocery list "{list_name}" created successfully!', 'success')
+    return redirect(url_for('homepage'))
+
+
+@app.route('/grocery-list/switch/<int:list_id>', methods=['POST'])
+@require_login
+def switch_grocery_list(list_id):
+    """Switch to a different grocery list"""
+    # Verify the list belongs to the user's household
+    grocery_list = GroceryList.query.filter_by(
+        id=list_id,
+        household_id=g.household.id
+    ).first()
+
+    if not grocery_list:
+        flash('Grocery list not found', 'danger')
+        return redirect(url_for('homepage'))
+
+    session[CURR_GROCERY_LIST_KEY] = list_id
+    flash(f'Switched to "{grocery_list.name}"', 'success')
+    return redirect(url_for('homepage'))
+
+
+@app.route('/grocery-list/rename/<int:list_id>', methods=['POST'])
+@require_login
+def rename_grocery_list(list_id):
+    """Rename a grocery list"""
+    # Verify the list belongs to the user's household
+    grocery_list = GroceryList.query.filter_by(
+        id=list_id,
+        household_id=g.household.id
+    ).first()
+
+    if not grocery_list:
+        flash('Grocery list not found', 'danger')
+        return redirect(url_for('homepage'))
+
+    new_name = request.form.get('list_name', '').strip()
+    if not new_name:
+        flash('Please enter a list name', 'danger')
+        return redirect(url_for('homepage'))
+
+    old_name = grocery_list.name
+    grocery_list.name = new_name
+    db.session.commit()
+
+    flash(f'Renamed "{old_name}" to "{new_name}"', 'success')
+    return redirect(url_for('homepage'))
+
+
+@app.route('/grocery-list/delete/<int:list_id>', methods=['POST'])
+@require_login
+def delete_grocery_list(list_id):
+    """Delete a grocery list"""
+    # Verify the list belongs to the user's household
+    grocery_list = GroceryList.query.filter_by(
+        id=list_id,
+        household_id=g.household.id
+    ).first()
+
+    if not grocery_list:
+        flash('Grocery list not found', 'danger')
+        return redirect(url_for('homepage'))
+
+    # Don't allow deleting the last list
+    all_lists = GroceryList.query.filter_by(household_id=g.household.id).all()
+    if len(all_lists) <= 1:
+        flash('Cannot delete the last grocery list', 'danger')
+        return redirect(url_for('homepage'))
+
+    list_name = grocery_list.name
+
+    # If this is the active list, switch to another one
+    if session.get(CURR_GROCERY_LIST_KEY) == list_id:
+        other_list = GroceryList.query.filter(
+            GroceryList.household_id == g.household.id,
+            GroceryList.id != list_id
+        ).first()
+        if other_list:
+            session[CURR_GROCERY_LIST_KEY] = other_list.id
+
+    db.session.delete(grocery_list)
+    db.session.commit()
+
+    flash(f'Deleted "{list_name}"', 'success')
     return redirect(url_for('homepage'))
 
 
@@ -479,7 +708,9 @@ def clear_grocery_list():
     grocery_list = g.grocery_list
 
     if grocery_list:
-        grocery_list.recipe_ingredients.clear()
+        # Delete all grocery list items
+        for item in grocery_list.items:
+            db.session.delete(item)
         db.session.commit()
         flash('Grocery list cleared successfully!', 'success')
     else:
@@ -556,6 +787,20 @@ def add_manual_ingredient():
 
         grocery_list = g.grocery_list
 
+        # If no grocery list exists, create a default one
+        if not grocery_list and g.household:
+            grocery_list = GroceryList(
+                household_id=g.household.id,
+                user_id=g.user.id,
+                created_by_user_id=g.user.id,
+                name="Household Grocery List",
+                status='planning'
+            )
+            db.session.add(grocery_list)
+            db.session.commit()
+            session[CURR_GROCERY_LIST_KEY] = grocery_list.id
+            g.grocery_list = grocery_list
+
         # Apply the same consolidation logic as update_grocery_list
         from collections import defaultdict
 
@@ -602,11 +847,13 @@ def add_manual_ingredient():
                 grocery_list.recipe_ingredients.append(new_ingredient)
 
         db.session.commit()
-        return jsonify({'success': True, 'message': 'Ingredient added successfully!'})
+        flash('Ingredient added successfully!', 'success')
+        return redirect(url_for('homepage'))
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'error': 'Error adding ingredient. Please try again.'}), 400
+        flash('Error adding ingredient. Please try again.', 'error')
+        return redirect(url_for('homepage'))
 
 
 # Email functionality
@@ -799,28 +1046,760 @@ def update_ingredient():
         return jsonify({'success': False, 'error': 'Failed to update ingredient'}), 500
 
 
+# Household management routes
+@app.route('/household/setup', methods=['GET', 'POST'])
+@require_login
+def household_setup():
+    """Setup page for new users to create or join a household"""
+    # If user already has a household, redirect to homepage
+    if g.household:
+        return redirect(url_for('homepage'))
+
+    if request.method == 'POST':
+        action = request.form.get('action')
+
+        if action == 'create':
+            household_name = request.form.get('household_name', '').strip()
+
+            if not household_name:
+                flash('Please enter a household name', 'danger')
+                return render_template('household_setup.html')
+
+            # Create household
+            household = Household(name=household_name)
+            db.session.add(household)
+            db.session.flush()
+
+            # Add user as owner
+            membership = HouseholdMember(
+                household_id=household.id,
+                user_id=g.user.id,
+                role='owner'
+            )
+            db.session.add(membership)
+
+            # Create default grocery list
+            default_list = GroceryList(
+                household_id=household.id,
+                user_id=g.user.id,
+                created_by_user_id=g.user.id,
+                name="Household Grocery List",
+                status='planning'
+            )
+            db.session.add(default_list)
+            db.session.commit()
+
+            # Set as active household
+            session['household_id'] = household.id
+            session[CURR_GROCERY_LIST_KEY] = default_list.id
+
+            flash(f'Household "{household_name}" created successfully!', 'success')
+            return redirect(url_for('homepage'))
+
+        elif action == 'join':
+            join_code = request.form.get('join_code', '').strip()
+
+            if not join_code:
+                flash('Please enter a household code or username', 'danger')
+                return render_template('household_setup.html')
+
+            # Try to find household by owner username
+            owner = User.query.filter_by(username=join_code).first()
+            if owner:
+                # Find household where this user is owner
+                membership = HouseholdMember.query.filter_by(
+                    user_id=owner.id,
+                    role='owner'
+                ).first()
+
+                if membership:
+                    # Check if user is already a member
+                    existing_membership = HouseholdMember.query.filter_by(
+                        household_id=membership.household_id,
+                        user_id=g.user.id
+                    ).first()
+
+                    if existing_membership:
+                        flash(f'You are already a member of {membership.household.name}', 'warning')
+                        session['household_id'] = membership.household_id
+                        return redirect(url_for('homepage'))
+
+                    # Add current user to this household
+                    try:
+                        new_membership = HouseholdMember(
+                            household_id=membership.household_id,
+                            user_id=g.user.id,
+                            role='member'
+                        )
+                        db.session.add(new_membership)
+                        db.session.commit()
+
+                        session['household_id'] = membership.household_id
+                        flash(f'Successfully joined {membership.household.name}!', 'success')
+                        return redirect(url_for('homepage'))
+                    except IntegrityError:
+                        db.session.rollback()
+                        flash('Error joining household. You may already be a member.', 'danger')
+                        return render_template('household_setup.html')
+
+            flash('Household not found. Please check the username and try again.', 'danger')
+            return render_template('household_setup.html')
+
+    return render_template('household_setup.html')
+
+
+@app.route('/household/create', methods=['GET', 'POST'])
+@require_login
+def create_household():
+    """Create a new household"""
+    if request.method == 'POST':
+        household_name = request.form.get('household_name', '').strip()
+
+        if not household_name:
+            flash('Please enter a household name', 'danger')
+            return render_template('create_household.html')
+
+        # Create household
+        household = Household(name=household_name)
+        db.session.add(household)
+        db.session.flush()
+
+        # Add user as owner
+        membership = HouseholdMember(
+            household_id=household.id,
+            user_id=g.user.id,
+            role='owner'
+        )
+        db.session.add(membership)
+
+        # Create default grocery list for the household
+        default_list = GroceryList(
+            household_id=household.id,
+            user_id=g.user.id,
+            created_by_user_id=g.user.id,
+            name="Household Grocery List",
+            status='planning'
+        )
+        db.session.add(default_list)
+        db.session.commit()
+
+        # Set as active household
+        session['household_id'] = household.id
+        session[CURR_GROCERY_LIST_KEY] = default_list.id
+
+        flash(f'Household "{household_name}" created successfully!', 'success')
+        return redirect(url_for('homepage'))
+
+    return render_template('create_household.html')
+
+
+@app.route('/household/switch/<int:household_id>')
+@require_login
+def switch_household(household_id):
+    """Switch to a different household"""
+    # Verify user is a member
+    membership = HouseholdMember.query.filter_by(
+        household_id=household_id,
+        user_id=g.user.id
+    ).first()
+
+    if not membership:
+        flash('You are not a member of that household', 'danger')
+        return redirect(url_for('homepage'))
+
+    session['household_id'] = household_id
+    flash('Switched household successfully', 'success')
+    return redirect(url_for('homepage'))
+
+
+@app.route('/household/settings')
+@require_login
+def household_settings():
+    """View and manage household settings"""
+    if not g.household:
+        return redirect(url_for('create_household'))
+
+    members = HouseholdMember.query.filter_by(household_id=g.household.id).all()
+
+    # Get Kroger account user if set
+    kroger_user = None
+    if g.household.kroger_user_id:
+        kroger_user = User.query.get(g.household.kroger_user_id)
+
+    return render_template('household_settings.html',
+                         household=g.household,
+                         members=members,
+                         kroger_user=kroger_user,
+                         is_owner=(g.household_member.role == 'owner'))
+
+
+@app.route('/household/invite', methods=['POST'])
+@require_login
+def invite_household_member():
+    """Invite a user to the household by username"""
+    if not g.household or g.household_member.role != 'owner':
+        flash('Only household owners can invite members', 'danger')
+        return redirect(url_for('household_settings'))
+
+    username = request.form.get('username', '').strip()
+
+    if not username:
+        flash('Please enter a username', 'danger')
+        return redirect(url_for('household_settings'))
+
+    # Find user
+    user = User.query.filter_by(username=username).first()
+    if not user:
+        flash(f'User "{username}" not found', 'danger')
+        return redirect(url_for('household_settings'))
+
+    # Check if already a member
+    existing = HouseholdMember.query.filter_by(
+        household_id=g.household.id,
+        user_id=user.id
+    ).first()
+
+    if existing:
+        flash(f'{username} is already a member of this household', 'warning')
+        return redirect(url_for('household_settings'))
+
+    # Add as member
+    membership = HouseholdMember(
+        household_id=g.household.id,
+        user_id=user.id,
+        role='member'
+    )
+    db.session.add(membership)
+    db.session.commit()
+
+    flash(f'{username} added to household successfully!', 'success')
+    return redirect(url_for('household_settings'))
+
+
+@app.route('/household/remove-member/<int:user_id>', methods=['POST'])
+@require_login
+def remove_household_member(user_id):
+    """Remove a member from the household"""
+    if not g.household or g.household_member.role != 'owner':
+        flash('Only household owners can remove members', 'danger')
+        return redirect(url_for('household_settings'))
+
+    if user_id == g.user.id:
+        flash('You cannot remove yourself from the household', 'danger')
+        return redirect(url_for('household_settings'))
+
+    membership = HouseholdMember.query.filter_by(
+        household_id=g.household.id,
+        user_id=user_id
+    ).first()
+
+    if not membership:
+        flash('Member not found', 'danger')
+        return redirect(url_for('household_settings'))
+
+    db.session.delete(membership)
+    db.session.commit()
+
+    flash('Member removed successfully', 'success')
+    return redirect(url_for('household_settings'))
+
+
+@app.route('/household/set-kroger-user/<int:user_id>', methods=['POST'])
+@require_login
+def set_kroger_user(user_id):
+    """Set the household's Kroger account user"""
+    if not g.household or g.household_member.role != 'owner':
+        flash('Only household owners can set the Kroger account', 'danger')
+        return redirect(url_for('household_settings'))
+
+    # Verify user is a member and has Kroger connected
+    membership = HouseholdMember.query.filter_by(
+        household_id=g.household.id,
+        user_id=user_id
+    ).first()
+
+    if not membership:
+        flash('User is not a member of this household', 'danger')
+        return redirect(url_for('household_settings'))
+
+    user = User.query.get(user_id)
+    if not user.oauth_token:
+        flash('This user has not connected their Kroger account yet', 'warning')
+        return redirect(url_for('household_settings'))
+
+    g.household.kroger_user_id = user_id
+    db.session.commit()
+
+    flash(f'Kroger account set to {user.username}', 'success')
+    return redirect(url_for('household_settings'))
+
+
 @app.before_request
 def add_user_to_g():
     """If we're logged in, add curr user to Flask global."""
     if CURR_USER_KEY in session:
         g.user = User.query.get(session[CURR_USER_KEY])
+
+        # Update last activity timestamp
+        if g.user and request.endpoint not in ['static', None]:
+            from datetime import datetime
+            g.user.last_activity = datetime.utcnow()
+            db.session.commit()
     else:
         g.user = None
 
 @app.before_request
+def add_household_to_g():
+    """Add current household to Flask global."""
+    g.household = None
+    g.household_member = None
+
+    if g.user:
+        # Get household from session or use the first one
+        household_id = session.get('household_id')
+
+        if household_id:
+            # Verify user is a member of this household
+            membership = HouseholdMember.query.filter_by(
+                household_id=household_id,
+                user_id=g.user.id
+            ).first()
+
+            if membership:
+                g.household = Household.query.get(household_id)
+                g.household_member = membership
+
+        # If no household in session or invalid, get user's first household
+        if not g.household:
+            membership = HouseholdMember.query.filter_by(user_id=g.user.id).first()
+            if membership:
+                g.household = membership.household
+                g.household_member = membership
+                session['household_id'] = g.household.id
+
+@app.before_request
 def add_grocery_list_to_g():
     """Add current grocery list to Flask global."""
-    if g.user:
-        # Get or create grocery list for the user
-        grocery_list = GroceryList.query.filter_by(user_id=g.user.id).first()
+    g.grocery_list = None
+
+    if g.user and g.household:
+        # Try to get the grocery list from session first
+        list_id = session.get(CURR_GROCERY_LIST_KEY)
+        grocery_list = None
+
+        if list_id:
+            # Verify the list exists and belongs to the household
+            grocery_list = GroceryList.query.filter_by(
+                id=list_id,
+                household_id=g.household.id
+            ).first()
+
+        # If no valid list in session, get the most recently modified planning list
         if not grocery_list:
-            grocery_list = GroceryList(user_id=g.user.id)
+            grocery_list = GroceryList.query.filter_by(
+                household_id=g.household.id,
+                status='planning'
+            ).order_by(GroceryList.last_modified_at.desc()).first()
+
+        # If still no list, create a default one
+        if not grocery_list:
+            grocery_list = GroceryList(
+                household_id=g.household.id,
+                user_id=g.user.id,
+                created_by_user_id=g.user.id,
+                name="Household Grocery List"
+            )
             db.session.add(grocery_list)
             db.session.commit()
+
         g.grocery_list = grocery_list
         session[CURR_GROCERY_LIST_KEY] = grocery_list.id
+
+
+# Meal planning routes
+@app.route('/meal-plan')
+@require_login
+def meal_plan():
+    """Show weekly meal plan for household"""
+    if not g.household:
+        flash('Please create or join a household first', 'warning')
+        return redirect(url_for('homepage'))
+
+    from datetime import datetime, timedelta
+
+    # Get week offset from query params (0 = this week, 1 = next week, etc.)
+    week_offset = int(request.args.get('week', 0))
+
+    # Calculate start of week (Monday)
+    today = datetime.now().date()
+    days_since_monday = today.weekday()
+    week_start = today - timedelta(days=days_since_monday) + timedelta(weeks=week_offset)
+    week_end = week_start + timedelta(days=6)
+
+    # Get meal plan entries for this week
+    meal_entries = MealPlanEntry.query.filter(
+        MealPlanEntry.household_id == g.household.id,
+        MealPlanEntry.date >= week_start,
+        MealPlanEntry.date <= week_end
+    ).all()
+
+    # Organize entries by date and meal type
+    meal_plan = {}
+    for i in range(7):
+        day = week_start + timedelta(days=i)
+        meal_plan[day] = {
+            'breakfast': [],
+            'lunch': [],
+            'dinner': []
+        }
+
+    for entry in meal_entries:
+        if entry.date in meal_plan and entry.meal_type in meal_plan[entry.date]:
+            meal_plan[entry.date][entry.meal_type].append(entry)
+
+    # Get all household recipes for the dropdown
+    recipes = Recipe.query.filter_by(household_id=g.household.id).all()
+
+    # Get household members for cook assignment
+    household_members = HouseholdMember.query.filter_by(household_id=g.household.id).all()
+    household_users = [m.user for m in household_members]
+
+    return render_template(
+        'meal_plan.html',
+        meal_plan=meal_plan,
+        week_start=week_start,
+        week_end=week_end,
+        week_offset=week_offset,
+        today=today,
+        recipes=recipes,
+        household_users=household_users
+    )
+
+
+@app.route('/meal-plan/add', methods=['POST'])
+@require_login
+def add_meal_plan_entry():
+    """Add a recipe to the meal plan"""
+    if not g.household:
+        flash('Please create or join a household first', 'warning')
+        return redirect(url_for('homepage'))
+
+    from datetime import datetime
+
+    recipe_id = request.form.get('recipe_id')
+    custom_meal_name = request.form.get('custom_meal_name', '').strip()
+    date_str = request.form.get('date')
+    meal_type = request.form.get('meal_type')
+    assigned_cook_id = request.form.get('assigned_cook_id')
+    notes = request.form.get('notes', '').strip()
+
+    # Convert empty string to None for assigned_cook_id
+    if assigned_cook_id == '':
+        assigned_cook_id = None
+    elif assigned_cook_id:
+        assigned_cook_id = int(assigned_cook_id)
+
+    # Must have either recipe_id or custom_meal_name
+    if (not recipe_id or recipe_id == 'custom') and not custom_meal_name:
+        flash('Please select a recipe or enter a custom meal name', 'danger')
+        return redirect(url_for('meal_plan'))
+
+    if not date_str or not meal_type:
+        flash('Missing required fields', 'danger')
+        return redirect(url_for('meal_plan'))
+
+    try:
+        date = datetime.strptime(date_str, '%Y-%m-%d').date()
+
+        # Determine if this is a custom meal or recipe
+        if recipe_id == 'custom' or not recipe_id:
+            entry = MealPlanEntry(
+                household_id=g.household.id,
+                recipe_id=None,
+                custom_meal_name=custom_meal_name,
+                date=date,
+                meal_type=meal_type,
+                assigned_cook_user_id=assigned_cook_id,
+                notes=notes if notes else None
+            )
+        else:
+            entry = MealPlanEntry(
+                household_id=g.household.id,
+                recipe_id=int(recipe_id),
+                custom_meal_name=None,
+                date=date,
+                meal_type=meal_type,
+                assigned_cook_user_id=assigned_cook_id,
+                notes=notes if notes else None
+            )
+
+        db.session.add(entry)
+        db.session.commit()
+
+        flash('Meal added to plan!', 'success')
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error adding meal plan entry: {e}", exc_info=True)
+        flash('Error adding meal to plan', 'danger')
+
+    return redirect(url_for('meal_plan') + f'?week={request.form.get("week_offset", 0)}')
+
+
+@app.route('/meal-plan/delete/<int:entry_id>', methods=['POST'])
+@require_login
+def delete_meal_plan_entry(entry_id):
+    """Delete a meal plan entry"""
+    entry = MealPlanEntry.query.get_or_404(entry_id)
+
+    if entry.household_id != g.household.id:
+        flash('Unauthorized', 'danger')
+        return redirect(url_for('meal_plan'))
+
+    week_offset = request.form.get('week_offset', 0)
+
+    db.session.delete(entry)
+    db.session.commit()
+
+    flash('Meal removed from plan', 'success')
+    return redirect(url_for('meal_plan') + f'?week={week_offset}')
+
+
+@app.route('/meal-plan/add-to-list', methods=['POST'])
+@require_login
+def add_meal_plan_to_list():
+    """Add recipes from meal plan to grocery list"""
+    if not g.household:
+        flash('Please create or join a household first', 'warning')
+        return redirect(url_for('homepage'))
+
+    from datetime import datetime, timedelta
+
+    # Get week offset
+    week_offset = int(request.form.get('week_offset', 0))
+
+    # Calculate week range
+    today = datetime.now().date()
+    days_since_monday = today.weekday()
+    week_start = today - timedelta(days=days_since_monday) + timedelta(weeks=week_offset)
+    week_end = week_start + timedelta(days=6)
+
+    # Get all meal plan entries for this week
+    meal_entries = MealPlanEntry.query.filter(
+        MealPlanEntry.household_id == g.household.id,
+        MealPlanEntry.date >= week_start,
+        MealPlanEntry.date <= week_end
+    ).all()
+
+    if not meal_entries:
+        flash('No meals planned for this week', 'warning')
+        return redirect(url_for('meal_plan') + f'?week={week_offset}')
+
+    # Get unique recipe IDs
+    recipe_ids = list(set([str(entry.recipe_id) for entry in meal_entries]))
+
+    # Add to current grocery list
+    grocery_list = g.grocery_list
+
+    # If no grocery list exists, create one
+    if not grocery_list and g.household:
+        grocery_list = GroceryList(
+            household_id=g.household.id,
+            user_id=g.user.id,
+            created_by_user_id=g.user.id,
+            name="Household Grocery List",
+            status='planning'
+        )
+        db.session.add(grocery_list)
+        db.session.commit()
+        session[CURR_GROCERY_LIST_KEY] = grocery_list.id
+        g.grocery_list = grocery_list
+
+    GroceryList.update_grocery_list(recipe_ids, grocery_list=grocery_list, user_id=g.user.id)
+
+    flash(f'Added {len(meal_entries)} meals to grocery list!', 'success')
+    return redirect(url_for('homepage'))
+
+
+# Shopping mode routes
+@app.route('/shopping-mode')
+@require_login
+def shopping_mode():
+    """Streamlined shopping interface"""
+    if not g.grocery_list:
+        flash('Please select a grocery list first', 'warning')
+        return redirect(url_for('homepage'))
+
+    grocery_list = g.grocery_list
+
+    # Get all items with their ingredients
+    items = GroceryListItem.query.filter_by(grocery_list_id=grocery_list.id).all()
+
+    # Calculate progress
+    total_items = len(items)
+    checked_items = sum(1 for item in items if item.is_checked)
+
+    return render_template(
+        'shopping_mode.html',
+        grocery_list=grocery_list,
+        items=items,
+        total_items=total_items,
+        checked_items=checked_items
+    )
+
+
+@app.route('/shopping-mode/start', methods=['POST'])
+@require_login
+def start_shopping():
+    """Start a shopping session"""
+    if not g.grocery_list:
+        flash('Please select a grocery list first', 'warning')
+        return redirect(url_for('homepage'))
+
+    grocery_list = g.grocery_list
+    grocery_list.status = 'shopping'
+    grocery_list.shopping_user_id = g.user.id
+    grocery_list.last_modified_by_user_id = g.user.id
+
+    db.session.commit()
+
+    flash('Shopping session started!', 'success')
+    return redirect(url_for('shopping_mode'))
+
+
+@app.route('/shopping-mode/end', methods=['POST'])
+@require_login
+def end_shopping():
+    """End a shopping session and remove checked items"""
+    if not g.grocery_list:
+        flash('Please select a grocery list first', 'warning')
+        return redirect(url_for('homepage'))
+
+    grocery_list = g.grocery_list
+
+    # Delete all checked items
+    checked_items = GroceryListItem.query.filter_by(
+        grocery_list_id=grocery_list.id,
+        completed=True
+    ).all()
+
+    num_removed = len(checked_items)
+    for item in checked_items:
+        db.session.delete(item)
+
+    grocery_list.status = 'done'
+    grocery_list.shopping_user_id = None
+    grocery_list.last_modified_by_user_id = g.user.id
+
+    db.session.commit()
+
+    if num_removed > 0:
+        flash(f'Shopping session completed! {num_removed} checked item(s) removed.', 'success')
     else:
-        g.grocery_list = None
+        flash('Shopping session completed!', 'success')
+    return redirect(url_for('homepage'))
+
+
+@app.route('/shopping-mode/toggle/<int:item_id>', methods=['POST'])
+@require_login
+def toggle_item(item_id):
+    """Toggle item checked status"""
+    item = GroceryListItem.query.get_or_404(item_id)
+
+    if item.grocery_list_id != g.grocery_list.id:
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    item.is_checked = not item.is_checked
+
+    # Update last modified
+    grocery_list = g.grocery_list
+    grocery_list.last_modified_by_user_id = g.user.id
+
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'is_checked': item.is_checked,
+        'item_id': item.id
+    })
+
+
+# API endpoints for polling
+@app.route('/api/grocery-list/<int:list_id>/state')
+@require_login
+def grocery_list_state(list_id):
+    """Get current state of grocery list for polling"""
+    grocery_list = GroceryList.query.get_or_404(list_id)
+
+    # Check authorization
+    if grocery_list.household_id != g.household.id:
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    # Get item count
+    item_count = GroceryListItem.query.filter_by(grocery_list_id=list_id).count()
+    checked_count = GroceryListItem.query.filter_by(grocery_list_id=list_id, is_checked=True).count()
+
+    return jsonify({
+        'status': grocery_list.status,
+        'last_modified_at': grocery_list.last_modified_at.isoformat() if grocery_list.last_modified_at else None,
+        'last_modified_by': grocery_list.last_modified_by.username if grocery_list.last_modified_by else None,
+        'shopping_user': grocery_list.shopping_user.username if grocery_list.shopping_user else None,
+        'item_count': item_count,
+        'checked_count': checked_count
+    })
+
+
+# Admin routes
+@app.route('/admin/login', methods=['GET', 'POST'])
+def admin_login():
+    """Admin login page"""
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+
+        user = User.query.filter_by(username=username).first()
+
+        if user and bcrypt.check_password_hash(user.password, password):
+            if user.is_admin:
+                do_login(user)
+                flash('Admin login successful!', 'success')
+                return redirect(url_for('admin_dashboard'))
+            else:
+                flash('Access denied. Admin privileges required.', 'danger')
+        else:
+            flash('Invalid username or password', 'danger')
+
+    return render_template('admin_login.html')
+
+
+@app.route('/admin/dashboard')
+@require_admin
+def admin_dashboard():
+    """Admin dashboard showing all users"""
+    users = User.query.order_by(User.last_activity.desc().nullslast()).all()
+    return render_template('admin_dashboard.html', users=users)
+
+
+@app.route('/admin/delete-user/<int:user_id>', methods=['POST'])
+@require_admin
+def admin_delete_user(user_id):
+    """Delete a user from the admin panel"""
+    if user_id == g.user.id:
+        flash('You cannot delete your own admin account', 'danger')
+        return redirect(url_for('admin_dashboard'))
+
+    user = User.query.get_or_404(user_id)
+    username = user.username
+
+    try:
+        db.session.delete(user)
+        db.session.commit()
+        flash(f'User "{username}" deleted successfully', 'success')
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error deleting user: {e}", exc_info=True)
+        flash('Error deleting user. Please try again.', 'danger')
+
+    return redirect(url_for('admin_dashboard'))
 
 
 if __name__ == '__main__':

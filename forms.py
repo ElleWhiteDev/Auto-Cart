@@ -36,6 +36,13 @@ class UpdateEmailForm(FlaskForm):
     password = PasswordField("Current Password", validators=[DataRequired()])
 
 
+class UpdateUsernameForm(FlaskForm):
+    """Form to change username"""
+
+    username = StringField("New Username", validators=[DataRequired(), Length(min=3, max=20)])
+    password = PasswordField("Current Password", validators=[DataRequired()])
+
+
 class AddRecipeForm(FlaskForm):
     """Form to add recipe"""
 

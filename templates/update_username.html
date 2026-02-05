@@ -1,0 +1,49 @@
+{% extends 'base.html' %} {% block body_class %}Update Username{% endblock %} {%
+block content %}
+
+<div class="container">
+	<div class="row justify-content-center">
+		<div class="col-md-6 text-center">
+			<h1 class="display-3">Update Username</h1>
+			<p class="lead">
+				Update your username below. Please enter your current password to
+				confirm the change. If you do not know your current password please
+				contact the administrator.
+			</p>
+			<p class="lead">Current username: <strong>{{ g.user.username }}</strong></p>
+		</div>
+	</div>
+</div>
+
+<form method="POST" class="justify-content-center" id="user_form">
+	{{ form.hidden_tag() }}
+
+	<div class="container">
+		<div class="row justify-content-center">
+			<div class="col-md-4">
+				{% for field in form if field.widget.input_type != 'hidden' %}
+				<div class="form-group">
+					<label for="{{ field.id }}">{{ field.label.text }}</label>
+					{{ field(class_="form-control", placeholder=field.label.text) }} {%
+					for error in field.errors %}
+					<span class="form-text text-danger"> {{ error }} </span>
+					{% endfor %}
+				</div>
+				{% endfor %}
+			</div>
+		</div>
+
+		<div class="row justify-content-center mt-3">
+			<div class="col-md-4">
+				<div class="d-flex gap-2">
+					<button class="button-56 flex-fill">Submit</button>
+					<a class="button-56-red flex-fill text-center" href="{{url_for('user_view')}}"
+						>Cancel</a
+					>
+				</div>
+			</div>
+		</div>
+	</div>
+</form>
+
+{% endblock %}

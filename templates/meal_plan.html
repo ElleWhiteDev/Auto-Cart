@@ -1,0 +1,218 @@
+{% extends 'base.html' %}
+
+{% block title %}Meal Plan - Auto Cart{% endblock %}
+
+{% block content %}
+<style>
+	.meal-plan-table {
+		border-collapse: separate;
+		border-spacing: 0;
+		border-radius: 8px;
+		overflow: hidden;
+	}
+
+	.meal-plan-table thead th {
+		font-weight: 600;
+		text-transform: uppercase;
+		letter-spacing: 0.3px;
+	}
+
+	.meal-card {
+		transition: transform 0.15s, box-shadow 0.15s;
+	}
+
+	.meal-card:hover {
+		transform: translateY(-1px);
+		box-shadow: 0 3px 8px rgba(0,0,0,0.12) !important;
+	}
+
+	.date-badge {
+		display: inline-block;
+		font-weight: 600;
+		letter-spacing: 0.3px;
+	}
+</style>
+<div class="container-fluid mt-4">
+	<div class="d-flex justify-content-between align-items-center mb-4">
+		<h1><i class="fas fa-calendar-alt"></i> Meal Plan</h1>
+		<div>
+			<a href="{{ url_for('meal_plan', week=week_offset-1) }}" class="btn btn-outline-primary">
+				<i class="fas fa-chevron-left"></i> Previous Week
+			</a>
+			<a href="{{ url_for('meal_plan', week=0) }}" class="btn btn-primary">
+				<i class="fas fa-calendar-day"></i> This Week
+			</a>
+			<a href="{{ url_for('meal_plan', week=week_offset+1) }}" class="btn btn-outline-primary">
+				Next Week <i class="fas fa-chevron-right"></i>
+			</a>
+		</div>
+	</div>
+
+	<div class="card shadow mb-4">
+		<div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+			<h4 class="mb-0">
+				{{ week_start.strftime('%B %d') }} - {{ week_end.strftime('%B %d, %Y') }}
+			</h4>
+			<form method="POST" action="{{ url_for('add_meal_plan_to_list') }}" style="display: inline;">
+				<input type="hidden" name="week_offset" value="{{ week_offset }}">
+				<button type="submit" class="btn btn-light btn-sm">
+					<i class="fas fa-shopping-cart"></i> Add All to Grocery List
+				</button>
+			</form>
+		</div>
+		<div class="card-body p-0">
+			<div class="table-responsive">
+				<table class="table table-hover mb-0 meal-plan-table">
+					<thead class="bg-primary text-white">
+						<tr>
+							<th style="width: 12%; padding: 8px; border: none; font-size: 0.85rem;">Day</th>
+							<th style="width: 29%; padding: 8px; border: none; font-size: 0.85rem;">Breakfast</th>
+							<th style="width: 29%; padding: 8px; border: none; font-size: 0.85rem;">Lunch</th>
+							<th style="width: 29%; padding: 8px; border: none; font-size: 0.85rem;">Dinner</th>
+						</tr>
+					</thead>
+					<tbody>
+						{% for date, meals in meal_plan.items() %}
+						<tr style="border-bottom: 1px solid #dee2e6;">
+							<td class="fw-bold align-middle {% if date == today %}bg-info bg-opacity-10{% endif %}" style="padding: 10px; border-left: none; border-right: 1px solid #dee2e6;">
+								<div class="mb-1" style="font-size: 0.9rem;">{{ date.strftime('%A') }}</div>
+								<span class="badge bg-primary text-white px-2 py-1 date-badge" style="font-size: 0.75rem;">{{ date.strftime('%b %d') }}</span>
+							</td>
+							{% for meal_type in ['breakfast', 'lunch', 'dinner'] %}
+							<td class="align-top" style="padding: 8px; background-color: #fafbfc; border-right: 1px solid #dee2e6;">
+								{% for entry in meals[meal_type] %}
+								<div class="card mb-2 border-0 shadow-sm meal-card" style="border-left: 3px solid #0d6efd !important; background: white;">
+									<div class="card-body p-2">
+										<div class="d-flex justify-content-between align-items-start">
+											<div class="flex-grow-1">
+												<div class="fw-bold text-primary mb-1" style="font-size: 0.95rem;">{{ entry.meal_name }}</div>
+												{% if entry.assigned_cook %}
+												<div class="text-muted mb-0" style="font-size: 0.8rem;">
+													<i class="fas fa-utensils"></i> {{ entry.assigned_cook.username }}
+												</div>
+												{% endif %}
+												{% if entry.notes %}
+												<div class="text-info" style="font-size: 0.75rem;"><i class="fas fa-sticky-note"></i> {{ entry.notes }}</div>
+												{% endif %}
+											</div>
+											<form method="POST" action="{{ url_for('delete_meal_plan_entry', entry_id=entry.id) }}" style="display: inline;">
+												<input type="hidden" name="week_offset" value="{{ week_offset }}">
+												<button type="submit" class="btn btn-sm btn-outline-danger rounded-circle" onclick="return confirm('Remove this meal?');" style="width: 24px; height: 24px; padding: 0; line-height: 1; font-size: 0.75rem;">
+													<i class="fas fa-times"></i>
+												</button>
+											</form>
+										</div>
+									</div>
+								</div>
+								{% endfor %}
+							</td>
+							{% endfor %}
+						</tr>
+						{% endfor %}
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</div>
+
+	<!-- Add Meal Form -->
+	<div class="card shadow">
+		<div class="card-header bg-success text-white">
+			<h5 class="mb-0"><i class="fas fa-plus"></i> Add Meal to Plan</h5>
+		</div>
+		<div class="card-body">
+			<form method="POST" action="{{ url_for('add_meal_plan_entry') }}" id="addMealForm">
+				<input type="hidden" name="week_offset" value="{{ week_offset }}">
+				<div class="row g-3">
+					<div class="col-md-6 col-lg-4">
+						<label for="recipe_id" class="form-label" style="font-size: 0.85rem;"><strong>Recipe</strong></label>
+						<select name="recipe_id" id="recipe_id" class="form-control w-100" style="font-size: 0.9rem; padding: 0.4rem 0.6rem;" onchange="toggleCustomMeal()">
+							<option value="">Select a recipe...</option>
+							{% for recipe in recipes %}
+							<option value="{{ recipe.id }}">{{ recipe.name }}</option>
+							{% endfor %}
+							<option value="custom">➕ Add Your Own</option>
+						</select>
+					</div>
+					<div class="col-md-6 col-lg-4" id="customMealDiv" style="display: none;">
+						<label for="custom_meal_name" class="form-label" style="font-size: 0.85rem;"><strong>Name</strong></label>
+						<input type="text" name="custom_meal_name" id="custom_meal_name" class="form-control w-100" style="font-size: 0.9rem; padding: 0.4rem 0.6rem;" placeholder="e.g., Pizza Night">
+					</div>
+					<div class="col-md-6 col-lg-4">
+						<label for="date" class="form-label" style="font-size: 0.85rem;"><strong>Date</strong></label>
+						<input type="date" name="date" id="date" class="form-control w-100" style="font-size: 0.9rem; padding: 0.4rem 0.6rem;" required>
+					</div>
+					<div class="col-md-6 col-lg-4">
+						<label for="meal_type" class="form-label" style="font-size: 0.85rem;"><strong>Meal</strong></label>
+						<select name="meal_type" id="meal_type" class="form-control w-100" style="font-size: 0.9rem; padding: 0.4rem 0.6rem;" required>
+							<option value="">Select...</option>
+							<option value="breakfast">Breakfast</option>
+							<option value="lunch">Lunch</option>
+							<option value="dinner">Dinner</option>
+						</select>
+					</div>
+					<div class="col-md-6 col-lg-4">
+						<label for="assigned_cook_id" class="form-label" style="font-size: 0.85rem;"><strong>Cook</strong></label>
+						<select name="assigned_cook_id" id="assigned_cook_id" class="form-control w-100" style="font-size: 0.9rem; padding: 0.4rem 0.6rem;">
+							<option value="">Unassigned</option>
+							{% for user in household_users %}
+							<option value="{{ user.id }}">{{ user.username }}</option>
+							{% endfor %}
+						</select>
+					</div>
+					<div class="col-md-6 col-lg-4">
+						<label for="notes" class="form-label" style="font-size: 0.85rem;"><strong>Notes</strong></label>
+						<input type="text" name="notes" id="notes" class="form-control w-100" style="font-size: 0.9rem; padding: 0.4rem 0.6rem;" placeholder="Optional">
+					</div>
+					<div class="col-12">
+						<button type="submit" class="btn btn-success w-100" style="font-size: 0.9rem; padding: 0.5rem;">
+							<i class="fas fa-plus"></i> Add Meal to Plan
+						</button>
+					</div>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
+
+<script>
+// Set default date to today
+document.getElementById('date').valueAsDate = new Date();
+
+// Toggle custom meal name field
+function toggleCustomMeal() {
+	const recipeSelect = document.getElementById('recipe_id');
+	const customMealDiv = document.getElementById('customMealDiv');
+	const customMealInput = document.getElementById('custom_meal_name');
+
+	if (recipeSelect.value === 'custom') {
+		customMealDiv.style.display = 'block';
+		customMealInput.required = true;
+	} else {
+		customMealDiv.style.display = 'none';
+		customMealInput.required = false;
+		customMealInput.value = '';
+	}
+}
+
+// Form validation
+document.getElementById('addMealForm').addEventListener('submit', function(e) {
+	const recipeSelect = document.getElementById('recipe_id');
+	const customMealInput = document.getElementById('custom_meal_name');
+
+	if (recipeSelect.value === 'custom' && !customMealInput.value.trim()) {
+		e.preventDefault();
+		alert('Please enter a custom meal name');
+		customMealInput.focus();
+		return false;
+	}
+
+	if (!recipeSelect.value) {
+		e.preventDefault();
+		alert('Please select a recipe or choose "Add Your Own"');
+		recipeSelect.focus();
+		return false;
+	}
+});
+</script>
+{% endblock %}

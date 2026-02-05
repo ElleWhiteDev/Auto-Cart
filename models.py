@@ -1,6 +1,7 @@
 import re
 import os
 from collections import defaultdict
+from datetime import datetime
 from flask import g
 from flask_mail import Message
 from flask_bcrypt import Bcrypt
@@ -16,14 +17,71 @@ db = SQLAlchemy()
 openai_client = OpenAI(api_key=os.environ.get('OPENAI_API_KEY'))
 
 
-# Join table for Grocery List to Recipe Ingredient
-grocery_lists_recipe_ingredients = db.Table(
-    "grocery_lists_recipe_ingredients",
-    db.Column("grocery_list_id", db.Integer, db.ForeignKey("grocery_lists.id")),
-    db.Column(
-        "recipe_ingredient_id", db.Integer, db.ForeignKey("recipes_ingredients.id")
-    ),
-)
+class Household(db.Model):
+    """Household/family group for collaboration"""
+
+    __tablename__ = "households"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    # Kroger integration - one account per household
+    kroger_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+
+    members = db.relationship("HouseholdMember", backref="household", cascade="all, delete-orphan")
+    recipes = db.relationship("Recipe", backref="household", cascade="all, delete-orphan")
+    grocery_lists = db.relationship("GroceryList", backref="household", cascade="all, delete-orphan")
+    meal_plan_entries = db.relationship("MealPlanEntry", backref="household", cascade="all, delete-orphan")
+
+    def __repr__(self):
+        return f"<Household #{self.id}: {self.name}>"
+
+
+class HouseholdMember(db.Model):
+    """Association between users and households with roles"""
+
+    __tablename__ = "household_members"
+
+    id = db.Column(db.Integer, primary_key=True)
+    household_id = db.Column(db.Integer, db.ForeignKey("households.id", ondelete="CASCADE"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    role = db.Column(db.String(20), nullable=False, default="member")  # 'owner' or 'member'
+    joined_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    user = db.relationship("User", backref="household_memberships")
+
+    def __repr__(self):
+        return f"<HouseholdMember household_id={self.household_id} user_id={self.user_id} role={self.role}>"
+
+
+class MealPlanEntry(db.Model):
+    """Meal plan entry for a household"""
+
+    __tablename__ = "meal_plan_entries"
+
+    id = db.Column(db.Integer, primary_key=True)
+    household_id = db.Column(db.Integer, db.ForeignKey("households.id", ondelete="CASCADE"), nullable=False)
+    recipe_id = db.Column(db.Integer, db.ForeignKey("recipes.id", ondelete="CASCADE"), nullable=True)
+    custom_meal_name = db.Column(db.String(200), nullable=True)  # For meals not in recipe box
+    date = db.Column(db.Date, nullable=False)
+    meal_type = db.Column(db.String(20), nullable=True)  # 'breakfast', 'lunch', 'dinner', 'snack'
+    assigned_cook_user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    recipe = db.relationship("Recipe", backref="meal_plan_entries")
+    assigned_cook = db.relationship("User", foreign_keys=[assigned_cook_user_id])
+
+    @property
+    def meal_name(self):
+        """Get the meal name (either from recipe or custom)"""
+        if self.recipe:
+            return self.recipe.name
+        return self.custom_meal_name or "Untitled Meal"
+
+    def __repr__(self):
+        return f"<MealPlanEntry #{self.id}: {self.date} {self.meal_type}>"
 
 
 class User(db.Model):
@@ -45,9 +103,16 @@ class User(db.Model):
 
     profile_id = db.Column(db.Text, nullable=True)
 
+    is_admin = db.Column(db.Boolean, nullable=False, default=False)
+
+    last_activity = db.Column(db.DateTime, nullable=True)
+
     recipes = db.relationship("Recipe", backref="user", cascade="all, delete-orphan")
     grocery_lists = db.relationship(
-        "GroceryList", backref="user", cascade="all, delete-orphan"
+        "GroceryList",
+        backref="user",
+        cascade="all, delete-orphan",
+        foreign_keys="GroceryList.user_id"
     )
 
     def __repr__(self):
@@ -117,11 +182,16 @@ class Recipe(db.Model):
     user_id = db.Column(
         db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
+    household_id = db.Column(
+        db.Integer, db.ForeignKey("households.id", ondelete="CASCADE"), nullable=True
+    )
     name = db.Column(db.Text, nullable=False)
     url = db.Column(db.Text, nullable=True)
     notes = db.Column(db.Text, nullable=True)
+    visibility = db.Column(db.String(20), nullable=False, default="private")  # 'private' or 'household'
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
-    recipe_ingredients = db.relationship("RecipeIngredient", back_populates="recipe")
+    recipe_ingredients = db.relationship("RecipeIngredient", back_populates="recipe", cascade="all, delete-orphan")
 
     @classmethod
     def clean_ingredients_with_openai(cls, ingredients_text):
@@ -226,10 +296,17 @@ Return only the JSON array, no explanations."""
             return parsed_ingredients
 
     @classmethod
-    def create_recipe(cls, ingredients_text, url, user_id, name, notes):
+    def create_recipe(cls, ingredients_text, url, user_id, name, notes, household_id=None, visibility="private"):
         """Takes ingredients text and creates a recipe object"""
 
-        recipe = cls(url=url, user_id=user_id, name=name, notes=notes)
+        recipe = cls(
+            url=url,
+            user_id=user_id,
+            name=name,
+            notes=notes,
+            household_id=household_id,
+            visibility=visibility
+        )
 
         # Just split ingredients by lines and store them as-is
         ingredients = ingredients_text.split("\n")
@@ -246,6 +323,38 @@ Return only the JSON array, no explanations."""
         return recipe
 
 
+class GroceryListItem(db.Model):
+    """Association object for grocery list items with metadata"""
+
+    __tablename__ = "grocery_list_items"
+
+    id = db.Column(db.Integer, primary_key=True)
+    grocery_list_id = db.Column(db.Integer, db.ForeignKey("grocery_lists.id", ondelete="CASCADE"), nullable=False)
+    recipe_ingredient_id = db.Column(db.Integer, db.ForeignKey("recipes_ingredients.id", ondelete="CASCADE"), nullable=False)
+    added_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    completed = db.Column(db.Boolean, default=False, nullable=False)
+    completed_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    completed_at = db.Column(db.DateTime, nullable=True)
+    added_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    recipe_ingredient = db.relationship("RecipeIngredient", backref="grocery_list_items")
+    added_by = db.relationship("User", foreign_keys=[added_by_user_id])
+    completed_by = db.relationship("User", foreign_keys=[completed_by_user_id])
+
+    @property
+    def is_checked(self):
+        """Alias for completed field"""
+        return self.completed
+
+    @is_checked.setter
+    def is_checked(self, value):
+        """Alias setter for completed field"""
+        self.completed = value
+
+    def __repr__(self):
+        return f"<GroceryListItem #{self.id} list={self.grocery_list_id} ingredient={self.recipe_ingredient_id}>"
+
+
 class GroceryList(db.Model):
     """Grocery List of ingredients"""
 
@@ -253,17 +362,33 @@ class GroceryList(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(
-        db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+        db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=True
     )
+    household_id = db.Column(
+        db.Integer, db.ForeignKey("households.id", ondelete="CASCADE"), nullable=True
+    )
+    name = db.Column(db.Text, nullable=False, default="My Grocery List")
+    status = db.Column(db.String(20), nullable=False, default="planning")  # 'planning', 'ready_to_shop', 'shopping', 'done'
+    store = db.Column(db.Text, nullable=True)
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    last_modified_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    last_modified_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    shopping_user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True)  # Who is currently shopping
 
-    recipe_ingredients = db.relationship(
-        "RecipeIngredient",
-        secondary=grocery_lists_recipe_ingredients,
-        backref="grocery_lists",
-    )
+    items = db.relationship("GroceryListItem", backref="grocery_list", cascade="all, delete-orphan")
+    created_by = db.relationship("User", foreign_keys=[created_by_user_id])
+    last_modified_by = db.relationship("User", foreign_keys=[last_modified_by_user_id])
+    shopping_user = db.relationship("User", foreign_keys=[shopping_user_id])
+
+    # Legacy support - keep recipe_ingredients relationship for backward compatibility
+    @property
+    def recipe_ingredients(self):
+        """Legacy property to access ingredients through items"""
+        return [item.recipe_ingredient for item in self.items]
 
     @classmethod
-    def update_grocery_list(cls, selected_recipe_ids, grocery_list):
+    def update_grocery_list(cls, selected_recipe_ids, grocery_list, user_id=None):
         """Create grocery list that includes chosen recipes"""
 
         recipes = Recipe.query.filter(Recipe.id.in_(selected_recipe_ids)).all()
@@ -282,9 +407,11 @@ class GroceryList(db.Model):
         consolidated_ingredients = cls.consolidate_ingredients_with_openai(all_ingredients)
 
         if grocery_list is not None:
-            grocery_list.recipe_ingredients.clear()
+            # Clear existing items
+            for item in grocery_list.items:
+                db.session.delete(item)
 
-        # Create new recipe ingredients from consolidated list
+        # Create new recipe ingredients and grocery list items from consolidated list
         for ingredient_data in consolidated_ingredients:
             quantity_string = str(ingredient_data["quantity"])
 
@@ -299,7 +426,21 @@ class GroceryList(db.Model):
                 quantity=quantity,
                 measurement=ingredient_data["measurement"],
             )
-            grocery_list.recipe_ingredients.append(recipe_ingredient)
+            db.session.add(recipe_ingredient)
+            db.session.flush()  # Get the ID
+
+            # Create grocery list item
+            grocery_list_item = GroceryListItem(
+                grocery_list_id=grocery_list.id,
+                recipe_ingredient_id=recipe_ingredient.id,
+                added_by_user_id=user_id
+            )
+            db.session.add(grocery_list_item)
+
+        # Update last modified metadata
+        if user_id:
+            grocery_list.last_modified_by_user_id = user_id
+            grocery_list.last_modified_at = datetime.utcnow()
 
         db.session.commit()
 

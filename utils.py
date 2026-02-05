@@ -24,6 +24,20 @@ def require_login(func):
     return wrapper
 
 
+def require_admin(func):
+    """Check user is logged in and is an admin"""
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        if CURR_USER_KEY not in session:
+            flash('You must be logged in to view this page', 'danger')
+            return redirect(url_for('login'))
+        if not g.user or not g.user.is_admin:
+            flash('Access denied. Admin privileges required.', 'danger')
+            return redirect(url_for('homepage'))
+        return func(*args, **kwargs)
+    return wrapper
+
+
 def do_login(user):
     """Log in user."""
     session[CURR_USER_KEY] = user.id

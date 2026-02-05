@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+
+{% block title %}Create Household - Auto Cart{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 600px; margin: 2rem auto;">
+	<div class="card-header">
+		<h2><i class="fas fa-home"></i> Create Your Household</h2>
+	</div>
+	<div class="card-body">
+		<p class="text-muted mb-4">
+			Create a household to share recipes and grocery lists with family members or roommates.
+		</p>
+
+		<form method="POST" action="{{ url_for('create_household') }}">
+			<div class="form-group">
+				<label for="household_name">Household Name</label>
+				<input
+					type="text"
+					class="form-control"
+					id="household_name"
+					name="household_name"
+					placeholder="e.g., Smith Family, Apartment 4B, The Roommates"
+					required
+					autofocus
+				/>
+				<small class="form-text text-muted">
+					Choose a name that everyone in your household will recognize.
+				</small>
+			</div>
+
+			<div class="text-center mt-4">
+				<button type="submit" class="btn btn-primary">
+					<i class="fas fa-plus-circle"></i> Create Household
+				</button>
+			</div>
+		</form>
+
+		<div class="mt-4 p-3" style="background-color: #f8f9fa; border-radius: 8px;">
+			<h4 class="h6 mb-2"><i class="fas fa-info-circle"></i> What happens next?</h4>
+			<ul class="mb-0" style="font-size: 0.9rem;">
+				<li>You'll be the household owner</li>
+				<li>You can invite other users to join</li>
+				<li>Everyone can share recipes and grocery lists</li>
+				<li>You can set up a shared Kroger account for the household</li>
+			</ul>
+		</div>
+	</div>
+</div>
+{% endblock %}
