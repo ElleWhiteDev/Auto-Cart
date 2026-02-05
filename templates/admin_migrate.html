@@ -27,6 +27,7 @@
                             <li>Adds <code>custom_meal_name</code> column to meal_plan_entries (if missing)</li>
                             <li>Makes <code>recipe_id</code> nullable in meal_plan_entries</li>
                             <li>Drops old <code>grocery_lists_recipe_ingredients</code> table (replaced by grocery_list_items)</li>
+                            <li>Updates any recipes without household_id to belong to their user's household</li>
                             <li>Enables household features and custom meals</li>
                             <li>Preserves all existing data</li>
                         </ul>

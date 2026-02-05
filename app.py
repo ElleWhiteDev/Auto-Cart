@@ -1999,6 +1999,36 @@ def migrate_database():
         migration_results.append(f"✓ grocery_lists_recipe_ingredients table not found (already removed)")
         logger.info(f"Old table check: {e}")
 
+    # Migration 7: Update recipes without household_id to belong to their user's household
+    try:
+        logger.info("Checking for recipes without household_id...")
+        # Find recipes that don't have a household_id
+        recipes_without_household = Recipe.query.filter(Recipe.household_id.is_(None)).all()
+
+        if recipes_without_household:
+            logger.info(f"Found {len(recipes_without_household)} recipes without household_id")
+            updated_count = 0
+
+            for recipe in recipes_without_household:
+                # Find the user's household membership
+                membership = HouseholdMember.query.filter_by(user_id=recipe.user_id).first()
+                if membership:
+                    recipe.household_id = membership.household_id
+                    recipe.visibility = 'household'
+                    updated_count += 1
+                    logger.info(f"Updated recipe '{recipe.name}' (ID: {recipe.id}) to household {membership.household_id}")
+
+            db.session.commit()
+            migration_results.append(f"✓ Updated {updated_count} recipes to belong to households")
+            logger.info(f"Successfully updated {updated_count} recipes")
+        else:
+            migration_results.append("✓ All recipes already have household_id")
+            logger.info("All recipes already have household_id")
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error updating recipes: {e}", exc_info=True)
+        migration_results.append(f"❌ Failed to update recipes: {str(e)[:100]}")
+
     logger.info("All migrations completed!")
 
     flash('✅ Database migrations completed! Results: ' + ' | '.join(migration_results), 'success')
