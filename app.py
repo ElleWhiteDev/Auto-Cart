@@ -778,8 +778,7 @@ def add_manual_ingredient():
     ingredient_text = request.form.get('ingredient_text', '').strip()
 
     if not ingredient_text:
-        flash('Please enter an ingredient', 'error')
-        return redirect(url_for('homepage'))
+        return jsonify({'success': False, 'error': 'Please enter an ingredient'}), 400
 
     try:
         # Try to parse the ingredient using OpenAI first, then fallback to simple parsing
@@ -791,8 +790,7 @@ def add_manual_ingredient():
             parsed_ingredients = parse_simple_ingredient(ingredient_text)
 
         if not parsed_ingredients:
-            flash('Could not parse ingredient. Please use format like "2 cups flour" or just "pickles"', 'error')
-            return redirect(url_for('homepage'))
+            return jsonify({'success': False, 'error': 'Could not parse ingredient. Please use format like "2 cups flour" or just "pickles"'}), 400
 
         grocery_list = g.grocery_list
 
@@ -832,8 +830,7 @@ def add_manual_ingredient():
             # Convert quantity to float using shared utility
             quantity = parse_quantity_string(quantity_string)
             if quantity is None:
-                flash(f'Invalid quantity for ingredient: {ingredient_data["ingredient_name"]}', 'error')
-                continue
+                return jsonify({'success': False, 'error': f'Invalid quantity for ingredient: {ingredient_data["ingredient_name"]}'}), 400
 
             # Check if we can combine with existing ingredient
             combined = False
@@ -856,13 +853,12 @@ def add_manual_ingredient():
                 grocery_list.recipe_ingredients.append(new_ingredient)
 
         db.session.commit()
-        flash('Ingredient added successfully!', 'success')
-        return redirect(url_for('homepage'))
+        return jsonify({'success': True, 'message': 'Ingredient added successfully!'})
 
     except Exception as e:
         db.session.rollback()
-        flash('Error adding ingredient. Please try again.', 'error')
-        return redirect(url_for('homepage'))
+        logger.error(f"Error adding manual ingredient: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': 'Error adding ingredient. Please try again.'}), 500
 
 
 # Email functionality
