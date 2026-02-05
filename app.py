@@ -1337,6 +1337,11 @@ def set_kroger_user(user_id):
 @app.before_request
 def add_user_to_g():
     """If we're logged in, add curr user to Flask global."""
+    # Skip database queries for migration endpoint to avoid schema errors
+    if request.endpoint == 'migrate_database':
+        g.user = None
+        return
+
     if CURR_USER_KEY in session:
         g.user = User.query.get(session[CURR_USER_KEY])
 
@@ -1351,6 +1356,12 @@ def add_user_to_g():
 @app.before_request
 def add_household_to_g():
     """Add current household to Flask global."""
+    # Skip for migration endpoint
+    if request.endpoint == 'migrate_database':
+        g.household = None
+        g.household_member = None
+        return
+
     g.household = None
     g.household_member = None
 
@@ -1380,6 +1391,11 @@ def add_household_to_g():
 @app.before_request
 def add_grocery_list_to_g():
     """Add current grocery list to Flask global."""
+    # Skip for migration endpoint
+    if request.endpoint == 'migrate_database':
+        g.grocery_list = None
+        return
+
     g.grocery_list = None
 
     if g.user and g.household:
