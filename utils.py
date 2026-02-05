@@ -7,10 +7,22 @@ from urllib.parse import urlencode
 from flask import session, flash, redirect, url_for, g
 from typing import Optional, Dict, Any, List, Tuple
 from fractions import Fraction
+from datetime import datetime
+import pytz
 
 # Session keys
 CURR_USER_KEY = "curr_user"
 CURR_GROCERY_LIST_KEY = "curr_grocery_list"
+
+# Timezone utilities
+def get_est_now():
+    """Get current time in EST timezone"""
+    est = pytz.timezone('US/Eastern')
+    return datetime.now(est)
+
+def get_est_date():
+    """Get current date in EST timezone"""
+    return get_est_now().date()
 
 
 def require_login(func):

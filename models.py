@@ -7,7 +7,7 @@ from flask_mail import Message
 from flask_bcrypt import Bcrypt
 from flask_sqlalchemy import SQLAlchemy
 from openai import OpenAI
-from utils import parse_quantity_string, is_valid_float
+from utils import parse_quantity_string, is_valid_float, get_est_now
 from logging_config import logger
 
 bcrypt = Bcrypt()
@@ -24,7 +24,7 @@ class Household(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.Text, nullable=False)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=get_est_now)
 
     # Kroger integration - one account per household
     kroger_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
@@ -47,7 +47,7 @@ class HouseholdMember(db.Model):
     household_id = db.Column(db.Integer, db.ForeignKey("households.id", ondelete="CASCADE"), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     role = db.Column(db.String(20), nullable=False, default="member")  # 'owner' or 'member'
-    joined_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    joined_at = db.Column(db.DateTime, nullable=False, default=get_est_now)
 
     user = db.relationship("User", backref="household_memberships")
 
@@ -68,7 +68,7 @@ class MealPlanEntry(db.Model):
     meal_type = db.Column(db.String(20), nullable=True)  # 'breakfast', 'lunch', 'dinner', 'snack'
     assigned_cook_user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     notes = db.Column(db.Text, nullable=True)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=get_est_now)
 
     recipe = db.relationship("Recipe", backref="meal_plan_entries")
     assigned_cook = db.relationship("User", foreign_keys=[assigned_cook_user_id])
@@ -292,7 +292,7 @@ class Recipe(db.Model):
     url = db.Column(db.Text, nullable=True)
     notes = db.Column(db.Text, nullable=True)
     visibility = db.Column(db.String(20), nullable=False, default="private")  # 'private' or 'household'
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=get_est_now)
 
     recipe_ingredients = db.relationship("RecipeIngredient", back_populates="recipe", cascade="all, delete-orphan")
 
@@ -438,7 +438,7 @@ class GroceryListItem(db.Model):
     completed = db.Column(db.Boolean, default=False, nullable=False)
     completed_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     completed_at = db.Column(db.DateTime, nullable=True)
-    added_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    added_at = db.Column(db.DateTime, nullable=False, default=get_est_now)
 
     recipe_ingredient = db.relationship("RecipeIngredient", backref="grocery_list_items")
     added_by = db.relationship("User", foreign_keys=[added_by_user_id])
@@ -474,8 +474,8 @@ class GroceryList(db.Model):
     status = db.Column(db.String(20), nullable=False, default="planning")  # 'planning', 'ready_to_shop', 'shopping', 'done'
     store = db.Column(db.Text, nullable=True)
     created_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    last_modified_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=get_est_now)
+    last_modified_at = db.Column(db.DateTime, nullable=False, default=get_est_now, onupdate=get_est_now)
     last_modified_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     shopping_user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True)  # Who is currently shopping
 

@@ -15,7 +15,7 @@ from forms import UserAddForm, AddRecipeForm, LoginForm, UpdatePasswordForm, Upd
 from app_config import config
 from utils import (
     require_login, require_admin, do_login, do_logout, initialize_session_defaults,
-    CURR_USER_KEY, CURR_GROCERY_LIST_KEY, parse_quantity_string
+    CURR_USER_KEY, CURR_GROCERY_LIST_KEY, parse_quantity_string, get_est_now, get_est_date
 )
 from kroger import KrogerAPIService, KrogerSessionManager, KrogerWorkflow
 from recipe_scraper import scrape_recipe_data
@@ -1368,8 +1368,7 @@ def add_user_to_g():
 
         # Update last activity timestamp
         if g.user and request.endpoint not in ['static', None]:
-            from datetime import datetime
-            g.user.last_activity = datetime.utcnow()
+            g.user.last_activity = get_est_now()
             db.session.commit()
     else:
         g.user = None
@@ -1462,13 +1461,13 @@ def meal_plan():
         flash('Please create or join a household first', 'warning')
         return redirect(url_for('homepage'))
 
-    from datetime import datetime, timedelta
+    from datetime import timedelta
 
     # Get week offset from query params (0 = this week, 1 = next week, etc.)
     week_offset = int(request.args.get('week', 0))
 
-    # Calculate start of week (Monday)
-    today = datetime.now().date()
+    # Calculate start of week (Monday) in EST
+    today = get_est_date()
     days_since_monday = today.weekday()
     week_start = today - timedelta(days=days_since_monday) + timedelta(weeks=week_offset)
     week_end = week_start + timedelta(days=6)
@@ -1609,13 +1608,13 @@ def add_meal_plan_to_list():
         flash('Please create or join a household first', 'warning')
         return redirect(url_for('homepage'))
 
-    from datetime import datetime, timedelta
+    from datetime import timedelta
 
     # Get week offset
     week_offset = int(request.form.get('week_offset', 0))
 
-    # Calculate week range
-    today = datetime.now().date()
+    # Calculate week range in EST
+    today = get_est_date()
     days_since_monday = today.weekday()
     week_start = today - timedelta(days=days_since_monday) + timedelta(weeks=week_offset)
     week_end = week_start + timedelta(days=6)
@@ -1665,13 +1664,13 @@ def send_meal_plan_email():
         flash('Please create or join a household first', 'warning')
         return redirect(url_for('meal_plan'))
 
-    from datetime import datetime, timedelta
+    from datetime import timedelta
 
     # Get week offset
     week_offset = int(request.form.get('week_offset', 0))
 
-    # Calculate week range
-    today = datetime.now().date()
+    # Calculate week range in EST
+    today = get_est_date()
     days_since_monday = today.weekday()
     week_start = today - timedelta(days=days_since_monday) + timedelta(weeks=week_offset)
     week_end = week_start + timedelta(days=6)
