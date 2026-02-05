@@ -482,9 +482,21 @@ def add_recipe():
 
 
 @app.route('/recipe/<int:recipe_id>', methods=["GET", "POST"])
+@require_login
 def view_recipe(recipe_id):
-    """View/Edit a user submitted recipe"""
+    """View/Edit a household recipe - any household member can view and edit"""
     recipe = Recipe.query.get_or_404(recipe_id)
+
+    # Check if user is a member of the recipe's household
+    if recipe.household_id:
+        if not g.household or g.household.id != recipe.household_id:
+            flash('Unauthorized - you must be a member of this household to view this recipe', 'danger')
+            return redirect(url_for('homepage'))
+    else:
+        # Legacy: if recipe has no household, only the creator can view/edit
+        if recipe.user_id != g.user.id:
+            flash('Unauthorized', 'danger')
+            return redirect(url_for('homepage'))
 
     ingredients_text = "\n".join(
         f"{ingr.quantity} {ingr.measurement} {ingr.ingredient_name}"
@@ -913,17 +925,24 @@ def send_grocery_list_email():
 @app.route('/recipe/<int:recipe_id>/delete', methods=['POST'])
 @require_login
 def delete_recipe(recipe_id):
-    """Delete a recipe"""
+    """Delete a recipe - any household member can delete household recipes"""
     recipe = Recipe.query.get_or_404(recipe_id)
 
-    if recipe.user_id != g.user.id:
-        flash('Unauthorized', 'danger')
-        return redirect(url_for('user_view'))
+    # Check if user is a member of the recipe's household
+    if recipe.household_id:
+        if not g.household or g.household.id != recipe.household_id:
+            flash('Unauthorized - you must be a member of this household to delete this recipe', 'danger')
+            return redirect(url_for('homepage'))
+    else:
+        # Legacy: if recipe has no household, only the creator can delete
+        if recipe.user_id != g.user.id:
+            flash('Unauthorized', 'danger')
+            return redirect(url_for('homepage'))
 
     db.session.delete(recipe)
     db.session.commit()
     flash('Recipe deleted successfully!', 'success')
-    return redirect(url_for('user_view'))
+    return redirect(url_for('homepage'))
 
 
 @app.route('/standardize-ingredients', methods=['POST'])

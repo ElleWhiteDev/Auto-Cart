@@ -27,16 +27,34 @@
 				</a>
 			</div>
 			<div class="card mt-4">
-				<div class="card-header">Recipe Box</div>
+				<div class="card-header">
+					<i class="fas fa-book-open mr-2"></i>Household Recipe Box
+					{% if g.household %}
+					<small class="text-muted">({{ g.household.name }})</small>
+					{% endif %}
+				</div>
 				<div class="card-body scrollable-list">
 					<ul class="list-group list-group-flush">
-						{% for recipe in g.user.recipes %}
-						<li class="list-group-item">
-							<a href="{{url_for('view_recipe', recipe_id=recipe.id)}}"
-								>{{recipe.name}}</a
-							>
-						</li>
-						{% endfor %}
+						{% if g.household %}
+							{% for recipe in g.household.recipes %}
+							<li class="list-group-item d-flex justify-content-between align-items-center">
+								<a href="{{url_for('view_recipe', recipe_id=recipe.id)}}"
+									>{{recipe.name}}</a
+								>
+								<small class="text-muted">by {{ recipe.user.username }}</small>
+							</li>
+							{% endfor %}
+							{% if not g.household.recipes %}
+							<li class="list-group-item text-center text-muted">
+								<i class="fas fa-utensils mb-2"></i>
+								<p>No recipes yet. Add your first recipe!</p>
+							</li>
+							{% endif %}
+						{% else %}
+							<li class="list-group-item text-center text-muted">
+								<p>Join or create a household to see recipes</p>
+							</li>
+						{% endif %}
 					</ul>
 				</div>
 			</div>
