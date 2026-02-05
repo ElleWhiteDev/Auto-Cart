@@ -17,23 +17,21 @@
                         <h5 class="alert-heading">
                             <i class="fas fa-exclamation-triangle"></i> Important!
                         </h5>
-                        <p>This migration will update the <code>meal_plan_entries</code> table to support custom meals.</p>
+                        <p>This migration will update the database schema to fix missing columns and enable new features.</p>
                         <hr>
                         <p class="mb-0"><strong>What this does:</strong></p>
                         <ul>
-                            <li>Makes the <code>recipe_id</code> column nullable</li>
+                            <li>Adds <code>is_admin</code> column to users table (if missing)</li>
+                            <li>Adds <code>custom_meal_name</code> column to meal_plan_entries (if missing)</li>
+                            <li>Makes <code>recipe_id</code> nullable in meal_plan_entries</li>
                             <li>Enables adding custom meals (not from recipe box)</li>
-                            <li>Preserves all existing meal plan data</li>
+                            <li>Preserves all existing data</li>
                         </ul>
                     </div>
 
                     <div class="alert alert-info" role="alert">
-                        <h6><i class="fas fa-info-circle"></i> Migration Steps:</h6>
-                        <ol class="mb-0">
-                            <li>Create new table with updated schema</li>
-                            <li>Copy all existing data</li>
-                            <li>Replace old table with new one</li>
-                        </ol>
+                        <h6><i class="fas fa-info-circle"></i> Safe to Run Multiple Times:</h6>
+                        <p class="mb-0">This migration checks for existing columns before making changes, so it's safe to run even if some migrations have already been applied.</p>
                     </div>
 
                     <form method="POST" onsubmit="return confirm('Are you sure you want to run this migration? This will modify the database structure.');">
@@ -41,8 +39,8 @@
                             <button type="submit" class="btn btn-warning btn-lg">
                                 <i class="fas fa-play"></i> Run Migration
                             </button>
-                            <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary">
-                                <i class="fas fa-arrow-left"></i> Back to Dashboard
+                            <a href="{{ url_for('homepage') }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Back to Home
                             </a>
                         </div>
                     </form>
@@ -60,4 +58,3 @@
     </div>
 </div>
 {% endblock %}
-
