@@ -844,13 +844,22 @@ def add_manual_ingredient():
 
             if not combined:
                 # Create new ingredient
-                from models import RecipeIngredient
+                from models import RecipeIngredient, GroceryListItem
                 new_ingredient = RecipeIngredient(
                     ingredient_name=ingredient_name,
                     quantity=quantity,
                     measurement=measurement
                 )
-                grocery_list.recipe_ingredients.append(new_ingredient)
+                db.session.add(new_ingredient)
+                db.session.flush()  # Get the ID
+
+                # Create GroceryListItem to link it to the grocery list
+                grocery_list_item = GroceryListItem(
+                    grocery_list_id=grocery_list.id,
+                    recipe_ingredient_id=new_ingredient.id,
+                    added_by_user_id=g.user.id
+                )
+                db.session.add(grocery_list_item)
 
         db.session.commit()
         return jsonify({'success': True, 'message': 'Ingredient added successfully!'})
