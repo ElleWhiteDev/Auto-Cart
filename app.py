@@ -1849,6 +1849,26 @@ def migrate_database():
             migration_results.append(f"❌ Failed to add is_admin: {str(e2)[:100]}")
             logger.error(f"Failed to add is_admin column: {e2}")
 
+    # Migration 1b: Add last_activity column to users table if it doesn't exist
+    try:
+        logger.info("Checking for last_activity column...")
+        db.session.execute(text("SELECT last_activity FROM users LIMIT 1"))
+        db.session.commit()
+        migration_results.append("✓ last_activity column already exists")
+    except Exception as e:
+        db.session.rollback()  # Rollback the failed transaction
+        logger.info(f"last_activity column check failed: {e}")
+        try:
+            logger.info("Adding last_activity column to users table...")
+            db.session.execute(text("ALTER TABLE users ADD COLUMN last_activity TIMESTAMP"))
+            db.session.commit()
+            migration_results.append("✓ Added last_activity column to users table")
+            logger.info("last_activity column added successfully")
+        except Exception as e2:
+            db.session.rollback()
+            migration_results.append(f"❌ Failed to add last_activity: {str(e2)[:100]}")
+            logger.error(f"Failed to add last_activity column: {e2}")
+
     # Migration 2: Add custom_meal_name column to meal_plan_entries if it doesn't exist
     try:
         logger.info("Checking for custom_meal_name column...")
