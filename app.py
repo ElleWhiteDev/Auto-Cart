@@ -1869,7 +1869,27 @@ def migrate_database():
             migration_results.append(f"❌ Failed to add last_activity: {str(e2)[:100]}")
             logger.error(f"Failed to add last_activity column: {e2}")
 
-    # Migration 2: Add custom_meal_name column to meal_plan_entries if it doesn't exist
+    # Migration 2: Add household_id column to grocery_lists if it doesn't exist
+    try:
+        logger.info("Checking for household_id column in grocery_lists...")
+        db.session.execute(text("SELECT household_id FROM grocery_lists LIMIT 1"))
+        db.session.commit()
+        migration_results.append("✓ household_id column already exists in grocery_lists")
+    except Exception as e:
+        db.session.rollback()  # Rollback the failed transaction
+        logger.info(f"household_id column check failed: {e}")
+        try:
+            logger.info("Adding household_id column to grocery_lists table...")
+            db.session.execute(text("ALTER TABLE grocery_lists ADD COLUMN household_id INTEGER REFERENCES households(id) ON DELETE CASCADE"))
+            db.session.commit()
+            migration_results.append("✓ Added household_id column to grocery_lists table")
+            logger.info("household_id column added successfully")
+        except Exception as e2:
+            db.session.rollback()
+            migration_results.append(f"❌ Failed to add household_id: {str(e2)[:100]}")
+            logger.error(f"Failed to add household_id column: {e2}")
+
+    # Migration 3: Add custom_meal_name column to meal_plan_entries if it doesn't exist
     try:
         logger.info("Checking for custom_meal_name column...")
         db.session.execute(text("SELECT custom_meal_name FROM meal_plan_entries LIMIT 1"))
@@ -1889,7 +1909,7 @@ def migrate_database():
             migration_results.append(f"❌ Failed to add custom_meal_name: {str(e2)[:100]}")
             logger.error(f"Failed to add custom_meal_name column: {e2}")
 
-    # Migration 3: Make recipe_id nullable in meal_plan_entries (PostgreSQL version)
+    # Migration 4: Make recipe_id nullable in meal_plan_entries (PostgreSQL version)
     try:
         logger.info("Making recipe_id nullable in meal_plan_entries...")
         db.session.execute(text("ALTER TABLE meal_plan_entries ALTER COLUMN recipe_id DROP NOT NULL"))
