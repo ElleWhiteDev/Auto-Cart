@@ -22,7 +22,8 @@
                         <p class="mb-0"><strong>What this does:</strong></p>
                         <ul>
                             <li>Adds <code>is_admin</code> and <code>last_activity</code> columns to users table (if missing)</li>
-                            <li>Adds all missing columns to grocery_lists table (household_id, name, status, store, timestamps, etc.)</li>
+                            <li>Adds all missing columns to grocery_lists table (household_id, name, status, etc.)</li>
+                            <li>Adds all missing columns to recipes table (household_id, visibility, created_at)</li>
                             <li>Adds <code>custom_meal_name</code> column to meal_plan_entries (if missing)</li>
                             <li>Makes <code>recipe_id</code> nullable in meal_plan_entries</li>
                             <li>Enables household features and custom meals</li>

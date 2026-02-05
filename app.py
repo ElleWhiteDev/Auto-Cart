@@ -1902,7 +1902,34 @@ def migrate_database():
                 migration_results.append(f"❌ Failed to add {col_name}: {str(e2)[:100]}")
                 logger.error(f"Failed to add {col_name} column: {e2}")
 
-    # Migration 3: Add custom_meal_name column to meal_plan_entries if it doesn't exist
+    # Migration 3: Add missing columns to recipes table
+    recipes_columns = [
+        ("household_id", "INTEGER REFERENCES households(id) ON DELETE CASCADE"),
+        ("visibility", "VARCHAR(20) NOT NULL DEFAULT 'private'"),
+        ("created_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"),
+    ]
+
+    for col_name, col_type in recipes_columns:
+        try:
+            logger.info(f"Checking for {col_name} column in recipes...")
+            db.session.execute(text(f"SELECT {col_name} FROM recipes LIMIT 1"))
+            db.session.commit()
+            migration_results.append(f"✓ {col_name} column already exists in recipes")
+        except Exception as e:
+            db.session.rollback()
+            logger.info(f"{col_name} column check failed: {e}")
+            try:
+                logger.info(f"Adding {col_name} column to recipes table...")
+                db.session.execute(text(f"ALTER TABLE recipes ADD COLUMN {col_name} {col_type}"))
+                db.session.commit()
+                migration_results.append(f"✓ Added {col_name} column to recipes table")
+                logger.info(f"{col_name} column added successfully")
+            except Exception as e2:
+                db.session.rollback()
+                migration_results.append(f"❌ Failed to add {col_name}: {str(e2)[:100]}")
+                logger.error(f"Failed to add {col_name} column: {e2}")
+
+    # Migration 4: Add custom_meal_name column to meal_plan_entries if it doesn't exist
     try:
         logger.info("Checking for custom_meal_name column...")
         db.session.execute(text("SELECT custom_meal_name FROM meal_plan_entries LIMIT 1"))
@@ -1922,7 +1949,7 @@ def migrate_database():
             migration_results.append(f"❌ Failed to add custom_meal_name: {str(e2)[:100]}")
             logger.error(f"Failed to add custom_meal_name column: {e2}")
 
-    # Migration 4: Make recipe_id nullable in meal_plan_entries (PostgreSQL version)
+    # Migration 5: Make recipe_id nullable in meal_plan_entries (PostgreSQL version)
     try:
         logger.info("Making recipe_id nullable in meal_plan_entries...")
         db.session.execute(text("ALTER TABLE meal_plan_entries ALTER COLUMN recipe_id DROP NOT NULL"))
