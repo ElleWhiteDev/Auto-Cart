@@ -58,12 +58,20 @@
 			<h4 class="mb-0">
 				{{ week_start.strftime('%B %d') }} - {{ week_end.strftime('%B %d, %Y') }}
 			</h4>
-			<form method="POST" action="{{ url_for('add_meal_plan_to_list') }}" style="display: inline;">
-				<input type="hidden" name="week_offset" value="{{ week_offset }}">
-				<button type="submit" class="btn btn-light btn-sm">
-					<i class="fas fa-shopping-cart"></i> Add All to Grocery List
-				</button>
-			</form>
+			<div>
+				<form method="POST" action="{{ url_for('send_meal_plan_email') }}" style="display: inline;">
+					<input type="hidden" name="week_offset" value="{{ week_offset }}">
+					<button type="submit" class="btn btn-light btn-sm me-2">
+						<i class="fas fa-envelope"></i> Email My Meals
+					</button>
+				</form>
+				<form method="POST" action="{{ url_for('add_meal_plan_to_list') }}" style="display: inline;">
+					<input type="hidden" name="week_offset" value="{{ week_offset }}">
+					<button type="submit" class="btn btn-light btn-sm">
+						<i class="fas fa-shopping-cart"></i> Add All to Grocery List
+					</button>
+				</form>
+			</div>
 		</div>
 		<div class="card-body p-0">
 			<div class="table-responsive">

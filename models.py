@@ -80,6 +80,74 @@ class MealPlanEntry(db.Model):
             return self.recipe.name
         return self.custom_meal_name or "Untitled Meal"
 
+    @classmethod
+    def send_meal_plan_email(cls, recipient, meal_entries, user_id, week_start, week_end, mail):
+        """Send meal plan with recipes the user is responsible for cooking."""
+        from flask_mail import Message
+        try:
+            msg = Message(f"Your Meal Plan ({week_start.strftime('%b %d')} - {week_end.strftime('%b %d, %Y')})", recipients=[recipient])
+
+            # Filter entries where user is assigned as cook
+            my_meals = [entry for entry in meal_entries if entry.assigned_cook_user_id == user_id]
+
+            if not my_meals:
+                email_body = f"You have no meals assigned to you for the week of {week_start.strftime('%B %d')} - {week_end.strftime('%B %d, %Y')}.\n\n"
+                email_body += "Check the meal plan to see what others are cooking!"
+            else:
+                email_body = f"Here are the meals you're responsible for cooking this week ({week_start.strftime('%B %d')} - {week_end.strftime('%B %d, %Y')}):\n\n"
+                email_body += "="*60 + "\n"
+
+                # Group by date
+                from collections import defaultdict
+                meals_by_date = defaultdict(list)
+                for entry in my_meals:
+                    meals_by_date[entry.date].append(entry)
+
+                # Sort by date
+                for date in sorted(meals_by_date.keys()):
+                    email_body += f"\n{date.strftime('%A, %B %d, %Y')}\n"
+                    email_body += "-"*60 + "\n"
+
+                    for entry in meals_by_date[date]:
+                        meal_type_display = entry.meal_type.upper() if entry.meal_type else "MEAL"
+                        email_body += f"\n{meal_type_display}: {entry.meal_name}\n"
+
+                        if entry.notes:
+                            email_body += f"Notes: {entry.notes}\n"
+
+                        # If it's a recipe with ingredients, include them
+                        if entry.recipe:
+                            if entry.recipe.url:
+                                email_body += f"Recipe URL: {entry.recipe.url}\n"
+
+                            if entry.recipe.recipe_ingredients:
+                                email_body += "\nINGREDIENTS:\n"
+                                for ingredient in entry.recipe.recipe_ingredients:
+                                    # Skip default "1 unit" prefix - only show quantity if it's meaningful
+                                    if (ingredient.quantity and
+                                        ingredient.quantity > 0 and
+                                        ingredient.measurement and
+                                        not (ingredient.quantity == 1.0 and ingredient.measurement == "unit")):
+                                        email_body += f"  • {ingredient.quantity} {ingredient.measurement} {ingredient.ingredient_name}\n"
+                                    else:
+                                        email_body += f"  • {ingredient.ingredient_name}\n"
+
+                            if entry.recipe.notes:
+                                email_body += f"\nINSTRUCTIONS/NOTES:\n{entry.recipe.notes}\n"
+
+                        email_body += "\n"
+
+                email_body += "="*60 + "\n"
+                email_body += "\nHappy cooking! 👨‍🍳👩‍🍳\n"
+
+            msg.body = email_body
+            mail.send(msg)
+
+        except Exception as e:
+            from logging_config import logger
+            logger.error(f"Failed to send meal plan email: {e}", exc_info=True)
+            raise e
+
     def __repr__(self):
         return f"<MealPlanEntry #{self.id}: {self.date} {self.meal_type}>"
 

@@ -1657,6 +1657,54 @@ def add_meal_plan_to_list():
     return redirect(url_for('homepage'))
 
 
+@app.route('/meal-plan/email', methods=['POST'])
+@require_login
+def send_meal_plan_email():
+    """Send meal plan with user's assigned recipes to their email"""
+    if not g.household:
+        flash('Please create or join a household first', 'warning')
+        return redirect(url_for('meal_plan'))
+
+    from datetime import datetime, timedelta
+
+    # Get week offset
+    week_offset = int(request.form.get('week_offset', 0))
+
+    # Calculate week range
+    today = datetime.now().date()
+    days_since_monday = today.weekday()
+    week_start = today - timedelta(days=days_since_monday) + timedelta(weeks=week_offset)
+    week_end = week_start + timedelta(days=6)
+
+    # Get all meal plan entries for this week
+    meal_entries = MealPlanEntry.query.filter(
+        MealPlanEntry.household_id == g.household.id,
+        MealPlanEntry.date >= week_start,
+        MealPlanEntry.date <= week_end
+    ).all()
+
+    if not meal_entries:
+        flash('No meals planned for this week', 'warning')
+        return redirect(url_for('meal_plan') + f'?week={week_offset}')
+
+    try:
+        # Send email to current user
+        MealPlanEntry.send_meal_plan_email(
+            recipient=g.user.email,
+            meal_entries=meal_entries,
+            user_id=g.user.id,
+            week_start=week_start,
+            week_end=week_end,
+            mail=mail
+        )
+        flash('Meal plan sent to your email!', 'success')
+    except Exception as e:
+        logger.error(f"Error sending meal plan email: {e}", exc_info=True)
+        flash('Email service is currently unavailable. Please try again later.', 'danger')
+
+    return redirect(url_for('meal_plan') + f'?week={week_offset}')
+
+
 # Shopping mode routes
 @app.route('/shopping-mode')
 @require_login
