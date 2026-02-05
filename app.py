@@ -1869,25 +1869,38 @@ def migrate_database():
             migration_results.append(f"❌ Failed to add last_activity: {str(e2)[:100]}")
             logger.error(f"Failed to add last_activity column: {e2}")
 
-    # Migration 2: Add household_id column to grocery_lists if it doesn't exist
-    try:
-        logger.info("Checking for household_id column in grocery_lists...")
-        db.session.execute(text("SELECT household_id FROM grocery_lists LIMIT 1"))
-        db.session.commit()
-        migration_results.append("✓ household_id column already exists in grocery_lists")
-    except Exception as e:
-        db.session.rollback()  # Rollback the failed transaction
-        logger.info(f"household_id column check failed: {e}")
+    # Migration 2: Add multiple missing columns to grocery_lists table
+    grocery_list_columns = [
+        ("household_id", "INTEGER REFERENCES households(id) ON DELETE CASCADE"),
+        ("name", "TEXT NOT NULL DEFAULT 'My Grocery List'"),
+        ("status", "VARCHAR(20) NOT NULL DEFAULT 'planning'"),
+        ("store", "TEXT"),
+        ("created_by_user_id", "INTEGER REFERENCES users(id) ON DELETE SET NULL"),
+        ("created_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"),
+        ("last_modified_at", "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"),
+        ("last_modified_by_user_id", "INTEGER REFERENCES users(id) ON DELETE SET NULL"),
+        ("shopping_user_id", "INTEGER REFERENCES users(id) ON DELETE SET NULL"),
+    ]
+
+    for col_name, col_type in grocery_list_columns:
         try:
-            logger.info("Adding household_id column to grocery_lists table...")
-            db.session.execute(text("ALTER TABLE grocery_lists ADD COLUMN household_id INTEGER REFERENCES households(id) ON DELETE CASCADE"))
+            logger.info(f"Checking for {col_name} column in grocery_lists...")
+            db.session.execute(text(f"SELECT {col_name} FROM grocery_lists LIMIT 1"))
             db.session.commit()
-            migration_results.append("✓ Added household_id column to grocery_lists table")
-            logger.info("household_id column added successfully")
-        except Exception as e2:
+            migration_results.append(f"✓ {col_name} column already exists in grocery_lists")
+        except Exception as e:
             db.session.rollback()
-            migration_results.append(f"❌ Failed to add household_id: {str(e2)[:100]}")
-            logger.error(f"Failed to add household_id column: {e2}")
+            logger.info(f"{col_name} column check failed: {e}")
+            try:
+                logger.info(f"Adding {col_name} column to grocery_lists table...")
+                db.session.execute(text(f"ALTER TABLE grocery_lists ADD COLUMN {col_name} {col_type}"))
+                db.session.commit()
+                migration_results.append(f"✓ Added {col_name} column to grocery_lists table")
+                logger.info(f"{col_name} column added successfully")
+            except Exception as e2:
+                db.session.rollback()
+                migration_results.append(f"❌ Failed to add {col_name}: {str(e2)[:100]}")
+                logger.error(f"Failed to add {col_name} column: {e2}")
 
     # Migration 3: Add custom_meal_name column to meal_plan_entries if it doesn't exist
     try:
