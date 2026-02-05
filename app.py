@@ -1985,6 +1985,23 @@ def migrate_database():
         migration_results.append(f"⚠ recipe_id nullable: {str(e)[:100]}")
         logger.info(f"recipe_id nullable check: {e}")
 
+    # Migration 6: Drop old grocery_lists_recipe_ingredients table if it exists
+    try:
+        logger.info("Checking for old grocery_lists_recipe_ingredients table...")
+        db.session.execute(text("SELECT 1 FROM grocery_lists_recipe_ingredients LIMIT 1"))
+        db.session.commit()
+        # Table exists, drop it
+        logger.info("Dropping old grocery_lists_recipe_ingredients table...")
+        db.session.execute(text("DROP TABLE IF EXISTS grocery_lists_recipe_ingredients CASCADE"))
+        db.session.commit()
+        migration_results.append("✓ Dropped old grocery_lists_recipe_ingredients table")
+        logger.info("Old table dropped successfully")
+    except Exception as e:
+        db.session.rollback()
+        # Table doesn't exist or already dropped, that's fine
+        migration_results.append(f"✓ grocery_lists_recipe_ingredients table not found (already removed)")
+        logger.info(f"Old table check: {e}")
+
     logger.info("All migrations completed!")
 
     flash('✅ Database migrations completed! Results: ' + ' | '.join(migration_results), 'success')
