@@ -36,45 +36,117 @@
 		text-decoration: underline !important;
 		color: #0a58ca !important;
 	}
+
+	/* Mobile-specific styles */
+	@media (max-width: 768px) {
+		/* Hide table on mobile */
+		.desktop-view {
+			display: none;
+		}
+
+		/* Show mobile card view */
+		.mobile-view {
+			display: block;
+		}
+
+		/* Stack header items vertically */
+		.meal-plan-header {
+			flex-direction: column !important;
+			gap: 0.5rem;
+		}
+
+		.meal-plan-header h4 {
+			font-size: 1.1rem !important;
+		}
+
+		.meal-plan-header .btn-group {
+			width: 100%;
+		}
+
+		.meal-plan-header .btn {
+			font-size: 0.75rem !important;
+			padding: 0.25rem 0.5rem !important;
+		}
+
+		/* Navigation buttons */
+		.week-nav-buttons {
+			flex-direction: column !important;
+			width: 100%;
+		}
+
+		.week-nav-buttons .btn {
+			width: 100%;
+			margin-bottom: 0.5rem;
+		}
+
+		/* Mobile day cards */
+		.mobile-day-card {
+			margin-bottom: 1rem;
+		}
+
+		.mobile-meal-section {
+			margin-bottom: 0.75rem;
+		}
+
+		.mobile-meal-type-header {
+			font-size: 0.85rem;
+			font-weight: 600;
+			color: #0d6efd;
+			margin-bottom: 0.5rem;
+			text-transform: uppercase;
+		}
+	}
+
+	/* Desktop-specific styles */
+	@media (min-width: 769px) {
+		.mobile-view {
+			display: none;
+		}
+
+		.desktop-view {
+			display: block;
+		}
+	}
 </style>
 <div class="container-fluid mt-4">
-	<div class="d-flex justify-content-between align-items-center mb-4">
-		<h1><i class="fas fa-calendar-alt"></i> Meal Plan</h1>
-		<div>
-			<a href="{{ url_for('meal_plan', week=week_offset-1) }}" class="btn btn-outline-primary">
-				<i class="fas fa-chevron-left"></i> Previous Week
+	<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap">
+		<h1 class="mb-2 mb-md-0"><i class="fas fa-calendar-alt"></i> Meal Plan</h1>
+		<div class="week-nav-buttons d-flex gap-2">
+			<a href="{{ url_for('meal_plan', week=week_offset-1) }}" class="btn btn-outline-primary btn-sm">
+				<i class="fas fa-chevron-left"></i> <span class="d-none d-md-inline">Previous Week</span><span class="d-md-none">Prev</span>
 			</a>
-			<a href="{{ url_for('meal_plan', week=0) }}" class="btn btn-primary">
-				<i class="fas fa-calendar-day"></i> This Week
+			<a href="{{ url_for('meal_plan', week=0) }}" class="btn btn-primary btn-sm">
+				<i class="fas fa-calendar-day"></i> <span class="d-none d-md-inline">This Week</span><span class="d-md-none">Today</span>
 			</a>
-			<a href="{{ url_for('meal_plan', week=week_offset+1) }}" class="btn btn-outline-primary">
-				Next Week <i class="fas fa-chevron-right"></i>
+			<a href="{{ url_for('meal_plan', week=week_offset+1) }}" class="btn btn-outline-primary btn-sm">
+				<span class="d-none d-md-inline">Next Week</span><span class="d-md-none">Next</span> <i class="fas fa-chevron-right"></i>
 			</a>
 		</div>
 	</div>
 
 	<div class="card shadow mb-4">
-		<div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-			<h4 class="mb-0 text-white">
+		<div class="card-header bg-primary text-white meal-plan-header d-flex justify-content-between align-items-center flex-wrap">
+			<h4 class="mb-2 mb-md-0 text-white">
 				{{ week_start.strftime('%B %d') }} - {{ week_end.strftime('%B %d, %Y') }}
 			</h4>
-			<div>
+			<div class="btn-group d-flex flex-wrap gap-2">
 				<form method="POST" action="{{ url_for('send_meal_plan_email') }}" style="display: inline;">
 					<input type="hidden" name="week_offset" value="{{ week_offset }}">
-					<button type="submit" class="btn btn-light btn-sm me-2">
-						<i class="fas fa-envelope"></i> Email My Meals
+					<button type="submit" class="btn btn-light btn-sm">
+						<i class="fas fa-envelope"></i> <span class="d-none d-md-inline">Email My Meals</span><span class="d-md-none">Email</span>
 					</button>
 				</form>
 				<form method="POST" action="{{ url_for('add_meal_plan_to_list') }}" style="display: inline;">
 					<input type="hidden" name="week_offset" value="{{ week_offset }}">
 					<button type="submit" class="btn btn-light btn-sm">
-						<i class="fas fa-shopping-cart"></i> Add All to Grocery List
+						<i class="fas fa-shopping-cart"></i> <span class="d-none d-md-inline">Add All to Grocery List</span><span class="d-md-none">Add All</span>
 					</button>
 				</form>
 			</div>
 		</div>
 		<div class="card-body p-0">
-			<div class="table-responsive">
+			<!-- Desktop Table View -->
+			<div class="table-responsive desktop-view">
 				<table class="table table-hover mb-0 meal-plan-table">
 					<thead class="bg-primary text-white">
 						<tr>
@@ -133,8 +205,74 @@
 					</tbody>
 				</table>
 			</div>
+
+		<!-- Mobile Card View -->
+		<div class="mobile-view p-3">
+			{% for date, meals in meal_plan.items() %}
+			<div class="mobile-day-card card mb-3 {% if date == today %}border-info{% endif %}">
+				<div class="card-header {% if date == today %}bg-info bg-opacity-10{% else %}bg-light{% endif %}">
+					<div class="d-flex justify-content-between align-items-center">
+						<div>
+							<div class="fw-bold" style="font-size: 1rem;">{{ date.strftime('%A') }}</div>
+							<span class="badge bg-primary text-white" style="font-size: 0.75rem;">{{ date.strftime('%b %d') }}</span>
+						</div>
+					</div>
+				</div>
+				<div class="card-body">
+					{% for meal_type in ['breakfast', 'lunch', 'dinner'] %}
+					{% if meals[meal_type] %}
+					<div class="mobile-meal-section">
+						<div class="mobile-meal-type-header">
+							{{ meal_type|capitalize }}
+						</div>
+						{% for entry in meals[meal_type] %}
+						<div class="card mb-2 border-0 shadow-sm meal-card" style="border-left: 3px solid #0d6efd !important;">
+							<div class="card-body p-2">
+								<div class="d-flex justify-content-between align-items-start">
+									<div class="flex-grow-1">
+										{% if entry.recipe and entry.recipe.url %}
+										<div class="fw-bold mb-1" style="font-size: 0.95rem;">
+											<a href="{{ entry.recipe.url }}" target="_blank" class="text-primary text-decoration-none meal-link" title="View recipe at {{ entry.recipe.url }}">
+												{{ entry.meal_name }} <i class="fas fa-external-link-alt" style="font-size: 0.7rem;"></i>
+											</a>
+										</div>
+										{% else %}
+										<div class="fw-bold text-primary mb-1" style="font-size: 0.95rem;">{{ entry.meal_name }}</div>
+										{% endif %}
+										{% if entry.assigned_cook %}
+										<div class="text-muted mb-0" style="font-size: 0.8rem;">
+											<i class="fas fa-utensils"></i> {{ entry.assigned_cook.username }}
+										</div>
+										{% endif %}
+										{% if entry.notes %}
+										<div class="text-info" style="font-size: 0.75rem;"><i class="fas fa-sticky-note"></i> {{ entry.notes }}</div>
+										{% endif %}
+									</div>
+									<form method="POST" action="{{ url_for('delete_meal_plan_entry', entry_id=entry.id) }}" style="display: inline;">
+										<input type="hidden" name="week_offset" value="{{ week_offset }}">
+										<button type="submit" class="btn btn-sm btn-outline-danger rounded-circle" onclick="return confirm('Remove this meal?');" style="width: 24px; height: 24px; padding: 0; line-height: 1; font-size: 0.75rem;">
+											<i class="fas fa-times"></i>
+										</button>
+									</form>
+								</div>
+							</div>
+						</div>
+						{% endfor %}
+					</div>
+					{% endif %}
+					{% endfor %}
+
+					{% if not meals['breakfast'] and not meals['lunch'] and not meals['dinner'] %}
+					<div class="text-muted text-center py-2" style="font-size: 0.85rem;">
+						<i class="fas fa-calendar-times"></i> No meals planned
+					</div>
+					{% endif %}
+				</div>
+			</div>
+			{% endfor %}
 		</div>
 	</div>
+</div>
 
 	<!-- Add Meal Form -->
 	<div class="card shadow">
