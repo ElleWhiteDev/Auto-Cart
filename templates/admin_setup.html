@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+
+{% block title %}Admin Setup - Auto-Cart{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="mb-0">
+                        <i class="fas fa-user-shield"></i> Admin Setup
+                    </h3>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info" role="alert">
+                        <h5 class="alert-heading">
+                            <i class="fas fa-info-circle"></i> Make a User Admin
+                        </h5>
+                        <p>Enter the email address of the user you want to make an admin.</p>
+                        <hr>
+                        <p class="mb-0"><strong>This will:</strong></p>
+                        <ul>
+                            <li>Grant admin privileges to the specified user</li>
+                            <li>Allow them to access the admin dashboard</li>
+                            <li>Enable admin-only features</li>
+                        </ul>
+                    </div>
+
+                    <form method="POST">
+                        <div class="mb-3">
+                            <label for="email" class="form-label"><strong>User Email</strong></label>
+                            <input 
+                                type="email" 
+                                class="form-control" 
+                                id="email" 
+                                name="email" 
+                                placeholder="user@example.com"
+                                required
+                            >
+                            <div class="form-text">
+                                Enter the exact email address of the user account.
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-user-shield"></i> Make Admin
+                            </button>
+                            <a href="{{ url_for('homepage') }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Back to Home
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

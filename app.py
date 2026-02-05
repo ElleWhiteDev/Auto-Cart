@@ -1968,6 +1968,41 @@ def migrate_database():
     return redirect(url_for('homepage'))
 
 
+@app.route('/admin/setup-admin', methods=['GET', 'POST'])
+def setup_admin():
+    """One-time setup to make a user an admin - NO AUTH REQUIRED for initial setup"""
+    if request.method == 'GET':
+        return render_template('admin_setup.html')
+
+    try:
+        email = request.form.get('email')
+
+        if not email:
+            flash('❌ Email is required', 'danger')
+            return redirect(url_for('setup_admin'))
+
+        logger.info(f"Looking for user with email: {email}")
+        user = User.query.filter_by(email=email).first()
+
+        if not user:
+            flash(f'❌ No user found with email: {email}', 'danger')
+            return redirect(url_for('setup_admin'))
+
+        # Make the user an admin
+        user.is_admin = True
+        db.session.commit()
+
+        logger.info(f"User {user.username} ({user.email}) is now an admin!")
+        flash(f'✅ User {user.username} ({user.email}) is now an admin!', 'success')
+        return redirect(url_for('homepage'))
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Admin setup error: {e}", exc_info=True)
+        flash(f'❌ Admin setup failed: {str(e)}', 'danger')
+        return redirect(url_for('setup_admin'))
+
+
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
