@@ -355,14 +355,15 @@ Return only the cleaned ingredients, one per line, with no additional text or ex
             system_prompt = """You are an ingredient parser. Parse each ingredient line into structured data with quantity, measurement, and ingredient name.
 
 Return ONLY a JSON array where each ingredient is an object with these exact keys:
-- "quantity": the numeric amount as a string (convert ranges like "3-4" to the first number "3")
-- "measurement": the unit of measurement (cup, tbsp, tsp, lb, oz, etc.)
+- "quantity": the numeric amount as a string (convert ranges like "3-4" to the first number "3"). If no quantity is specified, use "1".
+- "measurement": the unit of measurement (cup, tbsp, tsp, lb, oz, etc.). If no measurement is specified, use "unit".
 - "ingredient_name": the ingredient name including any descriptors
 
 Examples:
 "2 cups flour" → {"quantity": "2", "measurement": "cup", "ingredient_name": "flour"}
 "1/4 tsp salt" → {"quantity": "1/4", "measurement": "tsp", "ingredient_name": "salt"}
 "3-4 lb chicken" → {"quantity": "3", "measurement": "lb", "ingredient_name": "chicken"}
+"milk" → {"quantity": "1", "measurement": "unit", "ingredient_name": "milk"}
 "salt and pepper to taste" → {"quantity": "1", "measurement": "unit", "ingredient_name": "salt and pepper to taste"}
 
 Return only the JSON array, no explanations."""

@@ -898,6 +898,84 @@ p {
   background: #eff6ff;
 }
 
+/* Mobile UX: Reorder sections - Grocery List first */
+.homepage .recipe-box {
+  order: 2;
+}
+
+.homepage .form-container {
+  order: 3;
+}
+
+.homepage .grocery-list {
+  order: 1;
+}
+
+/* Desktop: Restore original order */
+@media (min-width: 1024px) {
+  .homepage .recipe-box {
+    order: 1;
+  }
+
+  .homepage .form-container {
+    order: 2;
+  }
+
+  .homepage .grocery-list {
+    order: 3;
+  }
+}
+
+/* Mobile Accordion Behavior */
+@media (max-width: 768px) {
+  /* Collapsible sections on mobile */
+  [data-collapsible="true"] [data-role="body"] {
+    display: none;
+    overflow: hidden;
+  }
+
+  [data-collapsible="true"].is-open [data-role="body"] {
+    display: block;
+  }
+
+  [data-collapsible="true"] [data-role="header"] {
+    cursor: pointer;
+    position: relative;
+    user-select: none;
+  }
+
+  /* Add chevron indicator for collapsible headers */
+  [data-collapsible="true"] [data-role="header"]::after {
+    content: '\f078'; /* FontAwesome chevron-down */
+    font-family: 'Font Awesome 5 Free';
+    font-weight: 900;
+    position: absolute;
+    right: var(--space-6);
+    top: 50%;
+    transform: translateY(-50%);
+    transition: transform var(--transition-fast);
+    font-size: var(--text-sm);
+  }
+
+  [data-collapsible="true"].is-open [data-role="header"]::after {
+    transform: translateY(-50%) rotate(180deg);
+  }
+
+  /* Shrink hero on mobile for less scrolling */
+  .homepage .text-center.mb-6 h1 {
+    font-size: var(--text-2xl);
+    margin-bottom: var(--space-2);
+  }
+
+  .homepage .text-center.mb-6 p {
+    font-size: var(--text-sm);
+  }
+
+  .homepage .text-center.mb-6 {
+    margin-bottom: var(--space-4);
+  }
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .container {

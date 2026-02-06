@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -765,8 +766,8 @@ def parse_simple_ingredient(ingredient_text):
 
     # Default: treat as single item without unit (e.g., "pickles")
     return [{
-        "quantity": "",
-        "measurement": "",
+        "quantity": "1",
+        "measurement": "unit",
         "ingredient_name": ingredient_text
     }]
 
@@ -808,61 +809,68 @@ def add_manual_ingredient():
             session[CURR_GROCERY_LIST_KEY] = grocery_list.id
             g.grocery_list = grocery_list
 
-        # Apply the same consolidation logic as update_grocery_list
-        from collections import defaultdict
-
-        # Get existing ingredients from grocery list
-        existing_ingredients = defaultdict(lambda: [])
+        # Collect all current ingredients from the grocery list
+        all_ingredients = []
         for existing_ingredient in grocery_list.recipe_ingredients:
-            ingredient_name = existing_ingredient.ingredient_name
-            existing_ingredients[ingredient_name].append({
+            all_ingredients.append({
                 'quantity': existing_ingredient.quantity,
                 'measurement': existing_ingredient.measurement,
-                'ingredient_obj': existing_ingredient
+                'ingredient_name': existing_ingredient.ingredient_name
             })
 
-        # Process new ingredients
+        # Add the new ingredient(s) to the list
         for ingredient_data in parsed_ingredients:
-            quantity_string = ingredient_data["quantity"]
-            ingredient_name = ingredient_data["ingredient_name"]
-            measurement = ingredient_data["measurement"]
+            all_ingredients.append({
+                'quantity': ingredient_data['quantity'],
+                'measurement': ingredient_data['measurement'],
+                'ingredient_name': ingredient_data['ingredient_name']
+            })
+
+        logger.debug(f"All ingredients before consolidation: {all_ingredients}")
+
+        # Use AI to intelligently consolidate all ingredients
+        consolidated_ingredients = GroceryList.consolidate_ingredients_with_openai(all_ingredients)
+
+        logger.debug(f"Consolidated ingredients: {consolidated_ingredients}")
+
+        # Clear existing items from the grocery list
+        from models import RecipeIngredient, GroceryListItem
+        for item in grocery_list.items:
+            db.session.delete(item)
+        db.session.flush()
+
+        # Create new consolidated ingredients and grocery list items
+        for ingredient_data in consolidated_ingredients:
+            quantity_string = str(ingredient_data["quantity"])
 
             # Convert quantity to float using shared utility
             quantity = parse_quantity_string(quantity_string)
             if quantity is None:
-                return jsonify({'success': False, 'error': f'Invalid quantity for ingredient: {ingredient_data["ingredient_name"]}'}), 400
+                logger.warning(f"Skipping ingredient with invalid quantity: {ingredient_data['ingredient_name']}")
+                continue
 
-            # Check if we can combine with existing ingredient
-            combined = False
-            for existing_entry in existing_ingredients[ingredient_name]:
-                if existing_entry["measurement"] == measurement:
-                    # Only combine if both have quantities, otherwise treat as separate
-                    if quantity > 0 and existing_entry["ingredient_obj"].quantity > 0:
-                        existing_entry["ingredient_obj"].quantity += quantity
-                        combined = True
-                        break
+            recipe_ingredient = RecipeIngredient(
+                ingredient_name=ingredient_data["ingredient_name"],
+                quantity=quantity,
+                measurement=ingredient_data["measurement"],
+            )
+            db.session.add(recipe_ingredient)
+            db.session.flush()  # Get the ID
 
-            if not combined:
-                # Create new ingredient
-                from models import RecipeIngredient, GroceryListItem
-                new_ingredient = RecipeIngredient(
-                    ingredient_name=ingredient_name,
-                    quantity=quantity,
-                    measurement=measurement
-                )
-                db.session.add(new_ingredient)
-                db.session.flush()  # Get the ID
+            # Create grocery list item
+            grocery_list_item = GroceryListItem(
+                grocery_list_id=grocery_list.id,
+                recipe_ingredient_id=recipe_ingredient.id,
+                added_by_user_id=g.user.id
+            )
+            db.session.add(grocery_list_item)
 
-                # Create GroceryListItem to link it to the grocery list
-                grocery_list_item = GroceryListItem(
-                    grocery_list_id=grocery_list.id,
-                    recipe_ingredient_id=new_ingredient.id,
-                    added_by_user_id=g.user.id
-                )
-                db.session.add(grocery_list_item)
+        # Update last modified metadata
+        grocery_list.last_modified_by_user_id = g.user.id
+        grocery_list.last_modified_at = datetime.utcnow()
 
         db.session.commit()
-        return jsonify({'success': True, 'message': 'Ingredient added successfully!'})
+        return jsonify({'success': True, 'message': 'Ingredient added and list consolidated!'})
 
     except Exception as e:
         db.session.rollback()
@@ -1010,7 +1018,7 @@ def delete_ingredient():
     if not ingredient_id:
         return jsonify({'success': False, 'error': 'Invalid ingredient'}), 400
 
-    from models import RecipeIngredient
+    from models import RecipeIngredient, GroceryListItem
     ingredient = RecipeIngredient.query.get(ingredient_id)
 
     if not ingredient:
@@ -1021,12 +1029,22 @@ def delete_ingredient():
         return jsonify({'success': False, 'error': 'Unauthorized'}), 403
 
     try:
-        g.grocery_list.recipe_ingredients.remove(ingredient)
+        # Find and delete the GroceryListItem that links this ingredient to the list
+        grocery_list_item = GroceryListItem.query.filter_by(
+            grocery_list_id=g.grocery_list.id,
+            recipe_ingredient_id=ingredient.id
+        ).first()
+
+        if grocery_list_item:
+            db.session.delete(grocery_list_item)
+
+        # Delete the ingredient itself
         db.session.delete(ingredient)
         db.session.commit()
         return jsonify({'success': True, 'message': 'Ingredient removed successfully!'})
     except Exception as e:
         db.session.rollback()
+        logger.error(f"Error deleting ingredient: {e}", exc_info=True)
         return jsonify({'success': False, 'error': 'Failed to remove ingredient'}), 500
 
 

@@ -25,11 +25,11 @@
 <!-- Main Application Layout -->
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
 	<!-- Recipe Box - Left Column -->
-	<div class="recipe-box">
-		<div class="recipe-box-header">
+	<div class="recipe-box" data-collapsible="true">
+		<div class="recipe-box-header" data-role="header">
 			<h3><i class="fas fa-book-open mr-2"></i>Recipe Box</h3>
 		</div>
-		<form method="POST" action="{{ url_for('update_grocery_list') }}" class="p-0">
+		<form method="POST" action="{{ url_for('update_grocery_list') }}" class="p-0" data-role="body">
 			<div class="recipe-list">
 				{% for recipe in recipes %}
 				<div class="recipe-item">
@@ -63,11 +63,11 @@
 	</div>
 
 		<!-- Recipe Form - Middle Column -->
-	<div class="form-container">
-		<div class="form-header">
+	<div class="form-container" data-collapsible="true">
+		<div class="form-header" data-role="header">
 			<h3><i class="fas fa-plus-circle mr-2"></i>Add New Recipe</h3>
 		</div>
-		<div class="form-body">
+		<div class="form-body" data-role="body">
 			<form method="POST" action="{{ url_for('add_recipe') }}" id="user_form" class="modal-form">
 				{{ form.hidden_tag() }}
 
@@ -131,8 +131,8 @@
 	</div>
 
 	<!-- Grocery List - Full Width on Mobile, Half on Desktop -->
-	<div class="grocery-list">
-		<div class="grocery-list-header">
+	<div class="grocery-list" data-collapsible="true">
+		<div class="grocery-list-header" data-role="header">
 			<h3 class="grocery-list-title">
 				<i class="fas fa-list-ul mr-2"></i>
 				{% if g.grocery_list %}
@@ -143,7 +143,7 @@
 			</h3>
 		</div>
 
-		<div class="grocery-list-content">
+		<div class="grocery-list-content" data-role="body">
 			<!-- List Management Section -->
 			<div class="mb-3">
 				<!-- List Selector (if multiple lists exist) -->
@@ -199,39 +199,39 @@
 				{% endif %}
 
 				<!-- Action Buttons Row -->
-				<div class="d-flex justify-content-between align-items-center gap-2 flex-wrap">
-					<!-- Left side buttons -->
-					<div class="d-flex gap-2">
-						<button type="button" class="btn btn-sm btn-success" onclick="toggleNewListForm()">
+				<div class="d-flex flex-column align-items-center gap-2">
+					<!-- First row: New, Rename, Clear -->
+					<div class="d-flex justify-content-center align-items-center gap-2 flex-wrap">
+						<button type="button" class="btn btn-sm btn-success" onclick="toggleNewListForm()" style="min-width: 90px;">
 							<i class="fas fa-plus mr-1"></i> New
 						</button>
 						{% if g.grocery_list %}
-						<button type="button" class="btn btn-sm btn-outline-primary" onclick="toggleRenameListForm()">
+						<button type="button" class="btn btn-sm btn-outline-primary" onclick="toggleRenameListForm()" style="min-width: 90px;">
 							<i class="fas fa-edit mr-1"></i> Rename
 						</button>
-						{% endif %}
-					</div>
-
-					<!-- Right side buttons -->
-					<div class="d-flex gap-2">
-						{% if g.grocery_list %}
-						<a href="{{ url_for('shopping_mode') }}" class="btn btn-sm btn-primary">
-							<i class="fas fa-shopping-cart mr-1"></i> Shop
-						</a>
 						<form method="POST" action="{{ url_for('clear_grocery_list') }}" style="display: inline;">
-							<button type="submit" class="btn btn-sm btn-outline-warning">
+							<button type="submit" class="btn btn-sm btn-outline-warning" style="min-width: 90px;">
 								<i class="fas fa-broom mr-1"></i> Clear
 							</button>
 						</form>
+						{% endif %}
+					</div>
+
+					<!-- Second row: Shop -->
+					{% if g.grocery_list %}
+					<div class="d-flex justify-content-center align-items-center gap-2">
+						<a href="{{ url_for('shopping_mode') }}" class="btn btn-sm btn-primary" style="min-width: 90px;">
+							<i class="fas fa-shopping-cart mr-1"></i> Shop
+						</a>
 						{% if all_grocery_lists and all_grocery_lists|length > 1 %}
 						<form method="POST" action="{{ url_for('delete_grocery_list', list_id=g.grocery_list.id) }}" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this list?');">
-							<button type="submit" class="btn btn-sm btn-outline-danger">
+							<button type="submit" class="btn btn-sm btn-outline-danger" style="min-width: 90px;">
 								<i class="fas fa-trash mr-1"></i> Delete
 							</button>
 						</form>
 						{% endif %}
-						{% endif %}
 					</div>
+					{% endif %}
 				</div>
 			</div>
 
@@ -322,10 +322,10 @@
 		{% if g.grocery_list %}
 		<div class="p-4 border-top bg-gray-50">
 			<form method="POST" action="{{ url_for('add_manual_ingredient') }}" id="manual-ingredient-form">
-				<div class="flex gap-2">
+				<div class="d-flex gap-2">
 					<input type="text" name="ingredient_text" class="form-input flex-1"
-						   placeholder="Add ingredient manually..." required id="manual-ingredient-input">
-					<button type="submit" class="btn btn-primary">
+						   placeholder="e.g., 2 cups flour or just milk" id="manual-ingredient-input">
+					<button type="submit" class="btn btn-primary" style="min-width: 60px;">
 						<i class="fas fa-plus"></i>
 					</button>
 				</div>
@@ -685,6 +685,46 @@
 
 {% block scripts %}
 <script>
+// Mobile Accordion Functionality
+document.addEventListener('DOMContentLoaded', () => {
+  const collapsibleSections = document.querySelectorAll('[data-collapsible="true"]');
+
+  // On mobile, collapse all sections by default EXCEPT grocery list
+  if (window.innerWidth <= 768) {
+    collapsibleSections.forEach(section => {
+      // Keep grocery list open, close others
+      if (section.classList.contains('grocery-list')) {
+        section.classList.add('is-open');
+      } else {
+        section.classList.remove('is-open');
+      }
+    });
+  }
+
+  // Add click handlers to headers
+  collapsibleSections.forEach(section => {
+    const header = section.querySelector('[data-role="header"]');
+    if (!header) return;
+
+    header.addEventListener('click', () => {
+      // Only enable accordion on mobile
+      if (window.innerWidth > 768) return;
+
+      section.classList.toggle('is-open');
+    });
+  });
+
+  // Re-check on window resize
+  window.addEventListener('resize', () => {
+    if (window.innerWidth > 768) {
+      // On desktop, ensure all sections are open
+      collapsibleSections.forEach(section => {
+        section.classList.add('is-open');
+      });
+    }
+  });
+});
+
 // Add loading state to Update Grocery List button
 const updateGroceryListForm = document.querySelector('form[action="/update_grocery_list"]');
 const updateGroceryListBtn = document.getElementById('update-grocery-list-btn');
