@@ -182,20 +182,18 @@
 										{% endif %}
 
 										<!-- Chef and Delete Button Row -->
-										<div class="d-flex justify-content-between align-items-center gap-2">
-											<div class="flex-grow-1" style="min-width: 0;">
+										<div class="d-flex justify-content-between align-items-center">
+											<div class="flex-grow-1">
 												{% if entry.assigned_cook %}
-												<div class="text-muted mb-0" style="font-size: 0.8rem;">
-													<i class="fas fa-utensils"></i> {{ entry.assigned_cook.username }}
-												</div>
+												<span class="text-muted" style="font-size: 0.8rem; white-space: nowrap;"><i class="fas fa-utensils"></i> {{ entry.assigned_cook.username }}</span>
 												{% endif %}
 												{% if entry.notes %}
 												<div class="text-info" style="font-size: 0.75rem;"><i class="fas fa-sticky-note"></i> {{ entry.notes }}</div>
 												{% endif %}
 											</div>
-											<form method="POST" action="{{ url_for('delete_meal_plan_entry', entry_id=entry.id) }}" style="display: inline; flex-shrink: 0;">
+											<form method="POST" action="{{ url_for('delete_meal_plan_entry', entry_id=entry.id) }}" style="display: inline; flex-shrink: 0; margin-left: 4px;">
 												<input type="hidden" name="week_offset" value="{{ week_offset }}">
-												<button type="submit" class="btn btn-sm btn-outline-danger rounded-circle" onclick="return confirm('Remove this meal?');" style="width: 20px; height: 20px; padding: 0; line-height: 1; font-size: 0.7rem;">
+												<button type="submit" class="btn btn-sm btn-outline-danger rounded-circle" onclick="return confirm('Remove this meal?');" style="width: 18px; height: 18px; padding: 0; line-height: 1; font-size: 0.65rem; border-width: 1px;">
 													<i class="fas fa-times"></i>
 												</button>
 											</form>
@@ -245,20 +243,18 @@
 								{% endif %}
 
 								<!-- Chef and Delete Button Row -->
-								<div class="d-flex justify-content-between align-items-center gap-2">
-									<div class="flex-grow-1" style="min-width: 0;">
+								<div class="d-flex justify-content-between align-items-center">
+									<div class="flex-grow-1">
 										{% if entry.assigned_cook %}
-										<div class="text-muted mb-0" style="font-size: 0.8rem;">
-											<i class="fas fa-utensils"></i> {{ entry.assigned_cook.username }}
-										</div>
+										<span class="text-muted" style="font-size: 0.8rem; white-space: nowrap;"><i class="fas fa-utensils"></i> {{ entry.assigned_cook.username }}</span>
 										{% endif %}
 										{% if entry.notes %}
 										<div class="text-info" style="font-size: 0.75rem;"><i class="fas fa-sticky-note"></i> {{ entry.notes }}</div>
 										{% endif %}
 									</div>
-									<form method="POST" action="{{ url_for('delete_meal_plan_entry', entry_id=entry.id) }}" style="display: inline; flex-shrink: 0;">
+									<form method="POST" action="{{ url_for('delete_meal_plan_entry', entry_id=entry.id) }}" style="display: inline; flex-shrink: 0; margin-left: 4px;">
 										<input type="hidden" name="week_offset" value="{{ week_offset }}">
-										<button type="submit" class="btn btn-sm btn-outline-danger rounded-circle" onclick="return confirm('Remove this meal?');" style="width: 20px; height: 20px; padding: 0; line-height: 1; font-size: 0.7rem;">
+										<button type="submit" class="btn btn-sm btn-outline-danger rounded-circle" onclick="return confirm('Remove this meal?');" style="width: 18px; height: 18px; padding: 0; line-height: 1; font-size: 0.65rem; border-width: 1px;">
 											<i class="fas fa-times"></i>
 										</button>
 									</form>
