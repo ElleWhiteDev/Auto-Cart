@@ -1265,31 +1265,443 @@ def household_settings():
     if g.household.kroger_user_id:
         kroger_user = User.query.get(g.household.kroger_user_id)
 
+    # Get all households the user belongs to for switching
+    user_households = g.user.get_households()
+
     return render_template('household_settings.html',
                          household=g.household,
                          members=members,
                          kroger_user=kroger_user,
-                         is_owner=(g.household_member.role == 'owner'))
+                         is_owner=g.household_member.is_owner(),
+                         user_households=user_households)
+
+
+def send_household_invitation_email(recipient_email, inviter_name, inviter_email, household_name):
+    """Send invitation email to a non-existing user"""
+    from flask_mail import Message
+
+    # Get admin email from config or use default sender
+    admin_email = app.config.get('MAIL_DEFAULT_SENDER', 'support@autocart.com')
+
+    # Build registration URL with household info
+    base_url = request.url_root.rstrip('/')
+    register_url = f"{base_url}/register"
+
+    subject = f"{inviter_name} invited you to join their Auto-Cart household!"
+
+    # Create HTML email body
+    html_body = f"""
+    <html>
+    <head>
+        <style>
+            body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+            .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+            .header {{ background: linear-gradient(135deg, #004c91 0%, #1e6bb8 100%); color: white; padding: 30px 20px; text-align: center; border-radius: 5px 5px 0 0; }}
+            .header h1 {{ margin: 0; display: flex; align-items: center; justify-content: center; gap: 15px; }}
+            .logo {{ width: 50px; height: 50px; }}
+            .content {{ background-color: #f9f9f9; padding: 30px; border: 1px solid #ddd; }}
+            .button {{ display: inline-block; padding: 12px 24px; background-color: #004c91; color: white !important; text-decoration: none; border-radius: 5px; margin: 20px 0; font-weight: 600; }}
+            .button:hover {{ background-color: #1e6bb8; color: white !important; }}
+            .features {{ background-color: white; padding: 20px; margin: 20px 0; border-left: 4px solid #004c91; border-radius: 5px; }}
+            .features h3 {{ color: #004c91; margin-top: 0; }}
+            .features h4 {{ color: #ff6600; }}
+            .features ul {{ margin: 10px 0; padding-left: 20px; }}
+            .mobile-instructions {{ background-color: #fff5f0; padding: 15px; margin: 20px 0; border-radius: 5px; border-left: 4px solid #ff6600; }}
+            .mobile-instructions h4 {{ color: #ff6600; margin-top: 0; }}
+            .footer {{ text-align: center; padding: 20px; color: #999; font-size: 12px; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="logo">
+                        <circle cx="50" cy="50" r="48" fill="#FF8C42"/>
+                        <g transform="translate(50, 52)">
+                            <path d="M -26 -20 L -20 8 L 20 8 L 24 -20 Z" fill="#007bff" stroke="#004c91" stroke-width="2.5"/>
+                            <path d="M -28 -20 L -32 -32 L -20 -32" fill="none" stroke="#007bff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            <circle cx="-10" cy="16" r="5" fill="#004c91"/>
+                            <circle cx="10" cy="16" r="5" fill="#004c91"/>
+                            <line x1="-16" y1="-14" x2="-16" y2="5" stroke="white" stroke-width="2"/>
+                            <line x1="-5" y1="-14" x2="-5" y2="5" stroke="white" stroke-width="2"/>
+                            <line x1="6" y1="-14" x2="6" y2="5" stroke="white" stroke-width="2"/>
+                            <line x1="16" y1="-14" x2="16" y2="5" stroke="white" stroke-width="2"/>
+                        </g>
+                    </svg>
+                    <span>You're Invited to Auto-Cart!</span>
+                </h1>
+            </div>
+            <div class="content">
+                <p><strong>{inviter_name}</strong> ({inviter_email}) has invited you to join their household "<strong>{household_name}</strong>" on Auto-Cart!</p>
+
+                <div class="features">
+                    <h3>What is Auto-Cart?</h3>
+                    <p>Auto-Cart is a smart household grocery management app that makes meal planning and shopping easier for families and groups.</p>
+
+                    <h4>Key Features:</h4>
+                    <ul>
+                        <li>📝 <strong>Recipe Management</strong> - Save and organize your favorite recipes</li>
+                        <li>🛒 <strong>Smart Grocery Lists</strong> - Automatically generate shopping lists from recipes</li>
+                        <li>🏠 <strong>Household Collaboration</strong> - Share recipes and lists with family members</li>
+                        <li>📅 <strong>Meal Planning</strong> - Plan your weekly meals and assign cooking duties</li>
+                        <li>🛍️ <strong>Kroger Integration</strong> - Send your list directly to your Kroger cart</li>
+                        <li>📧 <strong>Email Lists</strong> - Email grocery lists and recipes to anyone</li>
+                        <li>🤖 <strong>AI-Powered</strong> - Smart ingredient consolidation and recipe parsing</li>
+                    </ul>
+                </div>
+
+                <h3>Getting Started:</h3>
+                <ol>
+                    <li>Click the button below to register for Auto-Cart</li>
+                    <li>Create your account with this email address</li>
+                    <li><strong>During registration, you'll be asked about households:</strong>
+                        <ul style="margin-top: 8px;">
+                            <li><strong>To join "{household_name}":</strong> Enter <code>{inviter_name}</code> as the username to join their household</li>
+                            <li><strong>Or create your own household now</strong> and join "{household_name}" later from settings</li>
+                        </ul>
+                    </li>
+                    <li>Start collaborating on recipes and grocery lists!</li>
+                </ol>
+
+                <p style="background-color: #e8f4fd; padding: 15px; border-radius: 5px; border-left: 4px solid #004c91;">
+                    <strong>💡 What's a Household?</strong><br>
+                    Households let you share recipes, grocery lists, and meal plans with family or roommates. You can belong to multiple households and create your own anytime.
+                </p>
+
+                <center>
+                    <a href="{register_url}" class="button">Register for Auto-Cart</a>
+                </center>
+
+                <div class="mobile-instructions">
+                    <h4>📱 Install as Mobile App:</h4>
+                    <p>Auto-Cart works great as a mobile app! After registering:</p>
+                    <ul>
+                        <li><strong>iPhone/iPad:</strong> Open in Safari → Tap Share button → "Add to Home Screen"</li>
+                        <li><strong>Android:</strong> Open in Chrome → Tap Menu (⋮) → "Add to Home screen" or "Install app"</li>
+                    </ul>
+                    <p>This will install Auto-Cart as a standalone app on your device!</p>
+                </div>
+
+                <p>Questions? Reply to this email or contact us at the support address below.</p>
+
+                <p>We look forward to having you join the Auto-Cart community!</p>
+            </div>
+            <div class="footer">
+                <p style="color: #999; font-size: 11px;">
+                    Auto-Cart - Smart Household Grocery Management<br>
+                    For support or questions, contact: <a href="mailto:{admin_email}" style="color: #999;">{admin_email}</a>
+                </p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
+    # Create plain text version
+    text_body = f"""
+You're Invited to Auto-Cart!
+
+{inviter_name} ({inviter_email}) has invited you to join their household "{household_name}" on Auto-Cart!
+
+What is Auto-Cart?
+Auto-Cart is a smart household grocery management app that makes meal planning and shopping easier for families and groups.
+
+Key Features:
+• Recipe Management - Save and organize your favorite recipes
+• Smart Grocery Lists - Automatically generate shopping lists from recipes
+• Household Collaboration - Share recipes and lists with family members
+• Meal Planning - Plan your weekly meals and assign cooking duties
+• Kroger Integration - Send your list directly to your Kroger cart
+• Email Lists - Email grocery lists and recipes to anyone
+• AI-Powered - Smart ingredient consolidation and recipe parsing
+
+Getting Started:
+1. Visit {register_url} to register for Auto-Cart
+2. Create your account with this email address
+3. Once registered, {inviter_name} can add you to the "{household_name}" household
+4. Start collaborating on recipes and grocery lists!
+
+Install as Mobile App:
+Auto-Cart works great as a mobile app! After registering:
+• iPhone/iPad: Open in Safari → Tap Share → "Add to Home Screen"
+• Android: Open in Chrome → Tap Menu → "Add to Home screen" or "Install app"
+
+Questions? Contact us at {admin_email}
+
+We look forward to having you join the Auto-Cart community!
+
+---
+Auto-Cart - Smart Household Grocery Management
+For support: {admin_email}
+    """
+
+    msg = Message(
+        subject=subject,
+        recipients=[recipient_email],
+        body=text_body,
+        html=html_body
+    )
+
+    mail.send(msg)
+
+
+def send_household_added_email(recipient_email, recipient_name, inviter_name, household_name):
+    """Send email to user when they're added to a household"""
+    from flask_mail import Message
+
+    # Get admin email from config or use default sender
+    admin_email = app.config.get('MAIL_DEFAULT_SENDER', 'support@autocart.com')
+
+    # Build household settings URL
+    base_url = request.url_root.rstrip('/')
+    household_url = f"{base_url}/household/settings"
+
+    subject = f"You've been added to the {household_name} household on Auto-Cart!"
+
+    # Create HTML email body
+    html_body = f"""
+    <html>
+    <head>
+        <style>
+            body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+            .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+            .header {{ background: linear-gradient(135deg, #004c91 0%, #1e6bb8 100%); color: white; padding: 30px 20px; text-align: center; border-radius: 5px 5px 0 0; }}
+            .header h1 {{ margin: 0; display: flex; align-items: center; justify-content: center; gap: 15px; }}
+            .logo {{ width: 50px; height: 50px; }}
+            .content {{ background-color: #f9f9f9; padding: 30px; border: 1px solid #ddd; }}
+            .button {{ display: inline-block; padding: 12px 24px; background-color: #004c91; color: white !important; text-decoration: none; border-radius: 5px; margin: 20px 0; font-weight: 600; }}
+            .button:hover {{ background-color: #1e6bb8; color: white !important; }}
+            .benefits {{ background-color: white; padding: 20px; margin: 20px 0; border-left: 4px solid #ff6600; border-radius: 5px; }}
+            .benefits h3 {{ color: #ff6600; margin-top: 0; }}
+            .benefits ul {{ margin: 10px 0; padding-left: 20px; }}
+            .info-box {{ background-color: #e8f4fd; padding: 15px; border-radius: 5px; border-left: 4px solid #004c91; margin: 20px 0; }}
+            .footer {{ text-align: center; padding: 20px; color: #999; font-size: 12px; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="logo">
+                        <circle cx="50" cy="50" r="48" fill="#FF8C42"/>
+                        <g transform="translate(50, 52)">
+                            <path d="M -26 -20 L -20 8 L 20 8 L 24 -20 Z" fill="#007bff" stroke="#004c91" stroke-width="2.5"/>
+                            <path d="M -28 -20 L -32 -32 L -20 -32" fill="none" stroke="#007bff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            <circle cx="-10" cy="16" r="5" fill="#004c91"/>
+                            <circle cx="10" cy="16" r="5" fill="#004c91"/>
+                            <line x1="-16" y1="-14" x2="-16" y2="5" stroke="white" stroke-width="2"/>
+                            <line x1="-5" y1="-14" x2="-5" y2="5" stroke="white" stroke-width="2"/>
+                            <line x1="6" y1="-14" x2="6" y2="5" stroke="white" stroke-width="2"/>
+                            <line x1="16" y1="-14" x2="16" y2="5" stroke="white" stroke-width="2"/>
+                        </g>
+                    </svg>
+                    <span>Welcome to {household_name}!</span>
+                </h1>
+            </div>
+            <div class="content">
+                <p>Hi <strong>{recipient_name}</strong>,</p>
+
+                <p><strong>{inviter_name}</strong> has added you to the "<strong>{household_name}</strong>" household on Auto-Cart!</p>
+
+                <div class="benefits">
+                    <h3>🎉 Household Benefits</h3>
+                    <p>Now you can collaborate with your household members on:</p>
+                    <ul>
+                        <li><strong>Shared Recipe Box</strong> - Access and add recipes everyone can use</li>
+                        <li><strong>Collaborative Grocery Lists</strong> - Build shopping lists together</li>
+                        <li><strong>Meal Planning</strong> - Plan weekly meals and assign cooking duties</li>
+                        <li><strong>Kroger Integration</strong> - Share Kroger cart access for easy shopping</li>
+                    </ul>
+                </div>
+
+                <div class="info-box">
+                    <strong>💡 About Households</strong><br>
+                    Households are shared spaces for families, roommates, or groups to manage groceries together. You can belong to multiple households (like one for family and one for roommates) and create your own households anytime from your settings.
+                </div>
+
+                <h3>Get Started:</h3>
+                <ul>
+                    <li>View household recipes and grocery lists on your homepage</li>
+                    <li>Add your favorite recipes to share with the household</li>
+                    <li>Contribute to meal planning and shopping lists</li>
+                    <li>Create your own household anytime from settings</li>
+                </ul>
+
+                <center>
+                    <a href="{household_url}" class="button">View Household Settings</a>
+                </center>
+
+                <p>Questions? Reply to this email or contact us at the support address below.</p>
+
+                <p>Happy cooking!</p>
+            </div>
+            <div class="footer">
+                <p style="color: #999; font-size: 11px;">
+                    Auto-Cart - Smart Household Grocery Management<br>
+                    For support or questions, contact: <a href="mailto:{admin_email}" style="color: #999;">{admin_email}</a>
+                </p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
+    # Create plain text version
+    text_body = f"""
+Welcome to {household_name}!
+
+Hi {recipient_name},
+
+{inviter_name} has added you to the "{household_name}" household on Auto-Cart!
+
+Household Benefits:
+Now you can collaborate with your household members on:
+• Shared Recipe Box - Access and add recipes everyone can use
+• Collaborative Grocery Lists - Build shopping lists together
+• Meal Planning - Plan weekly meals and assign cooking duties
+• Kroger Integration - Share Kroger cart access for easy shopping
+
+About Households:
+Households are shared spaces for families, roommates, or groups to manage groceries together. You can belong to multiple households (like one for family and one for roommates) and create your own households anytime from your settings.
+
+Get Started:
+• View household recipes and grocery lists on your homepage
+• Add your favorite recipes to share with the household
+• Contribute to meal planning and shopping lists
+• Create your own household anytime from settings
+
+View your household settings: {household_url}
+
+Questions? Contact us at {admin_email}
+
+Happy cooking!
+
+---
+Auto-Cart - Smart Household Grocery Management
+For support: {admin_email}
+    """
+
+    msg = Message(
+        subject=subject,
+        recipients=[recipient_email],
+        body=text_body,
+        html=html_body
+    )
+
+    mail.send(msg)
+
+
+@app.route('/household/edit-name', methods=['POST'])
+@require_login
+def edit_household_name():
+    """Edit the household name"""
+    if not g.household or not g.household_member.is_owner():
+        flash('Only household owners can edit the household name', 'danger')
+        return redirect(url_for('household_settings'))
+
+    new_name = request.form.get('household_name', '').strip()
+    if not new_name:
+        flash('Please enter a household name', 'danger')
+        return redirect(url_for('household_settings'))
+
+    old_name = g.household.name
+    g.household.name = new_name
+    db.session.commit()
+
+    flash(f'Household name updated from "{old_name}" to "{new_name}"', 'success')
+    return redirect(url_for('household_settings'))
+
+
+@app.route('/household/delete', methods=['POST'])
+@require_login
+def delete_household():
+    """Delete the household and all associated data (recipes, lists, meal plans)"""
+    if not g.household or not g.household_member.is_owner():
+        flash('Only household owners can delete the household', 'danger')
+        return redirect(url_for('household_settings'))
+
+    household_name = g.household.name
+    household_id = g.household.id
+
+    # Count what will be deleted for logging
+    recipe_count = Recipe.query.filter_by(household_id=household_id).count()
+    list_count = GroceryList.query.filter_by(household_id=household_id).count()
+    meal_plan_count = MealPlanEntry.query.filter_by(household_id=household_id).count()
+    member_count = HouseholdMember.query.filter_by(household_id=household_id).count()
+
+    logger.info(f"User {g.user.username} deleting household '{household_name}' (ID: {household_id})")
+    logger.info(f"  - {recipe_count} recipes will be deleted")
+    logger.info(f"  - {list_count} grocery lists will be deleted")
+    logger.info(f"  - {meal_plan_count} meal plan entries will be deleted")
+    logger.info(f"  - {member_count} members will be removed")
+
+    try:
+        # Delete the household - cascade will handle recipes, lists, meal plans, and memberships
+        db.session.delete(g.household)
+        db.session.commit()
+
+        # Clear session household data
+        session.pop('household_id', None)
+        session.pop('grocery_list_id', None)
+
+        flash(f'Household "{household_name}" and all associated data has been permanently deleted.', 'success')
+        logger.info(f"Successfully deleted household '{household_name}' (ID: {household_id})")
+
+        # Check if user has other households
+        other_households = g.user.get_households()
+        if other_households:
+            # Switch to first available household
+            first_household = other_households[0]
+            session['household_id'] = first_household.id
+            flash(f'Switched to household: {first_household.name}', 'info')
+            return redirect(url_for('homepage'))
+        else:
+            # No other households, redirect to household setup
+            return redirect(url_for('household_setup'))
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Failed to delete household '{household_name}': {e}", exc_info=True)
+        flash('Failed to delete household. Please try again later.', 'danger')
+        return redirect(url_for('household_settings'))
 
 
 @app.route('/household/invite', methods=['POST'])
 @require_login
 def invite_household_member():
-    """Invite a user to the household by username"""
-    if not g.household or g.household_member.role != 'owner':
+    """Invite a user to the household by username or email"""
+    if not g.household or not g.household_member.is_owner():
         flash('Only household owners can invite members', 'danger')
         return redirect(url_for('household_settings'))
 
-    username = request.form.get('username', '').strip()
+    identifier = request.form.get('username', '').strip()
 
-    if not username:
-        flash('Please enter a username', 'danger')
+    if not identifier:
+        flash('Please enter a username or email', 'danger')
         return redirect(url_for('household_settings'))
 
-    # Find user
-    user = User.query.filter_by(username=username).first()
+    # Try to find user by username or email
+    user = User.query.filter(
+        (User.username == identifier) | (User.email == identifier)
+    ).first()
+
     if not user:
-        flash(f'User "{username}" not found', 'danger')
+        # Check if identifier looks like an email
+        if '@' in identifier:
+            # Send invitation email to non-existing user
+            try:
+                send_household_invitation_email(
+                    recipient_email=identifier,
+                    inviter_name=g.user.username,
+                    inviter_email=g.user.email,
+                    household_name=g.household.name
+                )
+                flash(f'Invitation email sent to {identifier}. They will need to register first.', 'success')
+            except Exception as e:
+                logger.error(f"Failed to send invitation email: {e}", exc_info=True)
+                flash('Failed to send invitation email. Please try again later.', 'danger')
+        else:
+            flash(f'User "{identifier}" not found. If you have their email, try inviting by email instead.', 'danger')
         return redirect(url_for('household_settings'))
 
     # Check if already a member
@@ -1299,7 +1711,7 @@ def invite_household_member():
     ).first()
 
     if existing:
-        flash(f'{username} is already a member of this household', 'warning')
+        flash(f'{user.username} is already a member of this household', 'warning')
         return redirect(url_for('household_settings'))
 
     # Add as member
@@ -1311,7 +1723,20 @@ def invite_household_member():
     db.session.add(membership)
     db.session.commit()
 
-    flash(f'{username} added to household successfully!', 'success')
+    # Send email notification to the added user
+    if user.email:
+        try:
+            send_household_added_email(
+                recipient_email=user.email,
+                recipient_name=user.username,
+                inviter_name=g.user.username,
+                household_name=g.household.name
+            )
+        except Exception as e:
+            logger.error(f"Failed to send household added email: {e}", exc_info=True)
+            # Don't fail the whole operation if email fails
+
+    flash(f'{user.username} added to household successfully!', 'success')
     return redirect(url_for('household_settings'))
 
 
@@ -1319,7 +1744,7 @@ def invite_household_member():
 @require_login
 def remove_household_member(user_id):
     """Remove a member from the household"""
-    if not g.household or g.household_member.role != 'owner':
+    if not g.household or not g.household_member.is_owner():
         flash('Only household owners can remove members', 'danger')
         return redirect(url_for('household_settings'))
 
@@ -1347,7 +1772,7 @@ def remove_household_member(user_id):
 @require_login
 def set_kroger_user(user_id):
     """Set the household's Kroger account user"""
-    if not g.household or g.household_member.role != 'owner':
+    if not g.household or not g.household_member.is_owner():
         flash('Only household owners can set the Kroger account', 'danger')
         return redirect(url_for('household_settings'))
 

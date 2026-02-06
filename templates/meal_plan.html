@@ -129,16 +129,16 @@
 			<h4 class="mb-2 mb-md-0" style="color: white;">
 				{{ week_start.strftime('%B %d') }} - {{ week_end.strftime('%B %d, %Y') }}
 			</h4>
-			<div class="btn-group d-flex flex-wrap gap-2">
-				<form method="POST" action="{{ url_for('send_meal_plan_email') }}" style="display: inline;">
+			<div class="d-flex gap-2">
+				<form method="POST" action="{{ url_for('send_meal_plan_email') }}" id="email-meal-plan-form" style="display: inline;">
 					<input type="hidden" name="week_offset" value="{{ week_offset }}">
-					<button type="submit" class="btn btn-light btn-sm">
+					<button type="submit" id="email-meal-plan-btn" class="btn btn-light btn-sm">
 						<i class="fas fa-envelope"></i> <span class="d-none d-md-inline">Email My Meals</span><span class="d-md-none">Email</span>
 					</button>
 				</form>
-				<form method="POST" action="{{ url_for('add_meal_plan_to_list') }}" style="display: inline;">
+				<form method="POST" action="{{ url_for('add_meal_plan_to_list') }}" id="add-to-list-form" style="display: inline;">
 					<input type="hidden" name="week_offset" value="{{ week_offset }}">
-					<button type="submit" class="btn btn-light btn-sm">
+					<button type="submit" id="add-to-list-btn" class="btn btn-light btn-sm">
 						<i class="fas fa-shopping-cart"></i> <span class="d-none d-md-inline">Add All to Grocery List</span><span class="d-md-none">Add All</span>
 					</button>
 				</form>
@@ -147,13 +147,13 @@
 		<div class="card-body p-0">
 			<!-- Desktop Table View -->
 			<div class="table-responsive desktop-view">
-				<table class="table table-hover mb-0 meal-plan-table">
+				<table class="table table-hover mb-0 meal-plan-table" style="table-layout: fixed; width: 100%;">
 					<thead class="bg-primary text-white">
 						<tr>
 							<th style="width: 12%; padding: 8px; border: none; font-size: 0.85rem;">Day</th>
-							<th style="width: 29%; padding: 8px; border: none; font-size: 0.85rem;">Breakfast</th>
-							<th style="width: 29%; padding: 8px; border: none; font-size: 0.85rem;">Lunch</th>
-							<th style="width: 29%; padding: 8px; border: none; font-size: 0.85rem;">Dinner</th>
+							<th style="width: 29.33%; padding: 8px; border: none; font-size: 0.85rem;">Breakfast</th>
+							<th style="width: 29.33%; padding: 8px; border: none; font-size: 0.85rem;">Lunch</th>
+							<th style="width: 29.34%; padding: 8px; border: none; font-size: 0.85rem;">Dinner</th>
 						</tr>
 					</thead>
 					<tbody>
@@ -166,7 +166,7 @@
 								</div>
 							</td>
 							{% for meal_type in ['breakfast', 'lunch', 'dinner'] %}
-							<td class="align-top" style="padding: 8px; background-color: #fafbfc; border-right: 1px solid #dee2e6;">
+							<td class="align-top" style="padding: 8px; background-color: #fafbfc; {% if not loop.last %}border-right: 1px solid #dee2e6;{% endif %}">
 								{% for entry in meals[meal_type] %}
 								<div class="card mb-2 border-0 shadow-sm meal-card" style="border-left: 3px solid #0d6efd !important; background: white;">
 									<div class="card-body p-2">
@@ -328,7 +328,7 @@
 						<input type="text" name="notes" id="notes" class="form-control w-100" style="font-size: 0.9rem; padding: 0.4rem 0.6rem;" placeholder="Optional">
 					</div>
 					<div class="col-12">
-						<button type="submit" class="btn btn-success w-100" style="font-size: 0.9rem; padding: 0.5rem;">
+						<button type="submit" id="add-meal-btn" class="btn btn-success w-100" style="font-size: 0.9rem; padding: 0.5rem;">
 							<i class="fas fa-plus"></i> Add Meal to Plan
 						</button>
 					</div>
@@ -358,8 +358,11 @@ function toggleCustomMeal() {
 	}
 }
 
-// Form validation
-document.getElementById('addMealForm').addEventListener('submit', function(e) {
+// Form validation and processing state for Add Meal form
+const addMealForm = document.getElementById('addMealForm');
+const addMealBtn = document.getElementById('add-meal-btn');
+
+addMealForm.addEventListener('submit', function(e) {
 	const recipeSelect = document.getElementById('recipe_id');
 	const customMealInput = document.getElementById('custom_meal_name');
 
@@ -376,6 +379,32 @@ document.getElementById('addMealForm').addEventListener('submit', function(e) {
 		recipeSelect.focus();
 		return false;
 	}
+
+	// Add processing state
+	addMealBtn.disabled = true;
+	addMealBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Adding...';
 });
+
+// Add processing state to Email My Meals button
+const emailMealPlanForm = document.getElementById('email-meal-plan-form');
+const emailMealPlanBtn = document.getElementById('email-meal-plan-btn');
+
+if (emailMealPlanForm && emailMealPlanBtn) {
+	emailMealPlanForm.addEventListener('submit', function() {
+		emailMealPlanBtn.disabled = true;
+		emailMealPlanBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Sending...';
+	});
+}
+
+// Add processing state to Add All to Grocery List button
+const addToListForm = document.getElementById('add-to-list-form');
+const addToListBtn = document.getElementById('add-to-list-btn');
+
+if (addToListForm && addToListBtn) {
+	addToListForm.addEventListener('submit', function() {
+		addToListBtn.disabled = true;
+		addToListBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Adding...';
+	});
+}
 </script>
 {% endblock %}

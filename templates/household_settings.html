@@ -5,70 +5,223 @@
 {% block content %}
 <div class="row">
 	<div class="col-12">
-		<h1><i class="fas fa-home"></i> {{ household.name }}</h1>
-		<p class="text-muted">Manage your household members and settings</p>
+		<h1><i class="fas fa-cog"></i> Household Settings</h1>
+		<p class="text-muted">Manage your households, members, and integrations</p>
 	</div>
 </div>
 
+<!-- 1. My Households Section -->
 <div class="row mt-4">
-	<!-- Household Members -->
-	<div class="col-md-6">
+	<div class="col-12">
 		<div class="card">
 			<div class="card-header">
-				<h3 class="h5 mb-0"><i class="fas fa-users"></i> Household Members</h3>
+				<h3 class="h5 mb-0"><i class="fas fa-home"></i> My Households</h3>
 			</div>
 			<div class="card-body">
-				<ul class="list-unstyled">
-					{% for member in members %}
-					<li class="flex justify-between items-center mb-3 pb-3" style="border-bottom: 1px solid #e9ecef;">
-						<div>
-							<strong>
-								<i class="fas fa-user"></i> {{ member.user.username }}
-							</strong>
-							{% if member.role == 'owner' %}
-							<span class="badge badge-primary ml-2">Owner</span>
-							{% endif %}
-							{% if member.user.id == g.user.id %}
-							<span class="badge badge-secondary ml-2">You</span>
+				{% if user_households and user_households|length > 1 %}
+				<p class="text-muted mb-3">
+					You are a member of {{ user_households|length }} households. Click to switch between them.
+				</p>
+				<div class="list-group mb-3">
+					{% for hh in user_households %}
+					<div class="list-group-item {% if hh.id == household.id %}active{% endif %}">
+						<div class="d-flex justify-content-between align-items-center">
+							<div>
+								<strong>
+									<i class="fas fa-home"></i> {{ hh.name }}
+								</strong>
+								{% if hh.id == household.id %}
+								<span class="badge badge-light ml-2">Current</span>
+								{% endif %}
+								{% for membership in g.user.household_memberships %}
+									{% if membership.household_id == hh.id %}
+										{% if membership.is_owner() %}
+										<span class="badge badge-primary ml-2">Owner</span>
+										{% else %}
+										<span class="badge badge-secondary ml-2">Member</span>
+										{% endif %}
+									{% endif %}
+								{% endfor %}
+							</div>
+							{% if hh.id != household.id %}
+							<a href="{{ url_for('switch_household', household_id=hh.id) }}" class="btn btn-sm btn-primary">
+								<i class="fas fa-exchange-alt"></i> Switch
+							</a>
 							{% endif %}
 						</div>
-						{% if is_owner and member.user.id != g.user.id %}
-						<form method="POST" action="{{ url_for('remove_household_member', user_id=member.user.id) }}" style="display: inline;">
-							<button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Remove {{ member.user.username }} from household?')">
-								<i class="fas fa-times"></i> Remove
-							</button>
-						</form>
-						{% endif %}
-					</li>
+					</div>
 					{% endfor %}
-				</ul>
+				</div>
+				{% else %}
+				<p class="text-muted mb-3">
+					You are currently a member of 1 household. Create additional households to organize different groups (family, roommates, etc.).
+				</p>
+				{% endif %}
+
+				<!-- Always show Create New Household button -->
+				<div>
+					<a href="{{ url_for('create_household') }}" class="btn btn-success">
+						<i class="fas fa-plus"></i> Create New Household
+					</a>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<!-- 2. Household Info Section -->
+<div class="row mt-4">
+	<div class="col-12">
+		<div class="card">
+			<div class="card-header">
+				<h3 class="h5 mb-0"><i class="fas fa-info-circle"></i> Household Info</h3>
+			</div>
+			<div class="card-body">
+				<div class="row">
+					<div class="col-md-6">
+						<p class="mb-2">
+							<strong>Household Name:</strong> {{ household.name }}
+						</p>
+						<p class="mb-2">
+							<strong>Created:</strong> {{ household.created_at.strftime('%B %d, %Y') if household.created_at else 'N/A' }}
+						</p>
+						<p class="mb-2">
+							<strong>Members:</strong> {{ members|length }}
+						</p>
+						<p class="mb-0">
+							<strong>Your Role:</strong>
+							<span class="badge badge-{% if is_owner %}primary{% else %}secondary{% endif %}">
+								{{ 'Owner' if is_owner else 'Member' }}
+							</span>
+						</p>
+					</div>
+					{% if is_owner %}
+					<div class="col-md-6">
+						<div class="row">
+							<div class="col-12 mb-4">
+								<h4 class="h6 mb-3"><i class="fas fa-edit"></i> Edit Household Name</h4>
+								<form method="POST" action="{{ url_for('edit_household_name') }}" class="d-flex gap-2" id="edit-name-form">
+									<input
+										type="text"
+										class="form-control"
+										name="household_name"
+										value="{{ household.name }}"
+										placeholder="Household name"
+										required
+									/>
+									<button type="submit" class="btn btn-primary" id="edit-name-btn">
+										<i class="fas fa-save"></i> Save
+									</button>
+								</form>
+							</div>
+							<div class="col-12">
+								<h4 class="h6 mb-3 text-danger"><i class="fas fa-exclamation-triangle"></i> Delete Household</h4>
+								<p class="text-muted small mb-2">
+									Permanently remove this household and all associated recipes, grocery lists, and meal plans. This action cannot be undone.
+								</p>
+								<form method="POST" action="{{ url_for('delete_household') }}" id="delete-household-form" onsubmit="return confirm('⚠️ WARNING: This will permanently delete the household &quot;{{ household.name }}&quot; and ALL associated recipes, grocery lists, and meal plans.\n\nThis action CANNOT be undone.\n\nType the household name to confirm: {{ household.name }}') && prompt('Type the household name to confirm deletion:') === '{{ household.name }}';">
+									<button type="submit" class="btn btn-danger btn-sm" id="delete-household-btn">
+										<i class="fas fa-trash-alt"></i> Delete Household
+									</button>
+								</form>
+							</div>
+						</div>
+					</div>
+					{% endif %}
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<!-- 3. House Members Section -->
+<div class="row mt-4">
+	<div class="col-12">
+		<div class="card">
+			<div class="card-header">
+				<h3 class="h5 mb-0"><i class="fas fa-users"></i> House Members</h3>
+			</div>
+			<div class="card-body">
+				<div class="table-responsive">
+					<table class="table table-hover">
+						<thead>
+							<tr>
+								<th>Username</th>
+								<th>Email</th>
+								<th>Role</th>
+								<th>Last Login</th>
+								{% if is_owner %}
+								<th style="width: 60px;">Action</th>
+								{% endif %}
+							</tr>
+						</thead>
+						<tbody>
+							{% for member in members %}
+							<tr>
+								<td>
+									<i class="fas fa-user"></i> {{ member.user.username }}
+									{% if member.user.id == g.user.id %}
+									<span class="badge badge-secondary ml-1">You</span>
+									{% endif %}
+								</td>
+								<td>{{ member.user.email }}</td>
+								<td>
+									<span class="badge badge-{% if member.is_owner() %}primary{% else %}secondary{% endif %}">
+										{{ 'Owner' if member.is_owner() else 'Member' }}
+									</span>
+								</td>
+								<td>
+									{% if member.user.last_activity %}
+									{{ member.user.last_activity.strftime('%b %d, %Y %I:%M %p') }}
+									{% else %}
+									<span class="text-muted">Never</span>
+									{% endif %}
+								</td>
+								{% if is_owner %}
+								<td>
+									{% if member.user.id != g.user.id %}
+									<form method="POST" action="{{ url_for('remove_household_member', user_id=member.user.id) }}" style="display: inline;">
+										<button type="submit" class="btn btn-danger btn-sm" style="padding: 0.1rem 0.3rem; font-size: 0.65rem;" onclick="return confirm('Remove {{ member.user.username }} from household?')" title="Remove">
+											<i class="fas fa-times"></i>
+										</button>
+									</form>
+									{% endif %}
+								</td>
+								{% endif %}
+							</tr>
+							{% endfor %}
+						</tbody>
+					</table>
+				</div>
 
 				{% if is_owner %}
 				<div class="mt-4 pt-3" style="border-top: 1px solid #e9ecef;">
 					<h4 class="h6 mb-3"><i class="fas fa-user-plus"></i> Invite Member</h4>
-					<form method="POST" action="{{ url_for('invite_household_member') }}" class="flex gap-2">
-						<input 
-							type="text" 
-							class="form-control" 
-							name="username" 
-							placeholder="Enter username"
+					<form method="POST" action="{{ url_for('invite_household_member') }}" class="d-flex gap-2" id="invite-form">
+						<input
+							type="text"
+							class="form-control"
+							name="username"
+							placeholder="Enter username or email"
 							required
 						/>
-						<button type="submit" class="btn btn-primary">
+						<button type="submit" class="btn btn-primary" id="invite-btn">
 							<i class="fas fa-plus"></i> Invite
 						</button>
 					</form>
 					<small class="form-text text-muted mt-2">
-						Enter the username of an existing Auto Cart user to invite them.
+						Enter a username or email address. If the email doesn't exist in our system, we'll send them an invitation to register.
 					</small>
 				</div>
 				{% endif %}
 			</div>
 		</div>
 	</div>
+</div>
 
-	<!-- Kroger Integration -->
-	<div class="col-md-6">
+<!-- 4. Kroger Integration Section -->
+<div class="row mt-4">
+	<div class="col-12">
 		<div class="card">
 			<div class="card-header">
 				<h3 class="h5 mb-0"><i class="fas fa-shopping-bag"></i> Kroger Integration</h3>
@@ -76,13 +229,13 @@
 			<div class="card-body">
 				{% if kroger_user %}
 				<div class="alert alert-success">
-					<i class="fas fa-check-circle"></i> 
+					<i class="fas fa-check-circle"></i>
 					<strong>Connected</strong><br>
 					Using <strong>{{ kroger_user.username }}</strong>'s Kroger account for household shopping.
 				</div>
 				{% else %}
 				<div class="alert alert-warning">
-					<i class="fas fa-exclamation-triangle"></i> 
+					<i class="fas fa-exclamation-triangle"></i>
 					<strong>Not Connected</strong><br>
 					No Kroger account is set for this household.
 				</div>
@@ -99,14 +252,14 @@
 					<form method="POST" action="{{ url_for('set_kroger_user', user_id=member.user.id) }}" class="mb-2">
 						<button type="submit" class="btn btn-sm {% if kroger_user and kroger_user.id == member.user.id %}btn-success{% else %}btn-outline-primary{% endif %} w-100">
 							{% if kroger_user and kroger_user.id == member.user.id %}
-							<i class="fas fa-check"></i> 
+							<i class="fas fa-check"></i>
 							{% endif %}
 							Use {{ member.user.username }}'s Kroger Account
 						</button>
 					</form>
 					{% endif %}
 					{% endfor %}
-					
+
 					{% if not members|selectattr('user.oauth_token')|list %}
 					<p class="text-muted small mb-0">
 						<i class="fas fa-info-circle"></i> No household members have connected their Kroger account yet.
@@ -114,27 +267,6 @@
 					{% endif %}
 				</div>
 				{% endif %}
-			</div>
-		</div>
-
-		<!-- Household Info -->
-		<div class="card mt-4">
-			<div class="card-header">
-				<h3 class="h5 mb-0"><i class="fas fa-info-circle"></i> Household Info</h3>
-			</div>
-			<div class="card-body">
-				<p class="mb-2">
-					<strong>Created:</strong> {{ household.created_at.strftime('%B %d, %Y') if household.created_at else 'N/A' }}
-				</p>
-				<p class="mb-2">
-					<strong>Members:</strong> {{ members|length }}
-				</p>
-				<p class="mb-0">
-					<strong>Your Role:</strong> 
-					<span class="badge badge-{% if is_owner %}primary{% else %}secondary{% endif %}">
-						{{ 'Owner' if is_owner else 'Member' }}
-					</span>
-				</p>
 			</div>
 		</div>
 	</div>
@@ -147,5 +279,58 @@
 		</a>
 	</div>
 </div>
-{% endblock %}
 
+<script>
+	// Add processing state to invite button
+	const inviteForm = document.getElementById('invite-form');
+	const inviteBtn = document.getElementById('invite-btn');
+
+	if (inviteForm && inviteBtn) {
+		inviteForm.addEventListener('submit', function() {
+			inviteBtn.disabled = true;
+			inviteBtn.innerHTML = '<span class="spinner-border spinner-border-sm mr-2" role="status" aria-hidden="true"></span>Sending...';
+		});
+	}
+
+	// Add processing state to edit household name button
+	const editNameForm = document.getElementById('edit-name-form');
+	const editNameBtn = document.getElementById('edit-name-btn');
+
+	if (editNameForm && editNameBtn) {
+		editNameForm.addEventListener('submit', function() {
+			editNameBtn.disabled = true;
+			editNameBtn.innerHTML = '<span class="spinner-border spinner-border-sm mr-2" role="status" aria-hidden="true"></span>Saving...';
+		});
+	}
+
+	// Add processing state to all remove member buttons
+	const removeForms = document.querySelectorAll('form[action*="remove-member"]');
+	removeForms.forEach(form => {
+		form.addEventListener('submit', function(e) {
+			const btn = form.querySelector('button[type="submit"]');
+			if (btn && confirm(btn.getAttribute('onclick').match(/'([^']+)'/)[1])) {
+				btn.disabled = true;
+				btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+			} else {
+				e.preventDefault();
+			}
+		});
+	});
+
+	// Add processing state to delete household button
+	const deleteHouseholdForm = document.getElementById('delete-household-form');
+	const deleteHouseholdBtn = document.getElementById('delete-household-btn');
+
+	if (deleteHouseholdForm && deleteHouseholdBtn) {
+		deleteHouseholdForm.addEventListener('submit', function(e) {
+			// The confirmation is handled by onsubmit attribute
+			// If we get here, user confirmed, so show loading state
+			const confirmed = deleteHouseholdForm.onsubmit();
+			if (confirmed !== false) {
+				deleteHouseholdBtn.disabled = true;
+				deleteHouseholdBtn.innerHTML = '<span class="spinner-border spinner-border-sm mr-2" role="status" aria-hidden="true"></span>Deleting...';
+			}
+		});
+	}
+</script>
+{% endblock %}
