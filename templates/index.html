@@ -201,7 +201,7 @@
 				<!-- Action Buttons Row -->
 				<div class="d-flex flex-column align-items-center gap-2">
 					<!-- First row: New, Rename, Clear -->
-					<div class="d-flex justify-content-center align-items-center gap-2 flex-wrap">
+					<div class="d-flex justify-content-center align-items-center" style="gap: 0.375rem;">
 						<button type="button" class="btn btn-sm btn-success" onclick="toggleNewListForm()" style="min-width: 90px;">
 							<i class="fas fa-plus mr-1"></i> New
 						</button>
@@ -209,13 +209,16 @@
 						<button type="button" class="btn btn-sm btn-outline-primary" onclick="toggleRenameListForm()" style="min-width: 90px;">
 							<i class="fas fa-edit mr-1"></i> Rename
 						</button>
-						<form method="POST" action="{{ url_for('clear_grocery_list') }}" style="display: inline;">
-							<button type="submit" class="btn btn-sm btn-outline-warning" style="min-width: 90px;">
-								<i class="fas fa-broom mr-1"></i> Clear
-							</button>
-						</form>
+						<button type="submit" form="clear-list-form" class="btn btn-sm btn-outline-warning" style="min-width: 90px;">
+							<i class="fas fa-broom mr-1"></i> Clear
+						</button>
 						{% endif %}
 					</div>
+
+					<!-- Hidden form for Clear button -->
+					{% if g.grocery_list %}
+					<form id="clear-list-form" method="POST" action="{{ url_for('clear_grocery_list') }}" style="display: none;"></form>
+					{% endif %}
 
 					<!-- Second row: Shop -->
 					{% if g.grocery_list %}
