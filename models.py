@@ -404,6 +404,8 @@ class User(db.Model):
 
     profile_id = db.Column(db.Text, nullable=True)  # Kroger profile ID
 
+    alexa_access_token = db.Column(db.Text, nullable=True, unique=True)  # OAuth token for Alexa integration
+
     is_admin = db.Column(db.Boolean, nullable=False, default=False)
 
     last_activity = db.Column(db.DateTime, nullable=True)

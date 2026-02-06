@@ -55,6 +55,129 @@ block content %}
 			<button type="submit" class="button-56-red">Delete Recipe</button>
 		</div>
 	</form>
+
+	<!-- Export to other households -->
+	{% if other_households %}
+	<div class="col-md-8 col-lg-6 mx-auto mt-5">
+		<div class="card shadow-sm">
+			<div class="card-body text-center">
+				<h3 class="h5 mb-2">
+					<i class="fas fa-share-alt mr-2"></i>Export to Other Households
+				</h3>
+				<p class="text-muted small mb-4">
+					Copy this recipe to your other households
+				</p>
+				<form method="POST" action="{{ url_for('export_recipe', recipe_id=recipe.id) }}">
+					<div class="mb-4">
+						{% for household in other_households %}
+						<div class="custom-checkbox-wrapper mb-3">
+							<input
+								type="checkbox"
+								name="household_ids"
+								value="{{ household.id }}"
+								class="custom-checkbox-input"
+								id="household-{{ household.id }}"
+							/>
+							<label class="custom-checkbox-label" for="household-{{ household.id }}">
+								<span class="checkbox-box">
+									<i class="fas fa-check checkbox-icon"></i>
+								</span>
+								<span class="checkbox-text">
+									<i class="fas fa-home mr-2"></i>{{ household.name }}
+								</span>
+							</label>
+						</div>
+						{% endfor %}
+					</div>
+					<div class="recipe-actions">
+						<button type="submit" class="button-56">
+							<i class="fas fa-share-alt mr-2"></i>Export Recipe
+						</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
+	{% endif %}
+
+	<style>
+	.custom-checkbox-wrapper {
+		position: relative;
+		display: flex;
+		justify-content: center;
+	}
+
+	.custom-checkbox-input {
+		position: absolute;
+		opacity: 0;
+		cursor: pointer;
+	}
+
+	.custom-checkbox-label {
+		display: flex;
+		align-items: center;
+		cursor: pointer;
+		padding: 12px 20px;
+		border: 2px solid #e0e0e0;
+		border-radius: 8px;
+		background-color: #fff;
+		transition: all 0.3s ease;
+		min-width: 280px;
+		max-width: 400px;
+	}
+
+	.custom-checkbox-label:hover {
+		border-color: #004c91;
+		background-color: #f8f9fa;
+		transform: translateY(-2px);
+		box-shadow: 0 4px 8px rgba(0, 76, 145, 0.1);
+	}
+
+	.checkbox-box {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 24px;
+		height: 24px;
+		border: 2px solid #d0d0d0;
+		border-radius: 6px;
+		margin-right: 12px;
+		background-color: #fff;
+		transition: all 0.3s ease;
+		flex-shrink: 0;
+	}
+
+	.checkbox-icon {
+		color: #fff;
+		font-size: 12px;
+		opacity: 0;
+		transition: opacity 0.2s ease;
+	}
+
+	.custom-checkbox-input:checked + .custom-checkbox-label .checkbox-box {
+		background-color: #004c91;
+		border-color: #004c91;
+	}
+
+	.custom-checkbox-input:checked + .custom-checkbox-label .checkbox-icon {
+		opacity: 1;
+	}
+
+	.custom-checkbox-input:checked + .custom-checkbox-label {
+		border-color: #004c91;
+		background-color: #e8f4fd;
+	}
+
+	.checkbox-text {
+		font-size: 1rem;
+		color: #333;
+		font-weight: 500;
+	}
+
+	.custom-checkbox-input:checked + .custom-checkbox-label .checkbox-text {
+		color: #004c91;
+	}
+	</style>
 </div>
 
 {% endblock %}

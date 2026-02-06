@@ -54,6 +54,10 @@ def create_app(config_name=None):
 # Create app instance
 app, bcrypt, mail, kroger_service, kroger_session_manager, kroger_workflow = create_app()
 
+# Register Alexa API blueprint
+from alexa_api import alexa_bp
+app.register_blueprint(alexa_bp)
+
 # Update routes to use app.config instead of imported constants
 @app.route('/authenticate')
 @require_login
@@ -754,7 +758,10 @@ def view_recipe(recipe_id):
             logger.error(f"Recipe update error: {error}", exc_info=True)
             flash('Error occurred. Please try again', 'danger')
 
-    return render_template('recipe.html', recipe=recipe, form=form)
+    # Get user's other households (excluding the current recipe's household)
+    other_households = [h for h in g.user.get_households() if h.id != recipe.household_id]
+
+    return render_template('recipe.html', recipe=recipe, form=form, other_households=other_households)
 
 
 @app.route('/extract-recipe-form', methods=['POST'])
@@ -1174,6 +1181,86 @@ def delete_recipe(recipe_id):
     db.session.commit()
     flash('Recipe deleted successfully!', 'success')
     return redirect(url_for('homepage'))
+
+
+@app.route('/recipe/<int:recipe_id>/export', methods=['POST'])
+@require_login
+def export_recipe(recipe_id):
+    """Export a recipe to other households the user belongs to"""
+    recipe = Recipe.query.get_or_404(recipe_id)
+
+    # Check if user is a member of the recipe's household
+    if recipe.household_id:
+        if not g.household or g.household.id != recipe.household_id:
+            flash('Unauthorized - you must be a member of this household to export this recipe', 'danger')
+            return redirect(url_for('homepage'))
+    else:
+        # Legacy: if recipe has no household, only the creator can export
+        if recipe.user_id != g.user.id:
+            flash('Unauthorized', 'danger')
+            return redirect(url_for('homepage'))
+
+    # Get selected household IDs from form
+    household_ids = request.form.getlist('household_ids')
+
+    if not household_ids:
+        flash('Please select at least one household to export to', 'warning')
+        return redirect(url_for('view_recipe', recipe_id=recipe_id))
+
+    exported_count = 0
+    for household_id in household_ids:
+        household_id = int(household_id)
+
+        # Verify user is a member of the target household
+        target_household = Household.query.get(household_id)
+        if not target_household or not target_household.is_user_member(g.user.id):
+            continue
+
+        # Check if recipe with same name already exists in target household
+        existing_recipe = Recipe.query.filter_by(
+            household_id=household_id,
+            name=recipe.name
+        ).first()
+
+        if existing_recipe:
+            logger.info(f"Recipe '{recipe.name}' already exists in household {target_household.name}, skipping")
+            continue
+
+        # Create a copy of the recipe for the target household
+        new_recipe = Recipe(
+            user_id=g.user.id,
+            household_id=household_id,
+            name=recipe.name,
+            url=recipe.url,
+            notes=recipe.notes,
+            visibility='household'
+        )
+
+        # Copy all ingredients
+        for ingredient in recipe.recipe_ingredients:
+            new_ingredient = RecipeIngredient(
+                quantity=ingredient.quantity,
+                measurement=ingredient.measurement,
+                ingredient_name=ingredient.ingredient_name
+            )
+            new_recipe.recipe_ingredients.append(new_ingredient)
+
+        db.session.add(new_recipe)
+        exported_count += 1
+        logger.info(f"Exported recipe '{recipe.name}' to household {target_household.name}")
+
+    try:
+        db.session.commit()
+        if exported_count > 0:
+            flash(f'Recipe exported to {exported_count} household(s) successfully!', 'success')
+        else:
+            flash('Recipe was not exported. It may already exist in the selected households.', 'info')
+    except Exception as error:
+        db.session.rollback()
+        logger.error(f"Recipe export error: {error}", exc_info=True)
+        flash('Error occurred while exporting recipe. Please try again', 'danger')
+
+    return redirect(url_for('view_recipe', recipe_id=recipe_id))
 
 
 @app.route('/standardize-ingredients', methods=['POST'])
@@ -2020,7 +2107,9 @@ def set_kroger_user(user_id):
 def add_user_to_g():
     """If we're logged in, add curr user to Flask global."""
     # Skip database queries for migration endpoints to avoid schema errors
-    if request.endpoint in ['migrate_database', 'migrate_multi_household_endpoint']:
+    # Also skip for Alexa API endpoints (they use token-based auth, not session)
+    if request.endpoint in ['migrate_database', 'migrate_multi_household_endpoint'] or \
+       (request.endpoint and request.endpoint.startswith('alexa.')):
         g.user = None
         return
 
@@ -2870,6 +2959,28 @@ def migrate_database():
         db.session.rollback()
         logger.error(f"Error updating recipes: {e}", exc_info=True)
         migration_results.append(f"❌ Failed to update recipes: {str(e)[:100]}")
+
+    # Migration 8: Add alexa_access_token column to users table for Alexa integration
+    try:
+        logger.info("Checking for alexa_access_token column...")
+        db.session.execute(text("SELECT alexa_access_token FROM users LIMIT 1"))
+        db.session.commit()
+        migration_results.append("✓ alexa_access_token column already exists")
+    except Exception as e:
+        db.session.rollback()  # Rollback the failed transaction
+        logger.info(f"alexa_access_token column check failed: {e}")
+        try:
+            logger.info("Adding alexa_access_token column to users table...")
+            # Note: SQLite doesn't support adding UNIQUE constraint in ALTER TABLE
+            # PostgreSQL supports it, so we add UNIQUE for production but not for SQLite
+            db.session.execute(text("ALTER TABLE users ADD COLUMN alexa_access_token TEXT"))
+            db.session.commit()
+            migration_results.append("✓ Added alexa_access_token column to users table for Alexa integration")
+            logger.info("alexa_access_token column added successfully")
+        except Exception as e2:
+            db.session.rollback()
+            migration_results.append(f"❌ Failed to add alexa_access_token: {str(e2)[:100]}")
+            logger.error(f"Failed to add alexa_access_token column: {e2}")
 
     logger.info("All migrations completed!")
 
