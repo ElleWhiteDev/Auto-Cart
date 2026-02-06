@@ -97,35 +97,33 @@
 					</div>
 					{% if is_owner %}
 					<div class="col-md-6">
-						<div class="row">
-							<div class="col-12 mb-4">
-								<h4 class="h6 mb-3"><i class="fas fa-edit"></i> Edit Household Name</h4>
-								<form method="POST" action="{{ url_for('edit_household_name') }}" class="d-flex gap-2" id="edit-name-form">
-									<input
-										type="text"
-										class="form-control"
-										name="household_name"
-										value="{{ household.name }}"
-										placeholder="Household name"
-										required
-									/>
-									<button type="submit" class="btn btn-primary" id="edit-name-btn">
-										<i class="fas fa-save"></i> Save
-									</button>
-								</form>
+						<h4 class="h6 mb-3"><i class="fas fa-edit"></i> Edit Household Name</h4>
+						<form method="POST" action="{{ url_for('edit_household_name') }}" id="edit-name-form">
+							<div class="mb-3">
+								<input
+									type="text"
+									class="form-control"
+									name="household_name"
+									value="{{ household.name }}"
+									placeholder="Household name"
+									required
+								/>
 							</div>
-							<div class="col-12">
-								<h4 class="h6 mb-3 text-danger"><i class="fas fa-exclamation-triangle"></i> Delete Household</h4>
-								<p class="text-muted small mb-2">
-									Permanently remove this household and all associated recipes, grocery lists, and meal plans. This action cannot be undone.
-								</p>
-								<form method="POST" action="{{ url_for('delete_household') }}" id="delete-household-form" onsubmit="return confirm('⚠️ WARNING: This will permanently delete the household &quot;{{ household.name }}&quot; and ALL associated recipes, grocery lists, and meal plans.\n\nThis action CANNOT be undone.\n\nType the household name to confirm: {{ household.name }}') && prompt('Type the household name to confirm deletion:') === '{{ household.name }}';">
-									<button type="submit" class="btn btn-danger btn-sm" id="delete-household-btn">
-										<i class="fas fa-trash-alt"></i> Delete Household
-									</button>
-								</form>
+							<div class="d-flex gap-2">
+								<button type="submit" class="btn btn-primary flex-fill" id="edit-name-btn">
+									<i class="fas fa-save"></i> Save
+								</button>
+								<button type="button" class="btn btn-danger flex-fill" id="delete-household-trigger-btn" onclick="confirmDeleteHousehold()">
+									<i class="fas fa-trash-alt"></i> Delete Household
+								</button>
 							</div>
-						</div>
+						</form>
+						<p class="text-muted small mt-2 mb-0">
+							<i class="fas fa-exclamation-triangle text-danger"></i> Deleting the household will permanently remove all associated recipes, grocery lists, and meal plans.
+						</p>
+						<!-- Hidden delete form -->
+						<form method="POST" action="{{ url_for('delete_household') }}" id="delete-household-form" style="display: none;">
+						</form>
 					</div>
 					{% endif %}
 				</div>
@@ -317,20 +315,22 @@
 		});
 	});
 
-	// Add processing state to delete household button
-	const deleteHouseholdForm = document.getElementById('delete-household-form');
-	const deleteHouseholdBtn = document.getElementById('delete-household-btn');
+	// Delete household confirmation function
+	function confirmDeleteHousehold() {
+		const householdName = "{{ household.name }}";
+		const deleteBtn = document.getElementById('delete-household-trigger-btn');
+		const deleteForm = document.getElementById('delete-household-form');
 
-	if (deleteHouseholdForm && deleteHouseholdBtn) {
-		deleteHouseholdForm.addEventListener('submit', function(e) {
-			// The confirmation is handled by onsubmit attribute
-			// If we get here, user confirmed, so show loading state
-			const confirmed = deleteHouseholdForm.onsubmit();
-			if (confirmed !== false) {
-				deleteHouseholdBtn.disabled = true;
-				deleteHouseholdBtn.innerHTML = '<span class="spinner-border spinner-border-sm mr-2" role="status" aria-hidden="true"></span>Deleting...';
-			}
-		});
+		const confirmed = confirm(`⚠️ WARNING: This will permanently delete the household "${householdName}" and ALL associated recipes, grocery lists, and meal plans.\n\nThis action CANNOT be undone.\n\nAre you sure you want to continue?`);
+
+		if (confirmed) {
+			// Show loading state
+			deleteBtn.disabled = true;
+			deleteBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Deleting...';
+
+			// Submit the form
+			deleteForm.submit();
+		}
 	}
 </script>
 {% endblock %}

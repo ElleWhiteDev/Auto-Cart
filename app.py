@@ -1801,8 +1801,8 @@ def set_kroger_user(user_id):
 @app.before_request
 def add_user_to_g():
     """If we're logged in, add curr user to Flask global."""
-    # Skip database queries for migration endpoint to avoid schema errors
-    if request.endpoint == 'migrate_database':
+    # Skip database queries for migration endpoints to avoid schema errors
+    if request.endpoint in ['migrate_database', 'migrate_multi_household_endpoint']:
         g.user = None
         return
 
@@ -2301,9 +2301,62 @@ def admin_login():
 @app.route('/admin/dashboard')
 @require_admin
 def admin_dashboard():
-    """Admin dashboard showing all users"""
+    """Admin dashboard showing all users and households"""
     users = User.query.order_by(User.last_activity.desc().nullslast()).all()
-    return render_template('admin_dashboard.html', users=users)
+    households = Household.query.order_by(Household.created_at.desc()).all()
+
+    # Get household stats
+    household_stats = []
+    for household in households:
+        members = HouseholdMember.query.filter_by(household_id=household.id).all()
+        owner = next((m.user for m in members if m.role == 'owner'), None)
+        recipes_count = Recipe.query.filter_by(household_id=household.id).count()
+        lists_count = GroceryList.query.filter_by(household_id=household.id).count()
+        meals_count = MealPlanEntry.query.filter_by(household_id=household.id).count()
+
+        household_stats.append({
+            'household': household,
+            'owner': owner,
+            'members_count': len(members),
+            'recipes_count': recipes_count,
+            'lists_count': lists_count,
+            'meals_count': meals_count
+        })
+
+    return render_template('admin_dashboard.html', users=users, household_stats=household_stats)
+
+
+@app.route('/admin/delete-household/<int:household_id>', methods=['POST'])
+@require_admin
+def admin_delete_household(household_id):
+    """Delete a household from the admin panel"""
+    household = Household.query.get_or_404(household_id)
+    household_name = household.name
+
+    try:
+        # Log what we're about to delete
+        logger.info(f"Admin deleting household: {household_name} (ID: {household_id})")
+
+        # Get counts for logging
+        members_count = HouseholdMember.query.filter_by(household_id=household_id).count()
+        recipes_count = Recipe.query.filter_by(household_id=household_id).count()
+        lists_count = GroceryList.query.filter_by(household_id=household_id).count()
+        meals_count = MealPlanEntry.query.filter_by(household_id=household_id).count()
+
+        logger.info(f"Household has {members_count} members, {recipes_count} recipes, {lists_count} lists, {meals_count} meals")
+
+        # Delete the household (cascade will handle members, recipes, lists, meals)
+        db.session.delete(household)
+        db.session.commit()
+
+        logger.info(f"Successfully deleted household: {household_name}")
+        flash(f'✅ Household "{household_name}" deleted successfully (removed {members_count} memberships, {recipes_count} recipes, {lists_count} lists, {meals_count} meals)', 'success')
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error deleting household {household_name}: {e}", exc_info=True)
+        flash(f'❌ Error deleting household "{household_name}": {str(e)}', 'danger')
+
+    return redirect(url_for('admin_dashboard'))
 
 
 @app.route('/admin/delete-user/<int:user_id>', methods=['POST'])
@@ -2350,6 +2403,63 @@ def admin_delete_user(user_id):
         flash(f'❌ Error deleting user "{username}": {str(e)}', 'danger')
 
     return redirect(url_for('admin_dashboard'))
+
+
+@app.route('/admin/migrate-multi-household', methods=['GET', 'POST'])
+def migrate_multi_household_endpoint():
+    """Run multi-household migration - NO AUTH REQUIRED for production deployment"""
+    if request.method == 'POST':
+        try:
+            from sqlalchemy import text
+
+            # Run the migration steps
+            logger.info("Starting multi-household migration...")
+
+            # 1. Verify tables exist
+            db.create_all()
+            logger.info("✓ All tables verified/created")
+
+            # 2. Update any 'admin' roles to 'owner' for consistency
+            admin_memberships = HouseholdMember.query.filter_by(role='admin').all()
+            for membership in admin_memberships:
+                membership.role = 'owner'
+            if admin_memberships:
+                db.session.commit()
+                logger.info(f"✓ Updated {len(admin_memberships)} 'admin' roles to 'owner'")
+
+            # 3. Get statistics
+            total_users = User.query.count()
+            total_households = Household.query.count()
+            total_memberships = HouseholdMember.query.count()
+
+            flash('✅ Multi-household migration completed successfully!', 'success')
+            flash(f'📊 Stats: {total_users} users, {total_households} households, {total_memberships} memberships', 'info')
+            logger.info("Multi-household migration completed successfully")
+
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Migration failed: {e}", exc_info=True)
+            flash(f'❌ Migration failed: {str(e)}', 'danger')
+
+        return redirect(url_for('migrate_multi_household_endpoint'))
+
+    # GET request - show migration page
+    try:
+        # Get current stats
+        total_users = User.query.count()
+        total_households = Household.query.count()
+        total_memberships = HouseholdMember.query.count()
+
+        stats = {
+            'users': total_users,
+            'households': total_households,
+            'memberships': total_memberships
+        }
+    except Exception as e:
+        logger.error(f"Error getting stats: {e}")
+        stats = None
+
+    return render_template('admin_migrate_multi_household.html', stats=stats)
 
 
 @app.route('/admin/migrate-database', methods=['GET', 'POST'])

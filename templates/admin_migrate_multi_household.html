@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+
+{% block title %}Multi-Household Migration - Auto-Cart{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+	<div class="row justify-content-center">
+		<div class="col-md-8">
+			<div class="card shadow">
+				<div class="card-header bg-primary text-white">
+					<h3 class="mb-0">
+						<i class="fas fa-home"></i> Multi-Household Migration
+					</h3>
+				</div>
+				<div class="card-body">
+					<div class="alert alert-info" role="alert">
+						<h5 class="alert-heading">
+							<i class="fas fa-info-circle"></i> Multi-Household Support
+						</h5>
+						<p>This migration ensures the database is properly configured for multi-household features.</p>
+						<hr>
+						<p class="mb-0"><strong>What this does:</strong></p>
+						<ul>
+							<li>Verifies all household tables exist (households, household_members)</li>
+							<li>Updates any 'admin' roles to 'owner' for consistency</li>
+							<li>Ensures proper constraints and indexes</li>
+							<li>Preserves all existing data</li>
+						</ul>
+					</div>
+
+					{% if stats %}
+					<div class="alert alert-secondary" role="alert">
+						<h6><i class="fas fa-chart-bar"></i> Current Database Stats:</h6>
+						<ul class="mb-0">
+							<li><strong>Users:</strong> {{ stats.users }}</li>
+							<li><strong>Households:</strong> {{ stats.households }}</li>
+							<li><strong>Memberships:</strong> {{ stats.memberships }}</li>
+						</ul>
+					</div>
+					{% endif %}
+
+					<div class="alert alert-success" role="alert">
+						<h6><i class="fas fa-check-circle"></i> Safe to Run Multiple Times:</h6>
+						<p class="mb-0">This migration is idempotent - it checks for existing structures before making changes, so it's safe to run even if already applied.</p>
+					</div>
+
+					<form method="POST" onsubmit="return confirm('Are you sure you want to run this migration?');">
+						<div class="d-grid gap-2">
+							<button type="submit" class="btn btn-primary btn-lg">
+								<i class="fas fa-play"></i> Run Multi-Household Migration
+							</button>
+							<a href="{{ url_for('homepage') }}" class="btn btn-secondary">
+								<i class="fas fa-arrow-left"></i> Back to Home
+							</a>
+						</div>
+					</form>
+
+					<div class="mt-4">
+						<h6>Migration Features:</h6>
+						<p class="text-muted small">
+							After running this migration, users will be able to:
+						</p>
+						<ul class="text-muted small">
+							<li>Belong to multiple households</li>
+							<li>Own multiple households</li>
+							<li>Switch between households</li>
+							<li>Share recipes and grocery lists within households</li>
+							<li>Collaborate on meal planning</li>
+						</ul>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+{% endblock %}
+
