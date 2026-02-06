@@ -130,7 +130,10 @@ class MealPlanEntry(db.Model):
         """Send full meal plan summary plus detailed breakdown of user's assigned recipes."""
         from flask_mail import Message
         from collections import defaultdict
+        from flask import current_app
         try:
+            # Get response email from config
+            response_email = current_app.config.get('MAIL_DEFAULT_SENDER', 'support@autocart.com')
             # Group all meals by date
             all_meals_by_date = defaultdict(lambda: {'breakfast': [], 'lunch': [], 'dinner': []})
             for entry in meal_entries:
@@ -280,10 +283,11 @@ class MealPlanEntry(db.Model):
                 html_body += """                <p style="text-align: center; margin-top: 20px; font-size: 1.1em;">Happy cooking! 👨‍🍳👩‍🍳</p>
 """
 
-            html_body += """            </div>
+            html_body += f"""            </div>
         </div>
         <div class="footer">
             <p>Auto-Cart - Smart Household Grocery Management</p>
+            <p style="margin-top: 10px; font-size: 11px;">Questions? Reply to <a href="mailto:{response_email}" style="color: #999;">{response_email}</a></p>
         </div>
     </div>
 </body>
@@ -358,7 +362,7 @@ class MealPlanEntry(db.Model):
                 text_body += "="*70 + "\n"
                 text_body += "\nHappy cooking! 👨‍🍳👩‍🍳\n"
 
-            text_body += "\n---\nAuto-Cart - Smart Household Grocery Management"
+            text_body += f"\n---\nAuto-Cart - Smart Household Grocery Management\n\nQuestions? Reply to {response_email}"
 
             msg = Message(
                 f"Meal Plan ({week_start.strftime('%b %d')} - {week_end.strftime('%b %d, %Y')})",

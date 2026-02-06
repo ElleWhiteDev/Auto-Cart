@@ -309,13 +309,14 @@ def send_invite_email():
     """Send a generic invitation email to someone"""
     invite_email = request.form.get('invite_email', '').strip()
     invite_name = request.form.get('invite_name', '').strip()
+    sender_name = request.form.get('sender_name', '').strip()
 
     if not invite_email:
         flash('Please provide an email address', 'danger')
         return redirect(url_for('register'))
 
     try:
-        send_generic_invitation_email(invite_email, invite_name)
+        send_generic_invitation_email(invite_email, invite_name, sender_name)
         flash(f'✅ Invitation sent to {invite_email}!', 'success')
     except Exception as e:
         logger.error(f"Failed to send invitation email: {e}", exc_info=True)
@@ -324,7 +325,7 @@ def send_invite_email():
     return redirect(url_for('register'))
 
 
-def send_generic_invitation_email(recipient_email, recipient_name=None):
+def send_generic_invitation_email(recipient_email, recipient_name=None, sender_name=None):
     """Send a generic invitation email about Auto-Cart"""
     from flask_mail import Message
 
@@ -332,8 +333,17 @@ def send_generic_invitation_email(recipient_email, recipient_name=None):
     base_url = request.url_root.rstrip('/')
     register_url = f"{base_url}/register"
 
+    # Get response email from config
+    response_email = app.config.get('MAIL_DEFAULT_SENDER', 'support@autocart.com')
+
     # Personalize greeting if name provided
     greeting = f"Hi {recipient_name}" if recipient_name else "Hi there"
+
+    # Personalize opening line if sender name provided
+    if sender_name:
+        opening_line = f"{sender_name} wanted to share Auto-Cart with you - it's a free web app for organizing recipes, planning meals, and managing grocery shopping. It's been a game-changer for keeping the kitchen organized!"
+    else:
+        opening_line = "I wanted to share Auto-Cart with you - it's a free web app I've been using to organize recipes, plan meals, and manage grocery shopping. It's been a game-changer for keeping my kitchen organized!"
 
     subject = "Check out Auto-Cart - Your Kitchen's New Best Friend!"
 
@@ -384,7 +394,7 @@ def send_generic_invitation_email(recipient_email, recipient_name=None):
             <div class="content">
                 <p><strong>{greeting}!</strong></p>
 
-                <p>I wanted to share <strong>Auto-Cart</strong> with you - it's a free web app I've been using to organize recipes, plan meals, and manage grocery shopping. It's been a game-changer for keeping my kitchen organized!</p>
+                <p>{opening_line}</p>
 
                 <div class="features">
                     <h3>🛒 What Makes Auto-Cart Special?</h3>
@@ -446,6 +456,7 @@ def send_generic_invitation_email(recipient_email, recipient_name=None):
             <div class="footer">
                 <p>This invitation was sent from Auto-Cart</p>
                 <p>Auto-Cart - Your Kitchen's Command Center</p>
+                <p style="margin-top: 10px; font-size: 11px;">Questions? Reply to <a href="mailto:{response_email}" style="color: #004c91;">{response_email}</a></p>
             </div>
         </div>
     </body>
@@ -456,7 +467,7 @@ def send_generic_invitation_email(recipient_email, recipient_name=None):
     text_body = f"""
 {greeting}!
 
-I wanted to share Auto-Cart with you - it's a free web app I've been using to organize recipes, plan meals, and manage grocery shopping. It's been a game-changer for keeping my kitchen organized!
+{opening_line}
 
 WHAT MAKES AUTO-CART SPECIAL?
 
@@ -496,6 +507,8 @@ Try Auto-Cart free at: {register_url}
 ---
 This invitation was sent from Auto-Cart
 Auto-Cart - Your Kitchen's Command Center
+
+Questions? Reply to {response_email}
     """
 
     msg = Message(
