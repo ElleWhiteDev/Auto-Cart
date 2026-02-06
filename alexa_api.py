@@ -15,6 +15,7 @@ from datetime import datetime, timedelta
 from flask import Blueprint, request, jsonify, current_app
 from functools import wraps
 from models import db, User, GroceryList, RecipeIngredient, GroceryListItem
+from utils import get_est_now
 from logging_config import logger
 
 alexa_bp = Blueprint('alexa', __name__, url_prefix='/api/alexa')
@@ -42,8 +43,8 @@ def verify_alexa_request(f):
             timestamp_str = alexa_request.get('request', {}).get('timestamp')
             if timestamp_str:
                 request_time = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
-                current_time = datetime.utcnow()
-                time_diff = abs((current_time - request_time.replace(tzinfo=None)).total_seconds())
+                current_time = get_est_now()
+                time_diff = abs((current_time - request_time).total_seconds())
 
                 if time_diff > 150:
                     logger.warning(f"Alexa request timestamp too old: {time_diff} seconds")

@@ -253,8 +253,8 @@
 					<i class="fas fa-clock"></i> Last updated by
 					<strong>{{ g.grocery_list.last_modified_by.username }}</strong>
 					{% if g.grocery_list.last_modified_at %}
-					<span title="{{ g.grocery_list.last_modified_at }}">
-						{{ g.grocery_list.last_modified_at.strftime('%I:%M %p') }}
+					<span title="{{ g.grocery_list.last_modified_at|est_datetime('%Y-%m-%d %I:%M %p %Z') }}">
+						{{ g.grocery_list.last_modified_at|est_datetime('%I:%M %p') }}
 					</span>
 					{% endif %}
 				</div>

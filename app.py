@@ -58,6 +58,18 @@ app, bcrypt, mail, kroger_service, kroger_session_manager, kroger_workflow = cre
 from alexa_api import alexa_bp
 app.register_blueprint(alexa_bp)
 
+# Add custom Jinja2 filter for EST datetime formatting
+@app.template_filter('est_datetime')
+def est_datetime_filter(dt, format='%I:%M %p'):
+    """Format a datetime that's already stored in EST timezone.
+
+    Since we store all datetimes in EST using get_est_now(), we just need to format them.
+    """
+    if dt is None:
+        return ''
+
+    return dt.strftime(format)
+
 # Update routes to use app.config instead of imported constants
 @app.route('/authenticate')
 @require_login
@@ -252,9 +264,9 @@ def homepage():
     if not g.user:
         return redirect(url_for('login'))
 
-    # If user has no household, redirect to household creation
+    # If user has no household, redirect to household setup
     if not g.household:
-        return redirect(url_for('create_household'))
+        return redirect(url_for('household_setup'))
 
     initialize_session_defaults()
 
@@ -1092,7 +1104,7 @@ def add_manual_ingredient():
 
         # Update last modified metadata
         grocery_list.last_modified_by_user_id = g.user.id
-        grocery_list.last_modified_at = datetime.utcnow()
+        grocery_list.last_modified_at = get_est_now()
 
         db.session.commit()
         return jsonify({'success': True, 'message': 'Ingredient added and list consolidated!'})
@@ -2187,13 +2199,20 @@ def add_grocery_list_to_g():
                 status='planning'
             ).order_by(GroceryList.last_modified_at.desc()).first()
 
-        # If still no list, create a default one
+        # If still no planning list, try to get ANY existing list from the household
+        if not grocery_list:
+            grocery_list = GroceryList.query.filter_by(
+                household_id=g.household.id
+            ).order_by(GroceryList.last_modified_at.desc()).first()
+
+        # If still no list exists at all, create a default one
         if not grocery_list:
             grocery_list = GroceryList(
                 household_id=g.household.id,
                 user_id=g.user.id,
                 created_by_user_id=g.user.id,
-                name="Household Grocery List"
+                name="Household Grocery List",
+                status='planning'
             )
             db.session.add(grocery_list)
             db.session.commit()

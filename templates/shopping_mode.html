@@ -118,7 +118,7 @@
 			<i class="fas fa-clock"></i> Last updated by
 			<strong>{{ grocery_list.last_modified_by.username }}</strong>
 			{% if grocery_list.last_modified_at %}
-			{{ grocery_list.last_modified_at.strftime('%I:%M %p') }}
+			{{ grocery_list.last_modified_at|est_datetime('%I:%M %p') }}
 			{% endif %}
 		</small>
 	</div>

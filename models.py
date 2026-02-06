@@ -714,12 +714,24 @@ class GroceryList(db.Model):
 
     @classmethod
     def update_grocery_list(cls, selected_recipe_ids, grocery_list, user_id=None):
-        """Create grocery list that includes chosen recipes"""
+        """Add selected recipes to current grocery list (append, not replace)"""
 
         recipes = Recipe.query.filter(Recipe.id.in_(selected_recipe_ids)).all()
 
-        # Collect all ingredients from selected recipes
+        # Collect all ingredients - START WITH EXISTING ONES from the grocery list
         all_ingredients = []
+
+        # Add existing ingredients from the grocery list
+        if grocery_list is not None:
+            for existing_item in grocery_list.items:
+                ingredient = existing_item.recipe_ingredient
+                all_ingredients.append({
+                    'quantity': ingredient.quantity,
+                    'measurement': ingredient.measurement,
+                    'ingredient_name': ingredient.ingredient_name
+                })
+
+        # Add new ingredients from selected recipes
         for recipe in recipes:
             for recipe_ingredient in recipe.recipe_ingredients:
                 all_ingredients.append({
@@ -728,11 +740,11 @@ class GroceryList(db.Model):
                     'ingredient_name': recipe_ingredient.ingredient_name
                 })
 
-        # Use AI to consolidate similar ingredients
+        # Use AI to consolidate similar ingredients (will merge duplicates)
         consolidated_ingredients = cls.consolidate_ingredients_with_openai(all_ingredients)
 
         if grocery_list is not None:
-            # Clear existing items
+            # NOW clear and rebuild with consolidated list (which includes both old and new)
             for item in grocery_list.items:
                 db.session.delete(item)
 
@@ -765,7 +777,7 @@ class GroceryList(db.Model):
         # Update last modified metadata
         if user_id:
             grocery_list.last_modified_by_user_id = user_id
-            grocery_list.last_modified_at = datetime.utcnow()
+            grocery_list.last_modified_at = get_est_now()
 
         db.session.commit()
 

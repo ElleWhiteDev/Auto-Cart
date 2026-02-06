@@ -16,9 +16,10 @@ CURR_GROCERY_LIST_KEY = "curr_grocery_list"
 
 # Timezone utilities
 def get_est_now():
-    """Get current time in EST timezone"""
+    """Get current time in EST timezone as a timezone-naive datetime"""
     est = pytz.timezone('US/Eastern')
-    return datetime.now(est)
+    # Get current time in EST and remove timezone info for database storage
+    return datetime.now(est).replace(tzinfo=None)
 
 def get_est_date():
     """Get current date in EST timezone"""
