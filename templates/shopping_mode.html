@@ -27,13 +27,13 @@
 		<div class="card-body">
 			<div class="d-flex justify-content-between align-items-center mb-2">
 				<strong>Progress</strong>
-				<span class="badge bg-primary">{{ checked_items }} / {{ total_items }}</span>
+				<span class="badge" style="background-color: #ff6600; color: white; font-size: 1rem; padding: 0.5rem 0.75rem;">{{ checked_items }} / {{ total_items }}</span>
 			</div>
 			<div class="progress" style="height: 25px;">
-				<div class="progress-bar bg-success" role="progressbar" 
+				<div class="progress-bar bg-success" role="progressbar"
 					style="width: {% if total_items > 0 %}{{ (checked_items / total_items * 100)|int }}{% else %}0{% endif %}%"
-					aria-valuenow="{{ checked_items }}" 
-					aria-valuemin="0" 
+					aria-valuenow="{{ checked_items }}"
+					aria-valuemin="0"
 					aria-valuemax="{{ total_items }}">
 					{% if total_items > 0 %}{{ (checked_items / total_items * 100)|int }}%{% else %}0%{% endif %}
 				</div>
@@ -71,19 +71,19 @@
 
 	<!-- Items List -->
 	<div class="card shadow mb-4">
-		<div class="card-header bg-primary text-white">
-			<h5 class="mb-0">Items</h5>
+		<div class="card-header text-white" style="background: linear-gradient(135deg, #ff6600 0%, #FF8C42 100%);">
+			<h5 class="mb-0" style="font-weight: 600;">Items</h5>
 		</div>
 		<div class="card-body p-0">
 			{% if items %}
 			<div class="list-group list-group-flush">
 				{% for item in items %}
-				<div class="list-group-item shopping-item {% if item.is_checked %}checked{% endif %}" 
+				<div class="list-group-item shopping-item {% if item.is_checked %}checked{% endif %}"
 					data-item-id="{{ item.id }}">
 					<div class="form-check d-flex align-items-center">
-						<input 
-							class="form-check-input me-3 item-checkbox" 
-							type="checkbox" 
+						<input
+							class="form-check-input me-3 item-checkbox"
+							type="checkbox"
 							id="item-{{ item.id }}"
 							{% if item.is_checked %}checked{% endif %}
 							style="width: 30px; height: 30px; cursor: pointer;">
@@ -115,7 +115,7 @@
 	{% if grocery_list.last_modified_by %}
 	<div class="text-center text-muted mb-4">
 		<small>
-			<i class="fas fa-clock"></i> Last updated by 
+			<i class="fas fa-clock"></i> Last updated by
 			<strong>{{ grocery_list.last_modified_by.username }}</strong>
 			{% if grocery_list.last_modified_at %}
 			{{ grocery_list.last_modified_at.strftime('%I:%M %p') }}
@@ -152,7 +152,7 @@ document.querySelectorAll('.item-checkbox').forEach(checkbox => {
 	checkbox.addEventListener('change', function() {
 		const itemId = this.closest('.shopping-item').dataset.itemId;
 		const isChecked = this.checked;
-		
+
 		// Toggle the item via AJAX
 		fetch(`/shopping-mode/toggle/${itemId}`, {
 			method: 'POST',
@@ -170,7 +170,7 @@ document.querySelectorAll('.item-checkbox').forEach(checkbox => {
 				} else {
 					item.classList.remove('checked');
 				}
-				
+
 				// Reload to update progress
 				location.reload();
 			}
@@ -184,4 +184,3 @@ document.querySelectorAll('.item-checkbox').forEach(checkbox => {
 });
 </script>
 {% endblock %}
-
