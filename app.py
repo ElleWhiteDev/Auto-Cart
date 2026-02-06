@@ -335,7 +335,7 @@ def send_generic_invitation_email(recipient_email, recipient_name=None):
     # Personalize greeting if name provided
     greeting = f"Hi {recipient_name}" if recipient_name else "Hi there"
 
-    subject = "You're invited to try Auto-Cart - Smart Grocery Management!"
+    subject = "Check out Auto-Cart - Your Kitchen's New Best Friend!"
 
     # Create HTML email body
     html_body = f"""
@@ -356,6 +356,8 @@ def send_generic_invitation_email(recipient_email, recipient_name=None):
             .features li {{ margin: 8px 0; }}
             .highlight {{ background-color: #fff5f0; padding: 15px; margin: 20px 0; border-radius: 5px; border-left: 4px solid #ff6600; }}
             .highlight h4 {{ color: #ff6600; margin-top: 0; }}
+            .app-tip {{ background-color: #e8f4f8; padding: 15px; margin: 20px 0; border-radius: 5px; border-left: 4px solid #004c91; }}
+            .app-tip h4 {{ color: #004c91; margin-top: 0; }}
             .footer {{ text-align: center; padding: 20px; color: #999; font-size: 12px; }}
         </style>
     </head>
@@ -382,48 +384,68 @@ def send_generic_invitation_email(recipient_email, recipient_name=None):
             <div class="content">
                 <p><strong>{greeting}!</strong></p>
 
-                <p>Someone thought you might be interested in <strong>Auto-Cart</strong> - a smart grocery management app that makes meal planning and shopping easier!</p>
+                <p>I wanted to share <strong>Auto-Cart</strong> with you - it's a free web app I've been using to organize recipes, plan meals, and manage grocery shopping. It's been a game-changer for keeping my kitchen organized!</p>
 
                 <div class="features">
-                    <h3>🛒 What is Auto-Cart?</h3>
-                    <p>Auto-Cart helps you organize recipes, plan meals, and manage grocery shopping - all in one place. Perfect for busy families, roommates, or anyone who wants to simplify their kitchen routine.</p>
+                    <h3>🛒 What Makes Auto-Cart Special?</h3>
 
-                    <h3>✨ Key Features:</h3>
+                    <h4 style="color: #004c91; margin-top: 15px;">📝 Recipe & Meal Planning</h4>
                     <ul>
-                        <li>📝 <strong>Recipe Management</strong> - Save and organize all your favorite recipes in one place</li>
-                        <li>🛒 <strong>Smart Grocery Lists</strong> - Automatically generate shopping lists from your recipes</li>
-                        <li>🏠 <strong>Household Collaboration</strong> - Share recipes and lists with family or roommates</li>
-                        <li>📅 <strong>Meal Planning</strong> - Plan your weekly meals and assign cooking duties</li>
-                        <li>🛍️ <strong>Kroger Integration</strong> - Send your grocery list directly to your Kroger cart</li>
-                        <li>📧 <strong>Email Lists</strong> - Email grocery lists and recipes to anyone</li>
-                        <li>🤖 <strong>AI-Powered</strong> - Smart ingredient consolidation and recipe parsing</li>
+                        <li><strong>Save Your Recipes</strong> - Keep all your favorite recipes in one organized place</li>
+                        <li><strong>Weekly Meal Planning</strong> - Plan your meals for the week and assign who's cooking</li>
+                        <li><strong>Email Meal Plans</strong> - Send your weekly meal plan to family members with all the details</li>
                     </ul>
+
+                    <h4 style="color: #004c91; margin-top: 15px;">🛍️ Smart Shopping</h4>
+                    <ul>
+                        <li><strong>Auto-Generate Lists</strong> - Turn your recipes into grocery lists automatically</li>
+                        <li><strong>Kroger Integration</strong> - Send your list directly to your Kroger cart for pickup or delivery</li>
+                        <li><strong>Share Lists</strong> - Email grocery lists to anyone, even if they don't have an account</li>
+                    </ul>
+
+                    <h4 style="color: #004c91; margin-top: 15px;">🏠 Multiple Household Support</h4>
+                    <ul>
+                        <li><strong>Manage Multiple Households</strong> - Perfect if you shop for parents, have a vacation home, or coordinate with roommates</li>
+                        <li><strong>Collaborate</strong> - Share recipes, lists, and meal plans with household members</li>
+                        <li><strong>Switch Easily</strong> - Toggle between households with one click</li>
+                    </ul>
+
+                    <h4 style="color: #004c91; margin-top: 15px;">🤖 AI-Powered Features</h4>
+                    <ul>
+                        <li><strong>Smart Consolidation</strong> - Automatically combines ingredients (e.g., "1 cup milk" + "2 cups milk" = "3 cups milk")</li>
+                        <li><strong>Recipe Parsing</strong> - Paste recipes from anywhere and Auto-Cart organizes them for you</li>
+                    </ul>
+                </div>
+
+                <div class="app-tip">
+                    <h4>📱 Pro Tip: Use It Like a Mobile App!</h4>
+                    <p style="margin: 0;">On your phone, open Auto-Cart in your browser and select "Add to Home Screen" - it works just like a native app with offline access to your recipes and lists!</p>
                 </div>
 
                 <div class="highlight">
                     <h4>🎯 Perfect For:</h4>
                     <ul style="margin: 0; padding-left: 20px;">
-                        <li>Families coordinating meals and shopping</li>
+                        <li>Families coordinating weekly meals and shopping</li>
+                        <li>People managing multiple households (parents, vacation homes, etc.)</li>
                         <li>Roommates sharing grocery responsibilities</li>
-                        <li>Anyone who wants to organize their recipes</li>
-                        <li>Meal preppers and planners</li>
-                        <li>People who want to save time at the grocery store</li>
+                        <li>Anyone tired of losing recipes or forgetting ingredients</li>
+                        <li>Kroger shoppers who want to save time</li>
                     </ul>
                 </div>
 
                 <div style="text-align: center; margin: 30px 0;">
                     <a href="{register_url}" class="button">
-                        Get Started - It's Free!
+                        Try Auto-Cart Free
                     </a>
                 </div>
 
                 <p style="text-align: center; color: #666; font-size: 14px;">
-                    Click the button above to create your free Auto-Cart account and start organizing your kitchen today!
+                    It's completely free to use - no credit card required!
                 </p>
             </div>
             <div class="footer">
                 <p>This invitation was sent from Auto-Cart</p>
-                <p>Auto-Cart - Smart Grocery Management Made Easy</p>
+                <p>Auto-Cart - Your Kitchen's Command Center</p>
             </div>
         </div>
     </body>
@@ -434,33 +456,46 @@ def send_generic_invitation_email(recipient_email, recipient_name=None):
     text_body = f"""
 {greeting}!
 
-Someone thought you might be interested in Auto-Cart - a smart grocery management app that makes meal planning and shopping easier!
+I wanted to share Auto-Cart with you - it's a free web app I've been using to organize recipes, plan meals, and manage grocery shopping. It's been a game-changer for keeping my kitchen organized!
 
-WHAT IS AUTO-CART?
-Auto-Cart helps you organize recipes, plan meals, and manage grocery shopping - all in one place. Perfect for busy families, roommates, or anyone who wants to simplify their kitchen routine.
+WHAT MAKES AUTO-CART SPECIAL?
 
-KEY FEATURES:
-• Recipe Management - Save and organize all your favorite recipes
-• Smart Grocery Lists - Automatically generate shopping lists from recipes
-• Household Collaboration - Share recipes and lists with family or roommates
-• Meal Planning - Plan your weekly meals and assign cooking duties
-• Kroger Integration - Send your grocery list directly to your Kroger cart
-• Email Lists - Email grocery lists and recipes to anyone
-• AI-Powered - Smart ingredient consolidation and recipe parsing
+RECIPE & MEAL PLANNING:
+• Save Your Recipes - Keep all your favorite recipes in one organized place
+• Weekly Meal Planning - Plan your meals for the week and assign who's cooking
+• Email Meal Plans - Send your weekly meal plan to family members with all the details
+
+SMART SHOPPING:
+• Auto-Generate Lists - Turn your recipes into grocery lists automatically
+• Kroger Integration - Send your list directly to your Kroger cart for pickup or delivery
+• Share Lists - Email grocery lists to anyone, even if they don't have an account
+
+MULTIPLE HOUSEHOLD SUPPORT:
+• Manage Multiple Households - Perfect if you shop for parents, have a vacation home, or coordinate with roommates
+• Collaborate - Share recipes, lists, and meal plans with household members
+• Switch Easily - Toggle between households with one click
+
+AI-POWERED FEATURES:
+• Smart Consolidation - Automatically combines ingredients (e.g., "1 cup milk" + "2 cups milk" = "3 cups milk")
+• Recipe Parsing - Paste recipes from anywhere and Auto-Cart organizes them for you
+
+PRO TIP: USE IT LIKE A MOBILE APP!
+On your phone, open Auto-Cart in your browser and select "Add to Home Screen" - it works just like a native app with offline access to your recipes and lists!
 
 PERFECT FOR:
-• Families coordinating meals and shopping
+• Families coordinating weekly meals and shopping
+• People managing multiple households (parents, vacation homes, etc.)
 • Roommates sharing grocery responsibilities
-• Anyone who wants to organize their recipes
-• Meal preppers and planners
-• People who want to save time at the grocery store
+• Anyone tired of losing recipes or forgetting ingredients
+• Kroger shoppers who want to save time
 
 GET STARTED:
-Register for free at: {register_url}
+Try Auto-Cart free at: {register_url}
+(No credit card required!)
 
 ---
 This invitation was sent from Auto-Cart
-Auto-Cart - Smart Grocery Management Made Easy
+Auto-Cart - Your Kitchen's Command Center
     """
 
     msg = Message(
