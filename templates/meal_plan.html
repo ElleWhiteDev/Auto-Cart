@@ -126,7 +126,7 @@
 
 	<div class="card shadow mb-4">
 		<div class="card-header bg-primary text-white meal-plan-header d-flex justify-content-between align-items-center flex-wrap">
-			<h4 class="mb-2 mb-md-0 text-white">
+			<h4 class="mb-2 mb-md-0" style="color: white;">
 				{{ week_start.strftime('%B %d') }} - {{ week_end.strftime('%B %d, %Y') }}
 			</h4>
 			<div class="btn-group d-flex flex-wrap gap-2">
@@ -160,25 +160,30 @@
 						{% for date, meals in meal_plan.items() %}
 						<tr style="border-bottom: 1px solid #dee2e6;">
 							<td class="fw-bold align-middle {% if date == today %}bg-info bg-opacity-10{% endif %}" style="padding: 10px; border-left: none; border-right: 1px solid #dee2e6;">
-								<div class="mb-1" style="font-size: 0.9rem;">{{ date.strftime('%A') }}</div>
-								<span class="badge bg-primary text-white px-2 py-1 date-badge" style="font-size: 0.75rem;">{{ date.strftime('%b %d') }}</span>
+								<div style="font-size: 0.9rem;">
+									{{ date.strftime('%A') }}
+									<span class="text-muted ms-2" style="font-size: 0.85rem; font-weight: 500;">{{ date.strftime('%b %d') }}</span>
+								</div>
 							</td>
 							{% for meal_type in ['breakfast', 'lunch', 'dinner'] %}
 							<td class="align-top" style="padding: 8px; background-color: #fafbfc; border-right: 1px solid #dee2e6;">
 								{% for entry in meals[meal_type] %}
 								<div class="card mb-2 border-0 shadow-sm meal-card" style="border-left: 3px solid #0d6efd !important; background: white;">
 									<div class="card-body p-2">
-										<div class="d-flex justify-content-between align-items-start">
-											<div class="flex-grow-1">
-												{% if entry.recipe and entry.recipe.url %}
-												<div class="fw-bold mb-1" style="font-size: 0.95rem;">
-													<a href="{{ entry.recipe.url }}" target="_blank" class="text-primary text-decoration-none meal-link" title="View recipe at {{ entry.recipe.url }}">
-														{{ entry.meal_name }} <i class="fas fa-external-link-alt" style="font-size: 0.7rem;"></i>
-													</a>
-												</div>
-												{% else %}
-												<div class="fw-bold text-primary mb-1" style="font-size: 0.95rem;">{{ entry.meal_name }}</div>
-												{% endif %}
+										<!-- Recipe Title Row -->
+										{% if entry.recipe and entry.recipe.url %}
+										<div class="fw-bold mb-2" style="font-size: 0.95rem; overflow-x: auto; white-space: nowrap;">
+											<a href="{{ entry.recipe.url }}" target="_blank" class="text-primary text-decoration-none meal-link" title="View recipe at {{ entry.recipe.url }}">
+												{{ entry.meal_name }} <i class="fas fa-external-link-alt" style="font-size: 0.7rem;"></i>
+											</a>
+										</div>
+										{% else %}
+										<div class="fw-bold text-primary mb-2" style="font-size: 0.95rem; overflow-x: auto; white-space: nowrap;">{{ entry.meal_name }}</div>
+										{% endif %}
+
+										<!-- Chef and Delete Button Row -->
+										<div class="d-flex justify-content-between align-items-center gap-2">
+											<div class="flex-grow-1" style="min-width: 0;">
 												{% if entry.assigned_cook %}
 												<div class="text-muted mb-0" style="font-size: 0.8rem;">
 													<i class="fas fa-utensils"></i> {{ entry.assigned_cook.username }}
@@ -188,9 +193,9 @@
 												<div class="text-info" style="font-size: 0.75rem;"><i class="fas fa-sticky-note"></i> {{ entry.notes }}</div>
 												{% endif %}
 											</div>
-											<form method="POST" action="{{ url_for('delete_meal_plan_entry', entry_id=entry.id) }}" style="display: inline;">
+											<form method="POST" action="{{ url_for('delete_meal_plan_entry', entry_id=entry.id) }}" style="display: inline; flex-shrink: 0;">
 												<input type="hidden" name="week_offset" value="{{ week_offset }}">
-												<button type="submit" class="btn btn-sm btn-outline-danger rounded-circle" onclick="return confirm('Remove this meal?');" style="width: 24px; height: 24px; padding: 0; line-height: 1; font-size: 0.75rem;">
+												<button type="submit" class="btn btn-sm btn-outline-danger rounded-circle" onclick="return confirm('Remove this meal?');" style="width: 20px; height: 20px; padding: 0; line-height: 1; font-size: 0.7rem;">
 													<i class="fas fa-times"></i>
 												</button>
 											</form>
@@ -213,8 +218,8 @@
 				<div class="card-header {% if date == today %}bg-info bg-opacity-10{% else %}bg-light{% endif %}">
 					<div class="d-flex justify-content-between align-items-center">
 						<div>
-							<div class="fw-bold" style="font-size: 1rem;">{{ date.strftime('%A') }}</div>
-							<span class="badge bg-primary text-white" style="font-size: 0.75rem;">{{ date.strftime('%b %d') }}</span>
+							<span class="fw-bold" style="font-size: 1rem;">{{ date.strftime('%A') }}</span>
+							<span class="text-muted ms-2" style="font-size: 0.85rem; font-weight: 500;">{{ date.strftime('%b %d') }}</span>
 						</div>
 					</div>
 				</div>
@@ -228,17 +233,20 @@
 						{% for entry in meals[meal_type] %}
 						<div class="card mb-2 border-0 shadow-sm meal-card" style="border-left: 3px solid #0d6efd !important;">
 							<div class="card-body p-2">
-								<div class="d-flex justify-content-between align-items-start">
-									<div class="flex-grow-1">
-										{% if entry.recipe and entry.recipe.url %}
-										<div class="fw-bold mb-1" style="font-size: 0.95rem;">
-											<a href="{{ entry.recipe.url }}" target="_blank" class="text-primary text-decoration-none meal-link" title="View recipe at {{ entry.recipe.url }}">
-												{{ entry.meal_name }} <i class="fas fa-external-link-alt" style="font-size: 0.7rem;"></i>
-											</a>
-										</div>
-										{% else %}
-										<div class="fw-bold text-primary mb-1" style="font-size: 0.95rem;">{{ entry.meal_name }}</div>
-										{% endif %}
+								<!-- Recipe Title Row -->
+								{% if entry.recipe and entry.recipe.url %}
+								<div class="fw-bold mb-2" style="font-size: 0.95rem; overflow-x: auto; white-space: nowrap;">
+									<a href="{{ entry.recipe.url }}" target="_blank" class="text-primary text-decoration-none meal-link" title="View recipe at {{ entry.recipe.url }}">
+										{{ entry.meal_name }} <i class="fas fa-external-link-alt" style="font-size: 0.7rem;"></i>
+									</a>
+								</div>
+								{% else %}
+								<div class="fw-bold text-primary mb-2" style="font-size: 0.95rem; overflow-x: auto; white-space: nowrap;">{{ entry.meal_name }}</div>
+								{% endif %}
+
+								<!-- Chef and Delete Button Row -->
+								<div class="d-flex justify-content-between align-items-center gap-2">
+									<div class="flex-grow-1" style="min-width: 0;">
 										{% if entry.assigned_cook %}
 										<div class="text-muted mb-0" style="font-size: 0.8rem;">
 											<i class="fas fa-utensils"></i> {{ entry.assigned_cook.username }}
@@ -248,9 +256,9 @@
 										<div class="text-info" style="font-size: 0.75rem;"><i class="fas fa-sticky-note"></i> {{ entry.notes }}</div>
 										{% endif %}
 									</div>
-									<form method="POST" action="{{ url_for('delete_meal_plan_entry', entry_id=entry.id) }}" style="display: inline;">
+									<form method="POST" action="{{ url_for('delete_meal_plan_entry', entry_id=entry.id) }}" style="display: inline; flex-shrink: 0;">
 										<input type="hidden" name="week_offset" value="{{ week_offset }}">
-										<button type="submit" class="btn btn-sm btn-outline-danger rounded-circle" onclick="return confirm('Remove this meal?');" style="width: 24px; height: 24px; padding: 0; line-height: 1; font-size: 0.75rem;">
+										<button type="submit" class="btn btn-sm btn-outline-danger rounded-circle" onclick="return confirm('Remove this meal?');" style="width: 20px; height: 20px; padding: 0; line-height: 1; font-size: 0.7rem;">
 											<i class="fas fa-times"></i>
 										</button>
 									</form>
