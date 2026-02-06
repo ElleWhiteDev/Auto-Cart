@@ -304,6 +304,176 @@ def register():
         return render_template('register.html', form=form)
 
 
+@app.route('/send-invite', methods=['POST'])
+def send_invite_email():
+    """Send a generic invitation email to someone"""
+    invite_email = request.form.get('invite_email', '').strip()
+    invite_name = request.form.get('invite_name', '').strip()
+
+    if not invite_email:
+        flash('Please provide an email address', 'danger')
+        return redirect(url_for('register'))
+
+    try:
+        send_generic_invitation_email(invite_email, invite_name)
+        flash(f'✅ Invitation sent to {invite_email}!', 'success')
+    except Exception as e:
+        logger.error(f"Failed to send invitation email: {e}", exc_info=True)
+        flash('❌ Failed to send invitation email. Please try again.', 'danger')
+
+    return redirect(url_for('register'))
+
+
+def send_generic_invitation_email(recipient_email, recipient_name=None):
+    """Send a generic invitation email about Auto-Cart"""
+    from flask_mail import Message
+
+    # Build registration URL
+    base_url = request.url_root.rstrip('/')
+    register_url = f"{base_url}/register"
+
+    # Personalize greeting if name provided
+    greeting = f"Hi {recipient_name}" if recipient_name else "Hi there"
+
+    subject = "You're invited to try Auto-Cart - Smart Grocery Management!"
+
+    # Create HTML email body
+    html_body = f"""
+    <html>
+    <head>
+        <style>
+            body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+            .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+            .header {{ background: linear-gradient(135deg, #004c91 0%, #1e6bb8 100%); color: white; padding: 30px 20px; text-align: center; border-radius: 5px 5px 0 0; }}
+            .header h1 {{ margin: 0; display: flex; align-items: center; justify-content: center; gap: 15px; }}
+            .logo {{ width: 50px; height: 50px; }}
+            .content {{ background-color: #f9f9f9; padding: 30px; border: 1px solid #ddd; }}
+            .button {{ display: inline-block; padding: 12px 24px; background-color: #004c91; color: white !important; text-decoration: none; border-radius: 5px; margin: 20px 0; font-weight: 600; }}
+            .button:hover {{ background-color: #1e6bb8; color: white !important; }}
+            .features {{ background-color: white; padding: 20px; margin: 20px 0; border-left: 4px solid #004c91; border-radius: 5px; }}
+            .features h3 {{ color: #004c91; margin-top: 0; }}
+            .features ul {{ margin: 10px 0; padding-left: 20px; }}
+            .features li {{ margin: 8px 0; }}
+            .highlight {{ background-color: #fff5f0; padding: 15px; margin: 20px 0; border-radius: 5px; border-left: 4px solid #ff6600; }}
+            .highlight h4 {{ color: #ff6600; margin-top: 0; }}
+            .footer {{ text-align: center; padding: 20px; color: #999; font-size: 12px; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="logo">
+                        <circle cx="50" cy="50" r="48" fill="#FF8C42"/>
+                        <g transform="translate(50, 52)">
+                            <path d="M -26 -20 L -20 8 L 20 8 L 24 -20 Z" fill="#007bff" stroke="#004c91" stroke-width="2.5"/>
+                            <path d="M -28 -20 L -32 -32 L -20 -32" fill="none" stroke="#007bff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            <circle cx="-10" cy="16" r="5" fill="#004c91"/>
+                            <circle cx="10" cy="16" r="5" fill="#004c91"/>
+                            <line x1="-16" y1="-14" x2="-16" y2="5" stroke="white" stroke-width="2"/>
+                            <line x1="-5" y1="-14" x2="-5" y2="5" stroke="white" stroke-width="2"/>
+                            <line x1="6" y1="-14" x2="6" y2="5" stroke="white" stroke-width="2"/>
+                            <line x1="16" y1="-14" x2="16" y2="5" stroke="white" stroke-width="2"/>
+                        </g>
+                    </svg>
+                    <span>Welcome to Auto-Cart!</span>
+                </h1>
+            </div>
+            <div class="content">
+                <p><strong>{greeting}!</strong></p>
+
+                <p>Someone thought you might be interested in <strong>Auto-Cart</strong> - a smart grocery management app that makes meal planning and shopping easier!</p>
+
+                <div class="features">
+                    <h3>🛒 What is Auto-Cart?</h3>
+                    <p>Auto-Cart helps you organize recipes, plan meals, and manage grocery shopping - all in one place. Perfect for busy families, roommates, or anyone who wants to simplify their kitchen routine.</p>
+
+                    <h3>✨ Key Features:</h3>
+                    <ul>
+                        <li>📝 <strong>Recipe Management</strong> - Save and organize all your favorite recipes in one place</li>
+                        <li>🛒 <strong>Smart Grocery Lists</strong> - Automatically generate shopping lists from your recipes</li>
+                        <li>🏠 <strong>Household Collaboration</strong> - Share recipes and lists with family or roommates</li>
+                        <li>📅 <strong>Meal Planning</strong> - Plan your weekly meals and assign cooking duties</li>
+                        <li>🛍️ <strong>Kroger Integration</strong> - Send your grocery list directly to your Kroger cart</li>
+                        <li>📧 <strong>Email Lists</strong> - Email grocery lists and recipes to anyone</li>
+                        <li>🤖 <strong>AI-Powered</strong> - Smart ingredient consolidation and recipe parsing</li>
+                    </ul>
+                </div>
+
+                <div class="highlight">
+                    <h4>🎯 Perfect For:</h4>
+                    <ul style="margin: 0; padding-left: 20px;">
+                        <li>Families coordinating meals and shopping</li>
+                        <li>Roommates sharing grocery responsibilities</li>
+                        <li>Anyone who wants to organize their recipes</li>
+                        <li>Meal preppers and planners</li>
+                        <li>People who want to save time at the grocery store</li>
+                    </ul>
+                </div>
+
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="{register_url}" class="button">
+                        Get Started - It's Free!
+                    </a>
+                </div>
+
+                <p style="text-align: center; color: #666; font-size: 14px;">
+                    Click the button above to create your free Auto-Cart account and start organizing your kitchen today!
+                </p>
+            </div>
+            <div class="footer">
+                <p>This invitation was sent from Auto-Cart</p>
+                <p>Auto-Cart - Smart Grocery Management Made Easy</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
+    # Create plain text version
+    text_body = f"""
+{greeting}!
+
+Someone thought you might be interested in Auto-Cart - a smart grocery management app that makes meal planning and shopping easier!
+
+WHAT IS AUTO-CART?
+Auto-Cart helps you organize recipes, plan meals, and manage grocery shopping - all in one place. Perfect for busy families, roommates, or anyone who wants to simplify their kitchen routine.
+
+KEY FEATURES:
+• Recipe Management - Save and organize all your favorite recipes
+• Smart Grocery Lists - Automatically generate shopping lists from recipes
+• Household Collaboration - Share recipes and lists with family or roommates
+• Meal Planning - Plan your weekly meals and assign cooking duties
+• Kroger Integration - Send your grocery list directly to your Kroger cart
+• Email Lists - Email grocery lists and recipes to anyone
+• AI-Powered - Smart ingredient consolidation and recipe parsing
+
+PERFECT FOR:
+• Families coordinating meals and shopping
+• Roommates sharing grocery responsibilities
+• Anyone who wants to organize their recipes
+• Meal preppers and planners
+• People who want to save time at the grocery store
+
+GET STARTED:
+Register for free at: {register_url}
+
+---
+This invitation was sent from Auto-Cart
+Auto-Cart - Smart Grocery Management Made Easy
+    """
+
+    msg = Message(
+        subject=subject,
+        recipients=[recipient_email],
+        html=html_body,
+        body=text_body
+    )
+
+    mail.send(msg)
+    logger.info(f"Generic invitation email sent to {recipient_email}")
+
+
 @app.route('/login', methods=["GET", "POST"])
 def login():
     """Handle user login."""

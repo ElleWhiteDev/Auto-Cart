@@ -1,25 +1,92 @@
 {% extends 'base.html' %} {% block body_class %}Register{% endblock %} {% block
 content %}
 
-<h1 class="display-3">Register</h1>
-<p class="lead">
-	Register Below. Already have an account? <a href="/login">Login Here</a>
-</p>
+<div class="row">
+	<div class="col-md-6">
+		<h1 class="display-3">Register</h1>
+		<p class="lead">
+			Register Below. Already have an account? <a href="/login">Login Here</a>
+		</p>
 
-<form method="POST" class="col-md-4 mt-4">
-	{{ form.hidden_tag() }} {% for field in form if field.widget.input_type !=
-	'hidden' %}
-	<p>
-		{{ field.label }} {{ field(class_="form-control custom-form-control") }} {%
-		for error in field.errors %}
-		<span class="form-text text-danger"> {{ error }} </span>
-		{% endfor %}
-	</p>
-	{% endfor %}
+		<form method="POST" class="mt-4">
+			{{ form.hidden_tag() }} {% for field in form if field.widget.input_type !=
+			'hidden' %}
+			<p>
+				{{ field.label }} {{ field(class_="form-control custom-form-control") }} {%
+				for error in field.errors %}
+				<span class="form-text text-danger"> {{ error }} </span>
+				{% endfor %}
+			</p>
+			{% endfor %}
 
-	<div class="btn-container">
-		<button class="button-56" type="submit">Sign Up</button>
+			<div class="btn-container">
+				<button class="button-56" type="submit">Sign Up</button>
+			</div>
+		</form>
 	</div>
-</form>
+
+	<div class="col-md-6">
+		<div class="card shadow mt-5">
+			<div class="card-header bg-primary text-white">
+				<h3 class="h5 mb-0">
+					<i class="fas fa-envelope"></i> Invite Someone to Auto-Cart
+				</h3>
+			</div>
+			<div class="card-body">
+				<p class="text-muted">
+					Know someone who would love Auto-Cart? Send them an invitation email with information about the app and a link to register!
+				</p>
+				<form method="POST" action="{{ url_for('send_invite_email') }}" id="invite-form">
+					<div class="mb-3">
+						<label for="invite_email" class="form-label">
+							<i class="fas fa-at"></i> Email Address
+						</label>
+						<input
+							type="email"
+							class="form-control"
+							id="invite_email"
+							name="invite_email"
+							placeholder="friend@example.com"
+							required
+						/>
+					</div>
+					<div class="mb-3">
+						<label for="invite_name" class="form-label">
+							<i class="fas fa-user"></i> Their Name (Optional)
+						</label>
+						<input
+							type="text"
+							class="form-control"
+							id="invite_name"
+							name="invite_name"
+							placeholder="John Doe"
+						/>
+						<small class="form-text text-muted">
+							If provided, we'll personalize the email with their name
+						</small>
+					</div>
+					<button type="submit" class="btn btn-primary w-100" id="invite-btn">
+						<i class="fas fa-paper-plane"></i> Send Invitation
+					</button>
+				</form>
+			</div>
+		</div>
+	</div>
+</div>
+
+<script>
+// Add processing state to invite button
+document.addEventListener('DOMContentLoaded', function() {
+	const inviteForm = document.getElementById('invite-form');
+	const inviteBtn = document.getElementById('invite-btn');
+
+	if (inviteForm && inviteBtn) {
+		inviteForm.addEventListener('submit', function() {
+			inviteBtn.disabled = true;
+			inviteBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Sending...';
+		});
+	}
+});
+</script>
 
 {% endblock %}
