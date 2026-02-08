@@ -112,6 +112,24 @@ class HouseholdMember(db.Model):
         return f"<HouseholdMember household_id={self.household_id} user_id={self.user_id} role={self.role}>"
 
 
+# Association table for meal plan entries and assigned cooks (many-to-many)
+meal_plan_cooks = db.Table(
+    "meal_plan_cooks",
+    db.Column(
+        "meal_plan_entry_id",
+        db.Integer,
+        db.ForeignKey("meal_plan_entries.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    db.Column(
+        "user_id",
+        db.Integer,
+        db.ForeignKey("users.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+)
+
+
 class MealPlanEntry(db.Model):
     """Meal plan entry for a household"""
 
@@ -133,12 +151,20 @@ class MealPlanEntry(db.Model):
     )  # 'breakfast', 'lunch', 'dinner', 'snack'
     assigned_cook_user_id = db.Column(
         db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True
-    )
+    )  # Legacy single cook field - kept for backward compatibility
     notes = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=get_est_now)
 
     recipe = db.relationship("Recipe", backref="meal_plan_entries")
-    assigned_cook = db.relationship("User", foreign_keys=[assigned_cook_user_id])
+    assigned_cook = db.relationship(
+        "User", foreign_keys=[assigned_cook_user_id]
+    )  # Legacy single cook
+    assigned_cooks = db.relationship(
+        "User",
+        secondary=meal_plan_cooks,
+        backref="assigned_meals",
+        lazy="dynamic",
+    )  # New multi-cook support
 
     @property
     def meal_name(self):

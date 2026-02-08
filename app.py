@@ -2622,14 +2622,11 @@ def add_meal_plan_entry():
     custom_meal_name = request.form.get("custom_meal_name", "").strip()
     date_str = request.form.get("date")
     meal_type = request.form.get("meal_type")
-    assigned_cook_id = request.form.get("assigned_cook_id")
+    assigned_cook_ids = request.form.getlist("assigned_cook_ids")  # Get list of cook IDs
     notes = request.form.get("notes", "").strip()
 
-    # Convert empty string to None for assigned_cook_id
-    if assigned_cook_id == "":
-        assigned_cook_id = None
-    elif assigned_cook_id:
-        assigned_cook_id = int(assigned_cook_id)
+    # Convert cook IDs to integers
+    assigned_cook_ids = [int(cook_id) for cook_id in assigned_cook_ids if cook_id]
 
     # Must have either recipe_id or custom_meal_name
     if (not recipe_id or recipe_id == "custom") and not custom_meal_name:
@@ -2651,7 +2648,6 @@ def add_meal_plan_entry():
                 custom_meal_name=custom_meal_name,
                 date=date,
                 meal_type=meal_type,
-                assigned_cook_user_id=assigned_cook_id,
                 notes=notes if notes else None,
             )
         else:
@@ -2661,11 +2657,19 @@ def add_meal_plan_entry():
                 custom_meal_name=None,
                 date=date,
                 meal_type=meal_type,
-                assigned_cook_user_id=assigned_cook_id,
                 notes=notes if notes else None,
             )
 
         db.session.add(entry)
+        db.session.flush()  # Flush to get the entry ID
+
+        # Add assigned cooks to the meal plan entry
+        if assigned_cook_ids:
+            for cook_id in assigned_cook_ids:
+                cook = User.query.get(cook_id)
+                if cook:
+                    entry.assigned_cooks.append(cook)
+
         db.session.commit()
 
         flash("Meal added to plan!", "success")

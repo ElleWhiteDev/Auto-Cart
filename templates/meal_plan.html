@@ -51,6 +51,24 @@
 		transform: scale(0.98);
 	}
 
+	/* Multi-select styling */
+	#assigned_cook_ids {
+		background-color: white;
+		border: 1px solid #ced4da;
+	}
+
+	#assigned_cook_ids option {
+		padding: 6px 8px;
+		border-radius: 3px;
+		margin: 2px 0;
+	}
+
+	#assigned_cook_ids option:checked {
+		background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);
+		color: white;
+		font-weight: 500;
+	}
+
 	/* Mobile-specific styles */
 	@media (max-width: 768px) {
 		/* Hide table on mobile */
@@ -201,7 +219,12 @@
 										<!-- Chef and Delete Button Row -->
 										<div class="d-flex justify-content-between align-items-center">
 											<div class="flex-grow-1">
-												{% if entry.assigned_cook %}
+												{% if entry.assigned_cooks.count() > 0 %}
+												<span class="text-muted" style="font-size: 0.8rem;">
+													<i class="fas fa-utensils"></i>
+													{% for cook in entry.assigned_cooks %}{{ cook.username }}{% if not loop.last %}, {% endif %}{% endfor %}
+												</span>
+												{% elif entry.assigned_cook %}
 												<span class="text-muted" style="font-size: 0.8rem; white-space: nowrap;"><i class="fas fa-utensils"></i> {{ entry.assigned_cook.username }}</span>
 												{% endif %}
 												{% if entry.notes %}
@@ -266,7 +289,12 @@
 								<!-- Chef and Delete Button Row -->
 								<div class="d-flex justify-content-between align-items-center">
 									<div class="flex-grow-1">
-										{% if entry.assigned_cook %}
+										{% if entry.assigned_cooks.count() > 0 %}
+										<span class="text-muted" style="font-size: 0.8rem;">
+											<i class="fas fa-utensils"></i>
+											{% for cook in entry.assigned_cooks %}{{ cook.username }}{% if not loop.last %}, {% endif %}{% endfor %}
+										</span>
+										{% elif entry.assigned_cook %}
 										<span class="text-muted" style="font-size: 0.8rem; white-space: nowrap;"><i class="fas fa-utensils"></i> {{ entry.assigned_cook.username }}</span>
 										{% endif %}
 										{% if entry.notes %}
@@ -336,9 +364,8 @@
 						</select>
 					</div>
 					<div class="col-md-6 col-lg-4">
-						<label for="assigned_cook_id" class="form-label" style="font-size: 0.85rem;"><strong>Cook</strong></label>
-						<select name="assigned_cook_id" id="assigned_cook_id" class="form-control w-100" style="font-size: 0.9rem; padding: 0.4rem 0.6rem;">
-							<option value="">Unassigned</option>
+						<label for="assigned_cook_ids" class="form-label" style="font-size: 0.85rem;"><strong>Cooks</strong> <small class="text-muted">(hold Ctrl/Cmd to select multiple)</small></label>
+						<select name="assigned_cook_ids" id="assigned_cook_ids" class="form-control w-100" style="font-size: 0.9rem; padding: 0.4rem 0.6rem; min-height: 80px;" multiple>
 							{% for user in household_users %}
 							<option value="{{ user.id }}">{{ user.username }}</option>
 							{% endfor %}
