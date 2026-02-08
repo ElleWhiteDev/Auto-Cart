@@ -37,6 +37,20 @@
 		color: #0a58ca !important;
 	}
 
+	/* Clickable day cells */
+	.clickable-day {
+		transition: background-color 0.2s ease, transform 0.1s ease;
+	}
+
+	.clickable-day:hover {
+		background-color: rgba(13, 110, 253, 0.08) !important;
+		transform: scale(1.02);
+	}
+
+	.clickable-day:active {
+		transform: scale(0.98);
+	}
+
 	/* Mobile-specific styles */
 	@media (max-width: 768px) {
 		/* Hide table on mobile */
@@ -159,7 +173,10 @@
 					<tbody>
 						{% for date, meals in meal_plan.items() %}
 						<tr style="border-bottom: 1px solid #dee2e6;">
-							<td class="fw-bold align-middle {% if date == today %}bg-info bg-opacity-10{% endif %}" style="padding: 10px; border-left: none; border-right: 1px solid #dee2e6;">
+							<td class="fw-bold align-middle {% if date == today %}bg-info bg-opacity-10{% endif %} clickable-day"
+								style="padding: 10px; border-left: none; border-right: 1px solid #dee2e6; cursor: pointer;"
+								data-date="{{ date.strftime('%Y-%m-%d') }}"
+								title="Click to add a meal for this day">
 								<div style="font-size: 0.9rem;">
 									{{ date.strftime('%A') }}
 									<span class="text-muted ms-2" style="font-size: 0.85rem; font-weight: 500;">{{ date.strftime('%b %d') }}</span>
@@ -213,12 +230,16 @@
 		<div class="mobile-view p-3">
 			{% for date, meals in meal_plan.items() %}
 			<div class="mobile-day-card card mb-3 {% if date == today %}border-info{% endif %}">
-				<div class="card-header {% if date == today %}bg-info bg-opacity-10{% else %}bg-light{% endif %}">
+				<div class="card-header {% if date == today %}bg-info bg-opacity-10{% else %}bg-light{% endif %} clickable-day"
+					style="cursor: pointer;"
+					data-date="{{ date.strftime('%Y-%m-%d') }}"
+					title="Click to add a meal for this day">
 					<div class="d-flex justify-content-between align-items-center">
 						<div>
 							<span class="fw-bold" style="font-size: 1rem;">{{ date.strftime('%A') }}</span>
 							<span class="text-muted ms-2" style="font-size: 0.85rem; font-weight: 500;">{{ date.strftime('%b %d') }}</span>
 						</div>
+						<i class="fas fa-plus-circle text-success" style="font-size: 1.2rem;"></i>
 					</div>
 				</div>
 				<div class="card-body">
@@ -357,6 +378,42 @@ function toggleCustomMeal() {
 		customMealInput.value = '';
 	}
 }
+
+// Handle clicking on day cells to add meals
+document.addEventListener('DOMContentLoaded', function() {
+	const clickableDays = document.querySelectorAll('.clickable-day');
+	const dateInput = document.getElementById('date');
+	const addMealForm = document.getElementById('addMealForm');
+
+	clickableDays.forEach(function(dayCell) {
+		dayCell.addEventListener('click', function(e) {
+			// Don't trigger if clicking on a button or link inside the cell
+			if (e.target.closest('button') || e.target.closest('a') || e.target.closest('form')) {
+				return;
+			}
+
+			const selectedDate = this.getAttribute('data-date');
+
+			// Set the date in the form
+			dateInput.value = selectedDate;
+
+			// Scroll to the form smoothly
+			addMealForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+			// Add a brief highlight effect to the form
+			addMealForm.style.transition = 'box-shadow 0.3s ease';
+			addMealForm.style.boxShadow = '0 0 20px rgba(13, 110, 253, 0.5)';
+			setTimeout(function() {
+				addMealForm.style.boxShadow = '';
+			}, 1500);
+
+			// Focus on the recipe select field
+			setTimeout(function() {
+				document.getElementById('recipe_id').focus();
+			}, 500);
+		});
+	});
+});
 
 // Form validation and processing state for Add Meal form
 const addMealForm = document.getElementById('addMealForm');

@@ -4,7 +4,7 @@ from app import app, db
 # Stop the Flask app first, then run this script
 
 # Delete the existing database file
-db_files = ['app.db', 'instance/app.db']
+db_files = ["app.db", "instance/app.db"]
 for db_file in db_files:
     if os.path.exists(db_file):
         os.remove(db_file)

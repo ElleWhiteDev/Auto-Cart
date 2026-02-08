@@ -26,6 +26,27 @@
 					<i class="fas fa-trash mr-2"></i>Delete Account
 				</a>
 			</div>
+				<div class="card mt-4">
+					<div class="card-header">
+						<i class="fas fa-microphone mr-2"></i>Alexa Settings
+					</div>
+					<div class="card-body">
+						<form method="POST" action="{{ url_for('user_view') }}">
+							{{ alexa_form.hidden_tag() }}
+							<div class="mb-3">
+								{{ alexa_form.alexa_access_token.label(class="form-label") }}
+								{{ alexa_form.alexa_access_token(class="form-control", placeholder="Paste your Alexa access token or leave blank") }}
+								<small class="form-text text-muted">Used to link your Alexa skill to this Auto-Cart account.</small>
+							</div>
+							<div class="mb-3">
+								{{ alexa_form.default_grocery_list_id.label(class="form-label") }}
+								{{ alexa_form.default_grocery_list_id(class="form-select") }}
+								<small class="form-text text-muted">Alexa will add items to this list by default. If you choose "No default", the most recent planning list will be used.</small>
+							</div>
+							<button type="submit" class="btn btn-primary">Save Alexa Settings</button>
+						</form>
+					</div>
+				</div>
 			<div class="card mt-4">
 				<div class="card-header">
 					<i class="fas fa-book-open mr-2"></i>Household Recipe Box

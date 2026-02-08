@@ -14,7 +14,7 @@ bcrypt = Bcrypt()
 db = SQLAlchemy()
 
 # Initialize OpenAI client using environment variable
-openai_client = OpenAI(api_key=os.environ.get('OPENAI_API_KEY'))
+openai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
 
 class Household(db.Model):
@@ -34,10 +34,18 @@ class Household(db.Model):
     # Kroger integration - one account per household
     kroger_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
 
-    members = db.relationship("HouseholdMember", backref="household", cascade="all, delete-orphan")
-    recipes = db.relationship("Recipe", backref="household", cascade="all, delete-orphan")
-    grocery_lists = db.relationship("GroceryList", backref="household", cascade="all, delete-orphan")
-    meal_plan_entries = db.relationship("MealPlanEntry", backref="household", cascade="all, delete-orphan")
+    members = db.relationship(
+        "HouseholdMember", backref="household", cascade="all, delete-orphan"
+    )
+    recipes = db.relationship(
+        "Recipe", backref="household", cascade="all, delete-orphan"
+    )
+    grocery_lists = db.relationship(
+        "GroceryList", backref="household", cascade="all, delete-orphan"
+    )
+    meal_plan_entries = db.relationship(
+        "MealPlanEntry", backref="household", cascade="all, delete-orphan"
+    )
 
     def get_owners(self):
         """Get all owner members of this household"""
@@ -50,16 +58,14 @@ class Household(db.Model):
     def is_user_owner(self, user_id):
         """Check if a user is an owner of this household"""
         membership = HouseholdMember.query.filter_by(
-            household_id=self.id,
-            user_id=user_id
+            household_id=self.id, user_id=user_id
         ).first()
         return membership and membership.is_owner()
 
     def is_user_member(self, user_id):
         """Check if a user is a member (owner or regular) of this household"""
         membership = HouseholdMember.query.filter_by(
-            household_id=self.id,
-            user_id=user_id
+            household_id=self.id, user_id=user_id
         ).first()
         return membership is not None
 
@@ -77,24 +83,30 @@ class HouseholdMember(db.Model):
 
     __tablename__ = "household_members"
     __table_args__ = (
-        db.UniqueConstraint('household_id', 'user_id', name='unique_household_user'),
+        db.UniqueConstraint("household_id", "user_id", name="unique_household_user"),
     )
 
     id = db.Column(db.Integer, primary_key=True)
-    household_id = db.Column(db.Integer, db.ForeignKey("households.id", ondelete="CASCADE"), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    role = db.Column(db.String(20), nullable=False, default="member")  # 'owner' or 'member'
+    household_id = db.Column(
+        db.Integer, db.ForeignKey("households.id", ondelete="CASCADE"), nullable=False
+    )
+    user_id = db.Column(
+        db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    role = db.Column(
+        db.String(20), nullable=False, default="member"
+    )  # 'owner' or 'member'
     joined_at = db.Column(db.DateTime, nullable=False, default=get_est_now)
 
     user = db.relationship("User", backref="household_memberships")
 
     def is_owner(self):
         """Check if this membership has owner privileges"""
-        return self.role == 'owner'
+        return self.role == "owner"
 
     def is_member(self):
         """Check if this is a regular member (not owner)"""
-        return self.role == 'member'
+        return self.role == "member"
 
     def __repr__(self):
         return f"<HouseholdMember household_id={self.household_id} user_id={self.user_id} role={self.role}>"
@@ -106,12 +118,22 @@ class MealPlanEntry(db.Model):
     __tablename__ = "meal_plan_entries"
 
     id = db.Column(db.Integer, primary_key=True)
-    household_id = db.Column(db.Integer, db.ForeignKey("households.id", ondelete="CASCADE"), nullable=False)
-    recipe_id = db.Column(db.Integer, db.ForeignKey("recipes.id", ondelete="CASCADE"), nullable=True)
-    custom_meal_name = db.Column(db.String(200), nullable=True)  # For meals not in recipe box
+    household_id = db.Column(
+        db.Integer, db.ForeignKey("households.id", ondelete="CASCADE"), nullable=False
+    )
+    recipe_id = db.Column(
+        db.Integer, db.ForeignKey("recipes.id", ondelete="CASCADE"), nullable=True
+    )
+    custom_meal_name = db.Column(
+        db.String(200), nullable=True
+    )  # For meals not in recipe box
     date = db.Column(db.Date, nullable=False)
-    meal_type = db.Column(db.String(20), nullable=True)  # 'breakfast', 'lunch', 'dinner', 'snack'
-    assigned_cook_user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    meal_type = db.Column(
+        db.String(20), nullable=True
+    )  # 'breakfast', 'lunch', 'dinner', 'snack'
+    assigned_cook_user_id = db.Column(
+        db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     notes = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=get_est_now)
 
@@ -126,22 +148,33 @@ class MealPlanEntry(db.Model):
         return self.custom_meal_name or "Untitled Meal"
 
     @classmethod
-    def send_meal_plan_email(cls, recipient, meal_entries, user_id, week_start, week_end, mail):
+    def send_meal_plan_email(
+        cls, recipient, meal_entries, user_id, week_start, week_end, mail
+    ):
         """Send full meal plan summary plus detailed breakdown of user's assigned recipes."""
         from flask_mail import Message
         from collections import defaultdict
         from flask import current_app
+
         try:
             # Get response email from config
-            response_email = current_app.config.get('MAIL_DEFAULT_SENDER', 'support@autocart.com')
+            response_email = current_app.config.get(
+                "MAIL_DEFAULT_SENDER", "support@autocart.com"
+            )
             # Group all meals by date
-            all_meals_by_date = defaultdict(lambda: {'breakfast': [], 'lunch': [], 'dinner': []})
+            all_meals_by_date = defaultdict(
+                lambda: {"breakfast": [], "lunch": [], "dinner": []}
+            )
             for entry in meal_entries:
                 if entry.meal_type in all_meals_by_date[entry.date]:
                     all_meals_by_date[entry.date][entry.meal_type].append(entry)
 
             # Get user's assigned meals
-            my_meals = [entry for entry in meal_entries if entry.assigned_cook_user_id == user_id]
+            my_meals = [
+                entry
+                for entry in meal_entries
+                if entry.assigned_cook_user_id == user_id
+            ]
             my_meals_by_date = defaultdict(list)
             for entry in my_meals:
                 my_meals_by_date[entry.date].append(entry)
@@ -193,7 +226,7 @@ class MealPlanEntry(db.Model):
                 </g>
             </svg>
             <h1 style="margin: 10px 0 0 0; font-size: 24px;">Meal Plan</h1>
-            <p style="margin: 5px 0 0 0; font-size: 14px;">{week_start.strftime('%B %d')} - {week_end.strftime('%B %d, %Y')}</p>
+            <p style="margin: 5px 0 0 0; font-size: 14px;">{week_start.strftime("%B %d")} - {week_end.strftime("%B %d, %Y")}</p>
         </div>
         <div class="content">
             <div class="week-overview">
@@ -203,9 +236,9 @@ class MealPlanEntry(db.Model):
             # Add week overview
             for date in sorted(all_meals_by_date.keys()):
                 html_body += f"""                <div class="day-section">
-                    <div class="day-title">{date.strftime('%A, %B %d, %Y')}</div>
+                    <div class="day-title">{date.strftime("%A, %B %d, %Y")}</div>
 """
-                for meal_type in ['breakfast', 'lunch', 'dinner']:
+                for meal_type in ["breakfast", "lunch", "dinner"]:
                     entries = all_meals_by_date[date][meal_type]
                     if entries:
                         meal_type_display = meal_type.capitalize()
@@ -213,7 +246,11 @@ class MealPlanEntry(db.Model):
                         <span class="meal-type">{meal_type_display}:</span><br>
 """
                         for entry in entries:
-                            cook_name = entry.assigned_cook.username if entry.assigned_cook else "Unassigned"
+                            cook_name = (
+                                entry.assigned_cook.username
+                                if entry.assigned_cook
+                                else "Unassigned"
+                            )
                             html_body += f"""                        • {entry.meal_name} <span class="cook-name">(Cook: {cook_name})</span><br>
 """
                             if entry.notes:
@@ -241,9 +278,11 @@ class MealPlanEntry(db.Model):
 """
                 for date in sorted(my_meals_by_date.keys()):
                     for entry in my_meals_by_date[date]:
-                        meal_type_display = entry.meal_type.capitalize() if entry.meal_type else "Meal"
+                        meal_type_display = (
+                            entry.meal_type.capitalize() if entry.meal_type else "Meal"
+                        )
                         html_body += f"""                <div class="recipe-card">
-                    <h3 class="recipe-title">{date.strftime('%A, %B %d')} - {meal_type_display}: {entry.meal_name}</h3>
+                    <h3 class="recipe-title">{date.strftime("%A, %B %d")} - {meal_type_display}: {entry.meal_name}</h3>
 """
                         if entry.notes:
                             html_body += f"""                    <div class="notes">Meal Notes: {entry.notes}</div>
@@ -259,10 +298,15 @@ class MealPlanEntry(db.Model):
                     <ul class="ingredient-list">
 """
                                 for ingredient in entry.recipe.recipe_ingredients:
-                                    if (ingredient.quantity and
-                                        ingredient.quantity > 0 and
-                                        ingredient.measurement and
-                                        not (ingredient.quantity == 1.0 and ingredient.measurement == "unit")):
+                                    if (
+                                        ingredient.quantity
+                                        and ingredient.quantity > 0
+                                        and ingredient.measurement
+                                        and not (
+                                            ingredient.quantity == 1.0
+                                            and ingredient.measurement == "unit"
+                                        )
+                                    ):
                                         html_body += f"""                        <li>{ingredient.quantity} {ingredient.measurement} {ingredient.ingredient_name}</li>
 """
                                     else:
@@ -274,7 +318,7 @@ class MealPlanEntry(db.Model):
                             if entry.recipe.notes:
                                 html_body += f"""                    <div class="notes">
                         <strong>Instructions/Notes:</strong><br>
-                        {entry.recipe.notes.replace(chr(10), '<br>')}
+                        {entry.recipe.notes.replace(chr(10), "<br>")}
                     </div>
 """
                         html_body += """                </div>
@@ -296,31 +340,39 @@ class MealPlanEntry(db.Model):
 
             # Build plain text version
             text_body = f"MEAL PLAN FOR THE WEEK\n"
-            text_body += f"{week_start.strftime('%B %d')} - {week_end.strftime('%B %d, %Y')}\n"
-            text_body += "="*70 + "\n\n"
+            text_body += (
+                f"{week_start.strftime('%B %d')} - {week_end.strftime('%B %d, %Y')}\n"
+            )
+            text_body += "=" * 70 + "\n\n"
             text_body += "FULL WEEK OVERVIEW\n"
-            text_body += "="*70 + "\n\n"
+            text_body += "=" * 70 + "\n\n"
 
             for date in sorted(all_meals_by_date.keys()):
                 text_body += f"{date.strftime('%A, %B %d, %Y')}\n"
-                text_body += "-"*70 + "\n"
+                text_body += "-" * 70 + "\n"
 
-                for meal_type in ['breakfast', 'lunch', 'dinner']:
+                for meal_type in ["breakfast", "lunch", "dinner"]:
                     entries = all_meals_by_date[date][meal_type]
                     if entries:
                         meal_type_display = meal_type.upper()
                         text_body += f"  {meal_type_display}:\n"
                         for entry in entries:
-                            cook_name = entry.assigned_cook.username if entry.assigned_cook else "Unassigned"
-                            text_body += f"    • {entry.meal_name} (Cook: {cook_name})\n"
+                            cook_name = (
+                                entry.assigned_cook.username
+                                if entry.assigned_cook
+                                else "Unassigned"
+                            )
+                            text_body += (
+                                f"    • {entry.meal_name} (Cook: {cook_name})\n"
+                            )
                             if entry.notes:
                                 text_body += f"      Notes: {entry.notes}\n"
 
                 text_body += "\n"
 
-            text_body += "\n" + "="*70 + "\n"
+            text_body += "\n" + "=" * 70 + "\n"
             text_body += "YOUR ASSIGNED RECIPES (DETAILED)\n"
-            text_body += "="*70 + "\n\n"
+            text_body += "=" * 70 + "\n\n"
 
             if not my_meals:
                 text_body += "You have no meals assigned to you this week.\n"
@@ -330,10 +382,12 @@ class MealPlanEntry(db.Model):
 
                 for date in sorted(my_meals_by_date.keys()):
                     text_body += f"{date.strftime('%A, %B %d, %Y')}\n"
-                    text_body += "-"*70 + "\n"
+                    text_body += "-" * 70 + "\n"
 
                     for entry in my_meals_by_date[date]:
-                        meal_type_display = entry.meal_type.upper() if entry.meal_type else "MEAL"
+                        meal_type_display = (
+                            entry.meal_type.upper() if entry.meal_type else "MEAL"
+                        )
                         text_body += f"\n{meal_type_display}: {entry.meal_name}\n"
 
                         if entry.notes:
@@ -346,20 +400,29 @@ class MealPlanEntry(db.Model):
                             if entry.recipe.recipe_ingredients:
                                 text_body += "\nINGREDIENTS:\n"
                                 for ingredient in entry.recipe.recipe_ingredients:
-                                    if (ingredient.quantity and
-                                        ingredient.quantity > 0 and
-                                        ingredient.measurement and
-                                        not (ingredient.quantity == 1.0 and ingredient.measurement == "unit")):
+                                    if (
+                                        ingredient.quantity
+                                        and ingredient.quantity > 0
+                                        and ingredient.measurement
+                                        and not (
+                                            ingredient.quantity == 1.0
+                                            and ingredient.measurement == "unit"
+                                        )
+                                    ):
                                         text_body += f"  • {ingredient.quantity} {ingredient.measurement} {ingredient.ingredient_name}\n"
                                     else:
-                                        text_body += f"  • {ingredient.ingredient_name}\n"
+                                        text_body += (
+                                            f"  • {ingredient.ingredient_name}\n"
+                                        )
 
                             if entry.recipe.notes:
-                                text_body += f"\nINSTRUCTIONS/NOTES:\n{entry.recipe.notes}\n"
+                                text_body += (
+                                    f"\nINSTRUCTIONS/NOTES:\n{entry.recipe.notes}\n"
+                                )
 
                         text_body += "\n"
 
-                text_body += "="*70 + "\n"
+                text_body += "=" * 70 + "\n"
                 text_body += "\nHappy cooking! 👨‍🍳👩‍🍳\n"
 
             text_body += f"\n---\nAuto-Cart - Smart Household Grocery Management\n\nQuestions? Reply to {response_email}"
@@ -368,12 +431,13 @@ class MealPlanEntry(db.Model):
                 f"Meal Plan ({week_start.strftime('%b %d')} - {week_end.strftime('%b %d, %Y')})",
                 recipients=[recipient],
                 body=text_body,
-                html=html_body
+                html=html_body,
             )
             mail.send(msg)
 
         except Exception as e:
             from logging_config import logger
+
             logger.error(f"Failed to send meal plan email: {e}", exc_info=True)
             raise e
 
@@ -404,7 +468,16 @@ class User(db.Model):
 
     profile_id = db.Column(db.Text, nullable=True)  # Kroger profile ID
 
-    alexa_access_token = db.Column(db.Text, nullable=True, unique=True)  # OAuth token for Alexa integration
+    alexa_access_token = db.Column(
+        db.Text, nullable=True, unique=True
+    )  # OAuth token for Alexa integration
+
+    # Optional default grocery list Alexa should use for this user
+    alexa_default_grocery_list_id = db.Column(
+        db.Integer,
+        db.ForeignKey("grocery_lists.id", ondelete="SET NULL"),
+        nullable=True,
+    )
 
     is_admin = db.Column(db.Boolean, nullable=False, default=False)
 
@@ -415,7 +488,12 @@ class User(db.Model):
         "GroceryList",
         backref="user",
         cascade="all, delete-orphan",
-        foreign_keys="GroceryList.user_id"
+        foreign_keys="GroceryList.user_id",
+    )
+
+    # Direct relationship to the user's Alexa default grocery list (if configured)
+    alexa_default_grocery_list = db.relationship(
+        "GroceryList", foreign_keys=[alexa_default_grocery_list_id]
     )
 
     def get_households(self):
@@ -508,10 +586,14 @@ class Recipe(db.Model):
     name = db.Column(db.Text, nullable=False)
     url = db.Column(db.Text, nullable=True)
     notes = db.Column(db.Text, nullable=True)
-    visibility = db.Column(db.String(20), nullable=False, default="private")  # 'private' or 'household'
+    visibility = db.Column(
+        db.String(20), nullable=False, default="private"
+    )  # 'private' or 'household'
     created_at = db.Column(db.DateTime, nullable=False, default=get_est_now)
 
-    recipe_ingredients = db.relationship("RecipeIngredient", back_populates="recipe", cascade="all, delete-orphan")
+    recipe_ingredients = db.relationship(
+        "RecipeIngredient", back_populates="recipe", cascade="all, delete-orphan"
+    )
 
     @classmethod
     def clean_ingredients_with_openai(cls, ingredients_text):
@@ -550,10 +632,13 @@ Return only the cleaned ingredients, one per line, with no additional text or ex
                 model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": f"Clean these ingredients:\n\n{ingredients_text}"}
+                    {
+                        "role": "user",
+                        "content": f"Clean these ingredients:\n\n{ingredients_text}",
+                    },
                 ],
                 temperature=0.1,
-                max_tokens=1000
+                max_tokens=1000,
             )
 
             cleaned_text = response.choices[0].message.content.strip()
@@ -589,13 +674,17 @@ Return only the JSON array, no explanations."""
                 model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": f"Parse these ingredients:\n\n{ingredients_text}"}
+                    {
+                        "role": "user",
+                        "content": f"Parse these ingredients:\n\n{ingredients_text}",
+                    },
                 ],
                 temperature=0.1,
-                max_tokens=1000
+                max_tokens=1000,
             )
 
             import json
+
             parsed_ingredients = json.loads(response.choices[0].message.content.strip())
             return parsed_ingredients
 
@@ -609,15 +698,26 @@ Return only the JSON array, no explanations."""
             for ingredient in ingredients:
                 ingredient = ingredient.strip()
                 if ingredient:
-                    parsed_ingredients.append({
-                        "quantity": "1",
-                        "measurement": "unit",
-                        "ingredient_name": ingredient[:40],
-                    })
+                    parsed_ingredients.append(
+                        {
+                            "quantity": "1",
+                            "measurement": "unit",
+                            "ingredient_name": ingredient[:40],
+                        }
+                    )
             return parsed_ingredients
 
     @classmethod
-    def create_recipe(cls, ingredients_text, url, user_id, name, notes, household_id=None, visibility="private"):
+    def create_recipe(
+        cls,
+        ingredients_text,
+        url,
+        user_id,
+        name,
+        notes,
+        household_id=None,
+        visibility="private",
+    ):
         """Takes ingredients text and creates a recipe object"""
 
         recipe = cls(
@@ -626,7 +726,7 @@ Return only the JSON array, no explanations."""
             name=name,
             notes=notes,
             household_id=household_id,
-            visibility=visibility
+            visibility=visibility,
         )
 
         # Just split ingredients by lines and store them as-is
@@ -650,15 +750,29 @@ class GroceryListItem(db.Model):
     __tablename__ = "grocery_list_items"
 
     id = db.Column(db.Integer, primary_key=True)
-    grocery_list_id = db.Column(db.Integer, db.ForeignKey("grocery_lists.id", ondelete="CASCADE"), nullable=False)
-    recipe_ingredient_id = db.Column(db.Integer, db.ForeignKey("recipes_ingredients.id", ondelete="CASCADE"), nullable=False)
-    added_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    grocery_list_id = db.Column(
+        db.Integer,
+        db.ForeignKey("grocery_lists.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    recipe_ingredient_id = db.Column(
+        db.Integer,
+        db.ForeignKey("recipes_ingredients.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    added_by_user_id = db.Column(
+        db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     completed = db.Column(db.Boolean, default=False, nullable=False)
-    completed_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    completed_by_user_id = db.Column(
+        db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     completed_at = db.Column(db.DateTime, nullable=True)
     added_at = db.Column(db.DateTime, nullable=False, default=get_est_now)
 
-    recipe_ingredient = db.relationship("RecipeIngredient", backref="grocery_list_items")
+    recipe_ingredient = db.relationship(
+        "RecipeIngredient", backref="grocery_list_items"
+    )
     added_by = db.relationship("User", foreign_keys=[added_by_user_id])
     completed_by = db.relationship("User", foreign_keys=[completed_by_user_id])
 
@@ -693,15 +807,27 @@ class GroceryList(db.Model):
         db.Integer, db.ForeignKey("households.id", ondelete="CASCADE"), nullable=True
     )
     name = db.Column(db.Text, nullable=False, default="My Grocery List")
-    status = db.Column(db.String(20), nullable=False, default="planning")  # 'planning', 'ready_to_shop', 'shopping', 'done'
+    status = db.Column(
+        db.String(20), nullable=False, default="planning"
+    )  # 'planning', 'ready_to_shop', 'shopping', 'done'
     store = db.Column(db.Text, nullable=True)
-    created_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_by_user_id = db.Column(
+        db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     created_at = db.Column(db.DateTime, nullable=False, default=get_est_now)
-    last_modified_at = db.Column(db.DateTime, nullable=False, default=get_est_now, onupdate=get_est_now)
-    last_modified_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
-    shopping_user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True)  # Who is currently shopping
+    last_modified_at = db.Column(
+        db.DateTime, nullable=False, default=get_est_now, onupdate=get_est_now
+    )
+    last_modified_by_user_id = db.Column(
+        db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    shopping_user_id = db.Column(
+        db.Integer, db.ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )  # Who is currently shopping
 
-    items = db.relationship("GroceryListItem", backref="grocery_list", cascade="all, delete-orphan")
+    items = db.relationship(
+        "GroceryListItem", backref="grocery_list", cascade="all, delete-orphan"
+    )
     created_by = db.relationship("User", foreign_keys=[created_by_user_id])
     last_modified_by = db.relationship("User", foreign_keys=[last_modified_by_user_id])
     shopping_user = db.relationship("User", foreign_keys=[shopping_user_id])
@@ -725,23 +851,29 @@ class GroceryList(db.Model):
         if grocery_list is not None:
             for existing_item in grocery_list.items:
                 ingredient = existing_item.recipe_ingredient
-                all_ingredients.append({
-                    'quantity': ingredient.quantity,
-                    'measurement': ingredient.measurement,
-                    'ingredient_name': ingredient.ingredient_name
-                })
+                all_ingredients.append(
+                    {
+                        "quantity": ingredient.quantity,
+                        "measurement": ingredient.measurement,
+                        "ingredient_name": ingredient.ingredient_name,
+                    }
+                )
 
         # Add new ingredients from selected recipes
         for recipe in recipes:
             for recipe_ingredient in recipe.recipe_ingredients:
-                all_ingredients.append({
-                    'quantity': recipe_ingredient.quantity,
-                    'measurement': recipe_ingredient.measurement,
-                    'ingredient_name': recipe_ingredient.ingredient_name
-                })
+                all_ingredients.append(
+                    {
+                        "quantity": recipe_ingredient.quantity,
+                        "measurement": recipe_ingredient.measurement,
+                        "ingredient_name": recipe_ingredient.ingredient_name,
+                    }
+                )
 
         # Use AI to consolidate similar ingredients (will merge duplicates)
-        consolidated_ingredients = cls.consolidate_ingredients_with_openai(all_ingredients)
+        consolidated_ingredients = cls.consolidate_ingredients_with_openai(
+            all_ingredients
+        )
 
         if grocery_list is not None:
             # NOW clear and rebuild with consolidated list (which includes both old and new)
@@ -755,7 +887,9 @@ class GroceryList(db.Model):
             # Convert quantity to float using shared utility
             quantity = parse_quantity_string(quantity_string)
             if quantity is None:
-                logger.warning(f"Skipping ingredient with invalid quantity: {ingredient_data['ingredient_name']}")
+                logger.warning(
+                    f"Skipping ingredient with invalid quantity: {ingredient_data['ingredient_name']}"
+                )
                 continue
 
             recipe_ingredient = RecipeIngredient(
@@ -770,7 +904,7 @@ class GroceryList(db.Model):
             grocery_list_item = GroceryListItem(
                 grocery_list_id=grocery_list.id,
                 recipe_ingredient_id=recipe_ingredient.id,
-                added_by_user_id=user_id
+                added_by_user_id=user_id,
             )
             db.session.add(grocery_list_item)
 
@@ -833,10 +967,15 @@ class GroceryList(db.Model):
 
             # Add grocery list items
             for recipe_ingredient in grocery_list.recipe_ingredients:
-                if (recipe_ingredient.quantity and
-                    recipe_ingredient.quantity > 0 and
-                    recipe_ingredient.measurement and
-                    not (recipe_ingredient.quantity == 1.0 and recipe_ingredient.measurement == "unit")):
+                if (
+                    recipe_ingredient.quantity
+                    and recipe_ingredient.quantity > 0
+                    and recipe_ingredient.measurement
+                    and not (
+                        recipe_ingredient.quantity == 1.0
+                        and recipe_ingredient.measurement == "unit"
+                    )
+                ):
                     html_body += f"                    <li>✓ {recipe_ingredient.quantity} {recipe_ingredient.measurement} {recipe_ingredient.ingredient_name}</li>\n"
                 else:
                     html_body += f"                    <li>✓ {recipe_ingredient.ingredient_name}</li>\n"
@@ -861,10 +1000,15 @@ class GroceryList(db.Model):
                 <ul class="ingredient-list">
 """
                         for ingredient in recipe.recipe_ingredients:
-                            if (ingredient.quantity and
-                                ingredient.quantity > 0 and
-                                ingredient.measurement and
-                                not (ingredient.quantity == 1.0 and ingredient.measurement == "unit")):
+                            if (
+                                ingredient.quantity
+                                and ingredient.quantity > 0
+                                and ingredient.measurement
+                                and not (
+                                    ingredient.quantity == 1.0
+                                    and ingredient.measurement == "unit"
+                                )
+                            ):
                                 html_body += f"                    <li>{ingredient.quantity} {ingredient.measurement} {ingredient.ingredient_name}</li>\n"
                             else:
                                 html_body += f"                    <li>{ingredient.ingredient_name}</li>\n"
@@ -875,7 +1019,7 @@ class GroceryList(db.Model):
                         if recipe.notes:
                             html_body += f"""                <div class="notes">
                     <strong>Instructions/Notes:</strong><br>
-                    {recipe.notes.replace(chr(10), '<br>')}
+                    {recipe.notes.replace(chr(10), "<br>")}
                 </div>
 """
 
@@ -893,13 +1037,18 @@ class GroceryList(db.Model):
 
             # Build plain text version
             text_body = f"Your Grocery List: {grocery_list.name}\n\n"
-            text_body += "="*50 + "\n"
+            text_body += "=" * 50 + "\n"
 
             for recipe_ingredient in grocery_list.recipe_ingredients:
-                if (recipe_ingredient.quantity and
-                    recipe_ingredient.quantity > 0 and
-                    recipe_ingredient.measurement and
-                    not (recipe_ingredient.quantity == 1.0 and recipe_ingredient.measurement == "unit")):
+                if (
+                    recipe_ingredient.quantity
+                    and recipe_ingredient.quantity > 0
+                    and recipe_ingredient.measurement
+                    and not (
+                        recipe_ingredient.quantity == 1.0
+                        and recipe_ingredient.measurement == "unit"
+                    )
+                ):
                     text_body += f"• {recipe_ingredient.quantity} {recipe_ingredient.measurement} {recipe_ingredient.ingredient_name}\n"
                 else:
                     text_body += f"• {recipe_ingredient.ingredient_name}\n"
@@ -907,7 +1056,9 @@ class GroceryList(db.Model):
             if selected_recipe_ids:
                 recipes = Recipe.query.filter(Recipe.id.in_(selected_recipe_ids)).all()
                 if recipes:
-                    text_body += "\n\n" + "="*50 + "\nSELECTED RECIPES\n" + "="*50 + "\n\n"
+                    text_body += (
+                        "\n\n" + "=" * 50 + "\nSELECTED RECIPES\n" + "=" * 50 + "\n\n"
+                    )
 
                     for recipe in recipes:
                         text_body += f"RECIPE: {recipe.name}\n"
@@ -916,10 +1067,15 @@ class GroceryList(db.Model):
 
                         text_body += "\nINGREDIENTS:\n"
                         for ingredient in recipe.recipe_ingredients:
-                            if (ingredient.quantity and
-                                ingredient.quantity > 0 and
-                                ingredient.measurement and
-                                not (ingredient.quantity == 1.0 and ingredient.measurement == "unit")):
+                            if (
+                                ingredient.quantity
+                                and ingredient.quantity > 0
+                                and ingredient.measurement
+                                and not (
+                                    ingredient.quantity == 1.0
+                                    and ingredient.measurement == "unit"
+                                )
+                            ):
                                 text_body += f"• {ingredient.quantity} {ingredient.measurement} {ingredient.ingredient_name}\n"
                             else:
                                 text_body += f"• {ingredient.ingredient_name}\n"
@@ -927,11 +1083,16 @@ class GroceryList(db.Model):
                         if recipe.notes:
                             text_body += f"\nINSTRUCTIONS/NOTES:\n{recipe.notes}\n"
 
-                        text_body += "\n" + "-"*30 + "\n\n"
+                        text_body += "\n" + "-" * 30 + "\n\n"
 
             text_body += "\n---\nAuto-Cart - Smart Household Grocery Management"
 
-            msg = Message("Your Grocery List & Recipes", recipients=[recipient], body=text_body, html=html_body)
+            msg = Message(
+                "Your Grocery List & Recipes",
+                recipients=[recipient],
+                body=text_body,
+                html=html_body,
+            )
             mail.send(msg)
 
         except Exception as e:
@@ -1012,10 +1173,15 @@ class GroceryList(db.Model):
                         text_body += "\nINGREDIENTS:\n"
 
                         for ingredient in recipe.recipe_ingredients:
-                            if (ingredient.quantity and
-                                ingredient.quantity > 0 and
-                                ingredient.measurement and
-                                not (ingredient.quantity == 1.0 and ingredient.measurement == "unit")):
+                            if (
+                                ingredient.quantity
+                                and ingredient.quantity > 0
+                                and ingredient.measurement
+                                and not (
+                                    ingredient.quantity == 1.0
+                                    and ingredient.measurement == "unit"
+                                )
+                            ):
                                 html_body += f"                    <li>{ingredient.quantity} {ingredient.measurement} {ingredient.ingredient_name}</li>\n"
                                 text_body += f"• {ingredient.quantity} {ingredient.measurement} {ingredient.ingredient_name}\n"
                             else:
@@ -1028,14 +1194,14 @@ class GroceryList(db.Model):
                         if recipe.notes:
                             html_body += f"""                <div class="notes">
                     <strong>Instructions/Notes:</strong><br>
-                    {recipe.notes.replace(chr(10), '<br>')}
+                    {recipe.notes.replace(chr(10), "<br>")}
                 </div>
 """
                             text_body += f"\nINSTRUCTIONS/NOTES:\n{recipe.notes}\n"
 
                         html_body += """            </div>
 """
-                        text_body += "\n" + "-"*30 + "\n\n"
+                        text_body += "\n" + "-" * 30 + "\n\n"
                 else:
                     html_body += """            <div class="no-recipes">
                 <p>No recipes selected.</p>
@@ -1060,7 +1226,9 @@ class GroceryList(db.Model):
 
             text_body += "\n---\nAuto-Cart - Smart Household Grocery Management"
 
-            msg = Message("Your Recipes", recipients=[recipient], body=text_body, html=html_body)
+            msg = Message(
+                "Your Recipes", recipients=[recipient], body=text_body, html=html_body
+            )
             mail.send(msg)
 
         except Exception as e:
@@ -1081,10 +1249,12 @@ class GroceryList(db.Model):
         """Consolidate similar ingredients using OpenAI."""
         try:
             # Format ingredients for AI processing
-            ingredients_text = "\n".join([
-                f"{ing['quantity']} {ing['measurement']} {ing['ingredient_name']}"
-                for ing in ingredients_list
-            ])
+            ingredients_text = "\n".join(
+                [
+                    f"{ing['quantity']} {ing['measurement']} {ing['ingredient_name']}"
+                    for ing in ingredients_list
+                ]
+            )
 
             system_prompt = """You are an intelligent grocery list consolidator. Your task is to combine similar ingredients while preserving accurate quantities and important variety distinctions.
 
@@ -1119,39 +1289,48 @@ Only return the consolidated ingredients, no explanations."""
                 model="gpt-4o-mini",
                 messages=[
                     {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": f"Consolidate these ingredients:\n\n{ingredients_text}"}
+                    {
+                        "role": "user",
+                        "content": f"Consolidate these ingredients:\n\n{ingredients_text}",
+                    },
                 ],
                 temperature=0.1,
-                max_tokens=1000
+                max_tokens=1000,
             )
 
             consolidated_text = response.choices[0].message.content.strip()
 
             # Parse the consolidated ingredients back into the expected format
             consolidated_ingredients = []
-            for line in consolidated_text.split('\n'):
+            for line in consolidated_text.split("\n"):
                 line = line.strip()
                 if not line:
                     continue
 
                 # Parse the consolidated ingredient - improved regex to handle mixed numbers and decimals
                 # Matches: "2 cups flour", "1/2 cup sugar", "1.5 lb beef", "2 1/2 tbsp salt"
-                match = re.match(r'^(\d+(?:\s+\d+/\d+|\.\d+|/\d+)?)\s+(\S+)\s+(.*)', line)
+                match = re.match(
+                    r"^(\d+(?:\s+\d+/\d+|\.\d+|/\d+)?)\s+(\S+)\s+(.*)", line
+                )
                 if match:
                     quantity, measurement, ingredient_name = match.groups()
-                    consolidated_ingredients.append({
-                        'quantity': quantity.strip(),
-                        'measurement': measurement.strip(),
-                        'ingredient_name': ingredient_name.strip()
-                    })
+                    consolidated_ingredients.append(
+                        {
+                            "quantity": quantity.strip(),
+                            "measurement": measurement.strip(),
+                            "ingredient_name": ingredient_name.strip(),
+                        }
+                    )
                 else:
                     # Fallback: if parsing fails, keep the ingredient with default values
                     logger.warning(f"Could not parse consolidated ingredient: {line}")
-                    consolidated_ingredients.append({
-                        'quantity': '1',
-                        'measurement': 'unit',
-                        'ingredient_name': line
-                    })
+                    consolidated_ingredients.append(
+                        {
+                            "quantity": "1",
+                            "measurement": "unit",
+                            "ingredient_name": line,
+                        }
+                    )
 
             return consolidated_ingredients
 
@@ -1159,6 +1338,7 @@ Only return the consolidated ingredients, no explanations."""
             logger.error(f"OpenAI ingredient consolidation error: {e}", exc_info=True)
             logger.info("Falling back to original ingredients")
             return ingredients_list
+
 
 def connect_db(app):
     db.app = app

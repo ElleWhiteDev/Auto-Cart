@@ -5,11 +5,21 @@ This script creates new tables and updates existing ones to support multi-user h
 
 import os
 from dotenv import load_dotenv
+
 load_dotenv()
 
 from app import app, db
-from models import User, Recipe, GroceryList, Household, HouseholdMember, MealPlanEntry, GroceryListItem
+from models import (
+    User,
+    Recipe,
+    GroceryList,
+    Household,
+    HouseholdMember,
+    MealPlanEntry,
+    GroceryListItem,
+)
 from sqlalchemy import text
+
 
 def migrate_to_household():
     """Run the migration to add household features"""
@@ -27,38 +37,56 @@ def migrate_to_household():
 
         # Add columns to recipes table
         try:
-            db.session.execute(text("ALTER TABLE recipes ADD COLUMN household_id INTEGER"))
+            db.session.execute(
+                text("ALTER TABLE recipes ADD COLUMN household_id INTEGER")
+            )
             print("   ✓ Added household_id to recipes")
         except Exception as e:
             print(f"   - household_id already exists in recipes or error: {e}")
 
         try:
-            db.session.execute(text("ALTER TABLE recipes ADD COLUMN visibility VARCHAR(20) DEFAULT 'private'"))
+            db.session.execute(
+                text(
+                    "ALTER TABLE recipes ADD COLUMN visibility VARCHAR(20) DEFAULT 'private'"
+                )
+            )
             print("   ✓ Added visibility to recipes")
         except Exception as e:
             print(f"   - visibility already exists in recipes or error: {e}")
 
         try:
-            db.session.execute(text("ALTER TABLE recipes ADD COLUMN created_at DATETIME"))
+            db.session.execute(
+                text("ALTER TABLE recipes ADD COLUMN created_at DATETIME")
+            )
             print("   ✓ Added created_at to recipes")
         except Exception as e:
             print(f"   - created_at already exists in recipes or error: {e}")
 
         # Add columns to grocery_lists table
         try:
-            db.session.execute(text("ALTER TABLE grocery_lists ADD COLUMN household_id INTEGER"))
+            db.session.execute(
+                text("ALTER TABLE grocery_lists ADD COLUMN household_id INTEGER")
+            )
             print("   ✓ Added household_id to grocery_lists")
         except Exception as e:
             print(f"   - household_id already exists in grocery_lists or error: {e}")
 
         try:
-            db.session.execute(text("ALTER TABLE grocery_lists ADD COLUMN name TEXT DEFAULT 'My Grocery List'"))
+            db.session.execute(
+                text(
+                    "ALTER TABLE grocery_lists ADD COLUMN name TEXT DEFAULT 'My Grocery List'"
+                )
+            )
             print("   ✓ Added name to grocery_lists")
         except Exception as e:
             print(f"   - name already exists in grocery_lists or error: {e}")
 
         try:
-            db.session.execute(text("ALTER TABLE grocery_lists ADD COLUMN status VARCHAR(20) DEFAULT 'planning'"))
+            db.session.execute(
+                text(
+                    "ALTER TABLE grocery_lists ADD COLUMN status VARCHAR(20) DEFAULT 'planning'"
+                )
+            )
             print("   ✓ Added status to grocery_lists")
         except Exception as e:
             print(f"   - status already exists in grocery_lists or error: {e}")
@@ -70,38 +98,60 @@ def migrate_to_household():
             print(f"   - store already exists in grocery_lists or error: {e}")
 
         try:
-            db.session.execute(text("ALTER TABLE grocery_lists ADD COLUMN created_by_user_id INTEGER"))
+            db.session.execute(
+                text("ALTER TABLE grocery_lists ADD COLUMN created_by_user_id INTEGER")
+            )
             print("   ✓ Added created_by_user_id to grocery_lists")
         except Exception as e:
-            print(f"   - created_by_user_id already exists in grocery_lists or error: {e}")
+            print(
+                f"   - created_by_user_id already exists in grocery_lists or error: {e}"
+            )
 
         try:
-            db.session.execute(text("ALTER TABLE grocery_lists ADD COLUMN created_at DATETIME"))
+            db.session.execute(
+                text("ALTER TABLE grocery_lists ADD COLUMN created_at DATETIME")
+            )
             print("   ✓ Added created_at to grocery_lists")
         except Exception as e:
             print(f"   - created_at already exists in grocery_lists or error: {e}")
 
         try:
-            db.session.execute(text("ALTER TABLE grocery_lists ADD COLUMN last_modified_at DATETIME"))
+            db.session.execute(
+                text("ALTER TABLE grocery_lists ADD COLUMN last_modified_at DATETIME")
+            )
             print("   ✓ Added last_modified_at to grocery_lists")
         except Exception as e:
-            print(f"   - last_modified_at already exists in grocery_lists or error: {e}")
+            print(
+                f"   - last_modified_at already exists in grocery_lists or error: {e}"
+            )
 
         try:
-            db.session.execute(text("ALTER TABLE grocery_lists ADD COLUMN last_modified_by_user_id INTEGER"))
+            db.session.execute(
+                text(
+                    "ALTER TABLE grocery_lists ADD COLUMN last_modified_by_user_id INTEGER"
+                )
+            )
             print("   ✓ Added last_modified_by_user_id to grocery_lists")
         except Exception as e:
-            print(f"   - last_modified_by_user_id already exists in grocery_lists or error: {e}")
+            print(
+                f"   - last_modified_by_user_id already exists in grocery_lists or error: {e}"
+            )
 
         try:
-            db.session.execute(text("ALTER TABLE grocery_lists ADD COLUMN shopping_user_id INTEGER"))
+            db.session.execute(
+                text("ALTER TABLE grocery_lists ADD COLUMN shopping_user_id INTEGER")
+            )
             print("   ✓ Added shopping_user_id to grocery_lists")
         except Exception as e:
-            print(f"   - shopping_user_id already exists in grocery_lists or error: {e}")
+            print(
+                f"   - shopping_user_id already exists in grocery_lists or error: {e}"
+            )
 
         # Add kroger_user_id to households table
         try:
-            db.session.execute(text("ALTER TABLE households ADD COLUMN kroger_user_id INTEGER"))
+            db.session.execute(
+                text("ALTER TABLE households ADD COLUMN kroger_user_id INTEGER")
+            )
             print("   ✓ Added kroger_user_id to households")
         except Exception as e:
             print(f"   - kroger_user_id already exists in households or error: {e}")
@@ -114,7 +164,9 @@ def migrate_to_household():
 
         for user in users:
             # Check if user already has a household
-            existing_membership = HouseholdMember.query.filter_by(user_id=user.id).first()
+            existing_membership = HouseholdMember.query.filter_by(
+                user_id=user.id
+            ).first()
             if existing_membership:
                 print(f"   - User {user.username} already has a household, skipping")
                 continue
@@ -122,16 +174,14 @@ def migrate_to_household():
             # Create a household for this user
             household = Household(
                 name=f"{user.username}'s Household",
-                kroger_user_id=user.id if user.oauth_token else None
+                kroger_user_id=user.id if user.oauth_token else None,
             )
             db.session.add(household)
             db.session.flush()  # Get the household ID
 
             # Add user as owner of their household
             membership = HouseholdMember(
-                household_id=household.id,
-                user_id=user.id,
-                role='owner'
+                household_id=household.id, user_id=user.id, role="owner"
             )
             db.session.add(membership)
 
@@ -148,19 +198,25 @@ def migrate_to_household():
             membership = HouseholdMember.query.filter_by(user_id=recipe.user_id).first()
             if membership:
                 recipe.household_id = membership.household_id
-                recipe.visibility = 'household'  # Make existing recipes household-visible by default
+                recipe.visibility = (
+                    "household"  # Make existing recipes household-visible by default
+                )
                 print(f"   ✓ Migrated recipe '{recipe.name}' to household")
 
         db.session.commit()
 
         # Update existing grocery lists to belong to households
         print("\n5. Migrating existing grocery lists to households...")
-        grocery_lists = GroceryList.query.filter(GroceryList.household_id.is_(None)).all()
+        grocery_lists = GroceryList.query.filter(
+            GroceryList.household_id.is_(None)
+        ).all()
 
         for grocery_list in grocery_lists:
             # Find the user's household
             if grocery_list.user_id:
-                membership = HouseholdMember.query.filter_by(user_id=grocery_list.user_id).first()
+                membership = HouseholdMember.query.filter_by(
+                    user_id=grocery_list.user_id
+                ).first()
                 if membership:
                     grocery_list.household_id = membership.household_id
                     grocery_list.created_by_user_id = grocery_list.user_id
@@ -174,9 +230,11 @@ def migrate_to_household():
 
         # Check if old association table exists
         try:
-            result = db.session.execute(text(
-                "SELECT grocery_list_id, recipe_ingredient_id FROM grocery_lists_recipe_ingredients"
-            ))
+            result = db.session.execute(
+                text(
+                    "SELECT grocery_list_id, recipe_ingredient_id FROM grocery_lists_recipe_ingredients"
+                )
+            )
 
             for row in result:
                 grocery_list_id, recipe_ingredient_id = row
@@ -184,7 +242,7 @@ def migrate_to_household():
                 # Check if this item already exists in new structure
                 existing_item = GroceryListItem.query.filter_by(
                     grocery_list_id=grocery_list_id,
-                    recipe_ingredient_id=recipe_ingredient_id
+                    recipe_ingredient_id=recipe_ingredient_id,
                 ).first()
 
                 if not existing_item:
@@ -194,7 +252,7 @@ def migrate_to_household():
                     item = GroceryListItem(
                         grocery_list_id=grocery_list_id,
                         recipe_ingredient_id=recipe_ingredient_id,
-                        added_by_user_id=grocery_list.user_id if grocery_list else None
+                        added_by_user_id=grocery_list.user_id if grocery_list else None,
                     )
                     db.session.add(item)
 
@@ -211,5 +269,6 @@ def migrate_to_household():
         print("2. Users can now invite others to their households")
         print("3. Recipes and grocery lists are now shared within households")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     migrate_to_household()

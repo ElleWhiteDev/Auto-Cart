@@ -1,5 +1,5 @@
 from flask_wtf import FlaskForm
-from wtforms import TextAreaField, StringField, PasswordField
+from wtforms import TextAreaField, StringField, PasswordField, SelectField
 from wtforms.validators import DataRequired, Email, Optional, Length, EqualTo
 
 
@@ -39,7 +39,9 @@ class UpdateEmailForm(FlaskForm):
 class UpdateUsernameForm(FlaskForm):
     """Form to change username"""
 
-    username = StringField("New Username", validators=[DataRequired(), Length(min=3, max=20)])
+    username = StringField(
+        "New Username", validators=[DataRequired(), Length(min=3, max=20)]
+    )
     password = PasswordField("Current Password", validators=[DataRequired()])
 
 
@@ -52,3 +54,19 @@ class AddRecipeForm(FlaskForm):
     )
     url = StringField("Recipe URL", validators=[Optional()])
     notes = TextAreaField("Notes", validators=[Optional()])
+
+
+class AlexaSettingsForm(FlaskForm):
+    """Form for updating Alexa integration settings for a user."""
+
+    alexa_access_token = StringField(
+        "Alexa Access Token",
+        validators=[Optional(), Length(max=255)],
+    )
+
+    # Populated at runtime with the user's accessible grocery lists
+    default_grocery_list_id = SelectField(
+        "Default Grocery List for Alexa",
+        coerce=int,
+        validators=[Optional()],
+    )

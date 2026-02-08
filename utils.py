@@ -1,4 +1,3 @@
-
 """Utility functions for the Flask application."""
 
 import base64
@@ -14,12 +13,14 @@ import pytz
 CURR_USER_KEY = "curr_user"
 CURR_GROCERY_LIST_KEY = "curr_grocery_list"
 
+
 # Timezone utilities
 def get_est_now():
     """Get current time in EST timezone as a timezone-naive datetime"""
-    est = pytz.timezone('US/Eastern')
+    est = pytz.timezone("US/Eastern")
     # Get current time in EST and remove timezone info for database storage
     return datetime.now(est).replace(tzinfo=None)
+
 
 def get_est_date():
     """Get current date in EST timezone"""
@@ -28,26 +29,30 @@ def get_est_date():
 
 def require_login(func):
     """Check user is logged in"""
+
     @wraps(func)
     def wrapper(*args, **kwargs):
         if CURR_USER_KEY not in session:
-            flash('You must be logged in to view this page', 'danger')
-            return redirect(url_for('login'))
+            flash("You must be logged in to view this page", "danger")
+            return redirect(url_for("login"))
         return func(*args, **kwargs)
+
     return wrapper
 
 
 def require_admin(func):
     """Check user is logged in and is an admin"""
+
     @wraps(func)
     def wrapper(*args, **kwargs):
         if CURR_USER_KEY not in session:
-            flash('You must be logged in to view this page', 'danger')
-            return redirect(url_for('login'))
+            flash("You must be logged in to view this page", "danger")
+            return redirect(url_for("login"))
         if not g.user or not g.user.is_admin:
-            flash('Access denied. Admin privileges required.', 'danger')
-            return redirect(url_for('homepage'))
+            flash("Access denied. Admin privileges required.", "danger")
+            return redirect(url_for("homepage"))
         return func(*args, **kwargs)
+
     return wrapper
 
 
@@ -67,9 +72,9 @@ def do_logout():
 def initialize_session_defaults():
     """Initialize default session values if they don't exist."""
     defaults = {
-        'show_modal': False,
-        'products_for_cart': [],
-        'items_to_choose_from': []
+        "show_modal": False,
+        "products_for_cart": [],
+        "items_to_choose_from": [],
     }
 
     for key, default_value in defaults.items():
@@ -83,18 +88,22 @@ def encode_client_credentials(client_id: str, client_secret: str) -> str:
     return base64.b64encode(client_credentials.encode()).decode()
 
 
-def build_oauth_url(base_url: str, client_id: str, redirect_uri: str, scope: str) -> str:
+def build_oauth_url(
+    base_url: str, client_id: str, redirect_uri: str, scope: str
+) -> str:
     """Build OAuth authorization URL."""
     params = {
-        'client_id': client_id,
-        'redirect_uri': redirect_uri,
-        'response_type': 'code',
-        'scope': scope
+        "client_id": client_id,
+        "redirect_uri": redirect_uri,
+        "response_type": "code",
+        "scope": scope,
     }
     return f"{base_url}/authorize?{urlencode(params)}"
 
 
-def safe_get_json_value(response_json: Dict[str, Any], key: str, default: Any = None) -> Any:
+def safe_get_json_value(
+    response_json: Dict[str, Any], key: str, default: Any = None
+) -> Any:
     """Safely extract value from JSON response."""
     return response_json.get(key, default)
 

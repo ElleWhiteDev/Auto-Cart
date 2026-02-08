@@ -12,14 +12,14 @@ from logging_config import logger
 def scrape_recipe_data(url: str) -> Dict[str, Any]:
     """Scrape recipe data from a given URL."""
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
     }
 
     try:
         response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
 
-        soup = BeautifulSoup(response.content, 'html.parser')
+        soup = BeautifulSoup(response.content, "html.parser")
 
         # Try different extraction methods
         recipe_data = extract_jsonld_recipe(soup)
@@ -34,20 +34,40 @@ def scrape_recipe_data(url: str) -> Dict[str, Any]:
         if recipe_data:
             return recipe_data
 
-        return {"name": "", "ingredients": [], "instructions": "", "error": "No recipe data found on this page"}
+        return {
+            "name": "",
+            "ingredients": [],
+            "instructions": "",
+            "error": "No recipe data found on this page",
+        }
 
     except requests.exceptions.Timeout:
-        return {"name": "", "ingredients": [], "instructions": "", "error": "Request timed out"}
+        return {
+            "name": "",
+            "ingredients": [],
+            "instructions": "",
+            "error": "Request timed out",
+        }
     except requests.exceptions.RequestException as e:
-        return {"name": "", "ingredients": [], "instructions": "", "error": f"Failed to fetch page: {str(e)}"}
+        return {
+            "name": "",
+            "ingredients": [],
+            "instructions": "",
+            "error": f"Failed to fetch page: {str(e)}",
+        }
     except Exception as e:
-        return {"name": "", "ingredients": [], "instructions": "", "error": f"Error parsing page: {str(e)}"}
+        return {
+            "name": "",
+            "ingredients": [],
+            "instructions": "",
+            "error": f"Error parsing page: {str(e)}",
+        }
 
 
 def extract_jsonld_recipe(soup: BeautifulSoup) -> Optional[Dict[str, Any]]:
     """Extract recipe data from JSON-LD structured data."""
     try:
-        json_scripts = soup.find_all('script', type='application/ld+json')
+        json_scripts = soup.find_all("script", type="application/ld+json")
 
         for script in json_scripts:
             try:
@@ -76,39 +96,41 @@ def extract_jsonld_recipe(soup: BeautifulSoup) -> Optional[Dict[str, Any]]:
 
 def _extract_recipe_from_jsonld_item(item: Dict) -> Optional[Dict[str, Any]]:
     """Extract recipe data from a single JSON-LD item."""
-    type_field = item.get('@type', '')
+    type_field = item.get("@type", "")
 
-    if 'Recipe' in type_field or type_field == 'Recipe':
-        name = item.get('name', '')
+    if "Recipe" in type_field or type_field == "Recipe":
+        name = item.get("name", "")
 
         # Extract ingredients
         ingredients = []
-        recipe_ingredients = item.get('recipeIngredient', [])
+        recipe_ingredients = item.get("recipeIngredient", [])
         for ingredient in recipe_ingredients:
             if isinstance(ingredient, str):
                 ingredients.append(ingredient.strip())
             elif isinstance(ingredient, dict):
-                ingredients.append(ingredient.get('text', '').strip())
+                ingredients.append(ingredient.get("text", "").strip())
 
         # Extract instructions
         instructions = []
-        recipe_instructions = item.get('recipeInstructions', [])
+        recipe_instructions = item.get("recipeInstructions", [])
         for instruction in recipe_instructions:
             if isinstance(instruction, str):
                 instructions.append(instruction.strip())
             elif isinstance(instruction, dict):
-                text = instruction.get('text', '') or instruction.get('name', '')
+                text = instruction.get("text", "") or instruction.get("name", "")
                 if text:
                     instructions.append(text.strip())
 
-        instructions_text = '\n'.join(f"{i+1}. {inst}" for i, inst in enumerate(instructions))
+        instructions_text = "\n".join(
+            f"{i + 1}. {inst}" for i, inst in enumerate(instructions)
+        )
 
         if name or ingredients:
             return {
                 "name": name,
                 "ingredients": ingredients,
                 "instructions": instructions_text,
-                "error": None
+                "error": None,
             }
 
     return None
@@ -126,7 +148,9 @@ def extract_microdata_recipe(soup: BeautifulSoup) -> Optional[Dict[str, Any]]:
 
             # Extract ingredients
             ingredients = []
-            ingredient_elems = recipe_elem.find_all(attrs={"itemprop": "recipeIngredient"})
+            ingredient_elems = recipe_elem.find_all(
+                attrs={"itemprop": "recipeIngredient"}
+            )
             for elem in ingredient_elems:
                 text = elem.get_text(strip=True)
                 if text:
@@ -134,20 +158,24 @@ def extract_microdata_recipe(soup: BeautifulSoup) -> Optional[Dict[str, Any]]:
 
             # Extract instructions
             instructions = []
-            instruction_elems = recipe_elem.find_all(attrs={"itemprop": "recipeInstructions"})
+            instruction_elems = recipe_elem.find_all(
+                attrs={"itemprop": "recipeInstructions"}
+            )
             for elem in instruction_elems:
                 text = elem.get_text(strip=True)
                 if text:
                     instructions.append(text)
 
-            instructions_text = '\n'.join(f"{i+1}. {inst}" for i, inst in enumerate(instructions))
+            instructions_text = "\n".join(
+                f"{i + 1}. {inst}" for i, inst in enumerate(instructions)
+            )
 
             if name or ingredients:
                 return {
                     "name": name,
                     "ingredients": ingredients,
                     "instructions": instructions_text,
-                    "error": None
+                    "error": None,
                 }
 
     except Exception as e:
@@ -161,18 +189,29 @@ def extract_html_patterns(soup: BeautifulSoup) -> Optional[Dict[str, Any]]:
     try:
         # Common selectors for recipe elements
         name_selectors = [
-            'h1.recipe-title', 'h1.entry-title', '.recipe-header h1',
-            'h1[class*="recipe"]', 'h1[class*="title"]', '.recipe-name'
+            "h1.recipe-title",
+            "h1.entry-title",
+            ".recipe-header h1",
+            'h1[class*="recipe"]',
+            'h1[class*="title"]',
+            ".recipe-name",
         ]
 
         ingredient_selectors = [
-            '.recipe-ingredients li', '.ingredients li', '[class*="ingredient"] li',
-            '.recipe-ingredient', '.ingredient-list li'
+            ".recipe-ingredients li",
+            ".ingredients li",
+            '[class*="ingredient"] li',
+            ".recipe-ingredient",
+            ".ingredient-list li",
         ]
 
         instruction_selectors = [
-            '.recipe-instructions li', '.instructions li', '.recipe-directions li',
-            '.directions li', '[class*="instruction"] li', '.recipe-method li'
+            ".recipe-instructions li",
+            ".instructions li",
+            ".recipe-directions li",
+            ".directions li",
+            '[class*="instruction"] li',
+            ".recipe-method li",
         ]
 
         # Extract name
@@ -207,7 +246,9 @@ def extract_html_patterns(soup: BeautifulSoup) -> Optional[Dict[str, Any]]:
 
         instructions = ""
         if instruction_steps:
-            instructions = '\n'.join(f"{i+1}. {step}" for i, step in enumerate(instruction_steps))
+            instructions = "\n".join(
+                f"{i + 1}. {step}" for i, step in enumerate(instruction_steps)
+            )
 
         # Return data if we found something useful
         if name or ingredients or instruction_steps:
@@ -215,7 +256,7 @@ def extract_html_patterns(soup: BeautifulSoup) -> Optional[Dict[str, Any]]:
                 "name": name or "Untitled Recipe",
                 "ingredients": ingredients,
                 "instructions": instructions,
-                "error": None
+                "error": None,
             }
 
     except Exception as e:
