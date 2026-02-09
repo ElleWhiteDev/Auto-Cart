@@ -4490,7 +4490,35 @@ def migrate_database():
             migration_results.append(f"❌ Failed to create meal_plan_changes: {str(e2)[:100]}")
             logger.error(f"Failed to create meal_plan_changes table: {e2}")
 
-    # Migration 11: Add receive_meal_plan_emails column to household_members table
+    # Migration 11: Add reset_token and reset_token_expiry columns to users table
+    password_reset_columns = [
+        ("reset_token", "TEXT"),
+        ("reset_token_expiry", "TIMESTAMP")
+    ]
+
+    for col_name, col_type in password_reset_columns:
+        try:
+            logger.info(f"Checking for {col_name} column in users...")
+            db.session.execute(text(f"SELECT {col_name} FROM users LIMIT 1"))
+            db.session.commit()
+            migration_results.append(f"✓ {col_name} column already exists in users")
+        except Exception as e:
+            db.session.rollback()
+            logger.info(f"{col_name} column check failed: {e}")
+            try:
+                logger.info(f"Adding {col_name} column to users table...")
+                db.session.execute(
+                    text(f"ALTER TABLE users ADD COLUMN {col_name} {col_type}")
+                )
+                db.session.commit()
+                migration_results.append(f"✓ Added {col_name} column to users table")
+                logger.info(f"{col_name} column added successfully")
+            except Exception as e2:
+                db.session.rollback()
+                migration_results.append(f"❌ Failed to add {col_name}: {str(e2)[:100]}")
+                logger.error(f"Failed to add {col_name} column: {e2}")
+
+    # Migration 12: Add receive_meal_plan_emails column to household_members table
     try:
         logger.info("Checking for receive_meal_plan_emails column...")
         db.session.execute(text("SELECT receive_meal_plan_emails FROM household_members LIMIT 1"))
@@ -4502,7 +4530,7 @@ def migrate_database():
         try:
             logger.info("Adding receive_meal_plan_emails column to household_members table...")
             db.session.execute(
-                text("ALTER TABLE household_members ADD COLUMN receive_meal_plan_emails BOOLEAN NOT NULL DEFAULT 1")
+                text("ALTER TABLE household_members ADD COLUMN receive_meal_plan_emails BOOLEAN NOT NULL DEFAULT TRUE")
             )
             db.session.commit()
             migration_results.append("✓ Added receive_meal_plan_emails column to household_members table")
@@ -4512,7 +4540,7 @@ def migrate_database():
             migration_results.append(f"❌ Failed to add receive_meal_plan_emails: {str(e2)[:100]}")
             logger.error(f"Failed to add receive_meal_plan_emails column: {e2}")
 
-    # Migration 12: Add receive_chef_assignment_emails column to household_members table
+    # Migration 13: Add receive_chef_assignment_emails column to household_members table
     try:
         logger.info("Checking for receive_chef_assignment_emails column...")
         db.session.execute(text("SELECT receive_chef_assignment_emails FROM household_members LIMIT 1"))
@@ -4524,7 +4552,7 @@ def migrate_database():
         try:
             logger.info("Adding receive_chef_assignment_emails column to household_members table...")
             db.session.execute(
-                text("ALTER TABLE household_members ADD COLUMN receive_chef_assignment_emails BOOLEAN NOT NULL DEFAULT 1")
+                text("ALTER TABLE household_members ADD COLUMN receive_chef_assignment_emails BOOLEAN NOT NULL DEFAULT TRUE")
             )
             db.session.commit()
             migration_results.append("✓ Added receive_chef_assignment_emails column to household_members table")
