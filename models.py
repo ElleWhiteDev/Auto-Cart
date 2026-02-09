@@ -1366,6 +1366,28 @@ Only return the consolidated ingredients, no explanations."""
             return ingredients_list
 
 
+class MealPlanChange(db.Model):
+    """Track meal plan changes for daily summary emails"""
+
+    __tablename__ = "meal_plan_changes"
+
+    id = db.Column(db.Integer, primary_key=True)
+    household_id = db.Column(db.Integer, db.ForeignKey("households.id"), nullable=False)
+    change_type = db.Column(db.String(20), nullable=False)  # 'added', 'updated', 'deleted'
+    meal_name = db.Column(db.Text, nullable=False)
+    meal_date = db.Column(db.Date, nullable=False)
+    meal_type = db.Column(db.String(20), nullable=False)  # 'breakfast', 'lunch', 'dinner'
+    changed_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    changed_at = db.Column(db.DateTime, nullable=False, default=get_est_now)
+    emailed = db.Column(db.Boolean, default=False, nullable=False)
+
+    # Optional: store what changed for updates
+    change_details = db.Column(db.Text, nullable=True)  # JSON string with details
+
+    household = db.relationship("Household", backref="meal_plan_changes")
+    changed_by = db.relationship("User", backref="meal_plan_changes")
+
+
 def connect_db(app):
     db.app = app
     db.init_app(app)

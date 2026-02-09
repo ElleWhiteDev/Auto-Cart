@@ -1551,6 +1551,23 @@ def export_recipe(recipe_id):
             f"Exported recipe '{recipe.name}' to household {target_household.name}"
         )
 
+        # Send email to all members of the target household (except the person sharing)
+        target_members = HouseholdMember.query.filter_by(household_id=household_id).all()
+        for member in target_members:
+            if member.user.email and member.user.id != g.user.id:
+                try:
+                    send_recipe_shared_email(
+                        recipient_email=member.user.email,
+                        recipient_name=member.user.username,
+                        sharer_name=g.user.username,
+                        recipe_name=recipe.name,
+                        recipe_url=recipe.url,
+                        recipe_ingredients=recipe.recipe_ingredients,
+                        household_name=target_household.name
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to send recipe shared email to {member.user.email}: {e}")
+
     try:
         db.session.commit()
         if exported_count > 0:
@@ -2483,6 +2500,322 @@ For support: {admin_email}
     logger.info(f"Meal deleted email sent to {recipient_email} for meal {meal_name}")
 
 
+def send_recipe_shared_email(
+    recipient_email, recipient_name, sharer_name, recipe_name, recipe_url, recipe_ingredients, household_name
+):
+    """Send email to household members when a recipe is shared to their household"""
+    from flask_mail import Message
+
+    # Get admin email from config or use default sender
+    admin_email = app.config.get("MAIL_DEFAULT_SENDER", "support@autocart.com")
+
+    # Build homepage URL
+    base_url = request.url_root.rstrip("/")
+    homepage_url = f"{base_url}/"
+
+    subject = f"{sharer_name} shared a recipe with {household_name}: {recipe_name}"
+
+    # Format ingredients for display
+    ingredients_html = ""
+    if recipe_ingredients:
+        ingredients_html = "<ul style='margin: 10px 0; padding-left: 20px;'>"
+        for ing in recipe_ingredients[:10]:  # Show first 10 ingredients
+            ing_text = f"{ing.quantity} {ing.measurement} {ing.ingredient_name}"
+            ingredients_html += f"<li>{ing_text}</li>"
+        if len(recipe_ingredients) > 10:
+            ingredients_html += f"<li><em>...and {len(recipe_ingredients) - 10} more ingredients</em></li>"
+        ingredients_html += "</ul>"
+
+    # Create HTML email body
+    html_body = f"""
+    <html>
+    <head>
+        <style>
+            body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+            .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+            .header {{ background: linear-gradient(135deg, #004c91 0%, #1e6bb8 100%); color: white; padding: 30px 20px; text-align: center; border-radius: 5px 5px 0 0; }}
+            .header h1 {{ margin: 0; display: flex; align-items: center; justify-content: center; gap: 15px; }}
+            .logo {{ width: 50px; height: 50px; }}
+            .content {{ background-color: #f9f9f9; padding: 30px; border: 1px solid #ddd; }}
+            .button {{ display: inline-block; padding: 12px 24px; background-color: #004c91; color: white !important; text-decoration: none; border-radius: 5px; margin: 20px 0; font-weight: 600; }}
+            .button:hover {{ background-color: #1e6bb8; color: white !important; }}
+            .recipe-info {{ background-color: white; padding: 20px; margin: 20px 0; border-left: 4px solid #28a745; border-radius: 5px; }}
+            .recipe-info h3 {{ color: #28a745; margin-top: 0; }}
+            .info-box {{ background-color: #e8f5e9; padding: 15px; border-radius: 5px; border-left: 4px solid #28a745; margin: 20px 0; }}
+            .footer {{ text-align: center; padding: 20px; color: #999; font-size: 12px; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="logo">
+                        <circle cx="50" cy="50" r="48" fill="#FF8C42"/>
+                        <g transform="translate(50, 52)">
+                            <path d="M -26 -20 L -20 8 L 20 8 L 24 -20 Z" fill="#007bff" stroke="#004c91" stroke-width="2.5"/>
+                            <path d="M -28 -20 L -32 -32 L -20 -32" fill="none" stroke="#007bff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            <circle cx="-10" cy="16" r="5" fill="#004c91"/>
+                            <circle cx="10" cy="16" r="5" fill="#004c91"/>
+                            <line x1="-16" y1="-14" x2="-16" y2="5" stroke="white" stroke-width="2"/>
+                            <line x1="-5" y1="-14" x2="-5" y2="5" stroke="white" stroke-width="2"/>
+                            <line x1="6" y1="-14" x2="6" y2="5" stroke="white" stroke-width="2"/>
+                            <line x1="16" y1="-14" x2="16" y2="5" stroke="white" stroke-width="2"/>
+                        </g>
+                    </svg>
+                    <span>New Recipe Shared!</span>
+                </h1>
+            </div>
+            <div class="content">
+                <p>Hi <strong>{recipient_name}</strong>,</p>
+
+                <p><strong>{sharer_name}</strong> has shared a recipe with the <strong>{household_name}</strong> household!</p>
+
+                <div class="recipe-info">
+                    <h3>🍳 {recipe_name}</h3>
+                    {f'<p><strong>Recipe URL:</strong> <a href="{recipe_url}" target="_blank">{recipe_url}</a></p>' if recipe_url else ''}
+
+                    {f'<div><strong>Ingredients:</strong>{ingredients_html}</div>' if ingredients_html else ''}
+                </div>
+
+                <div class="info-box">
+                    <strong>✨ What's Next?</strong><br>
+                    This recipe is now available in your household recipe box. You can add it to your grocery list, include it in meal plans, or share it with other households you belong to.
+                </div>
+
+                <center>
+                    <a href="{homepage_url}" class="button">View Recipe in Auto-Cart</a>
+                </center>
+
+                <p>Happy cooking!</p>
+            </div>
+            <div class="footer">
+                <p style="color: #999; font-size: 11px;">
+                    Auto-Cart - Smart Household Grocery Management<br>
+                    For support or questions, contact: <a href="mailto:{admin_email}" style="color: #999;">{admin_email}</a>
+                </p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
+    # Create plain text version
+    ingredients_text = ""
+    if recipe_ingredients:
+        ingredients_text = "Ingredients:\n"
+        for ing in recipe_ingredients[:10]:
+            ing_text = f"{ing.quantity} {ing.measurement} {ing.ingredient_name}"
+            ingredients_text += f"• {ing_text}\n"
+        if len(recipe_ingredients) > 10:
+            ingredients_text += f"...and {len(recipe_ingredients) - 10} more ingredients\n"
+
+    text_body = f"""
+New Recipe Shared!
+
+Hi {recipient_name},
+
+{sharer_name} has shared a recipe with the {household_name} household!
+
+Recipe: {recipe_name}
+{f'URL: {recipe_url}' if recipe_url else ''}
+
+{ingredients_text}
+
+What's Next?
+This recipe is now available in your household recipe box. You can add it to your grocery list, include it in meal plans, or share it with other households you belong to.
+
+View your recipes: {homepage_url}
+
+Happy cooking!
+
+---
+Auto-Cart - Smart Household Grocery Management
+For support: {admin_email}
+    """
+
+    msg = Message(
+        subject=subject, recipients=[recipient_email], body=text_body, html=html_body
+    )
+
+    mail.send(msg)
+    logger.info(f"Recipe shared email sent to {recipient_email} for recipe {recipe_name}")
+
+
+def send_meal_plan_daily_summary(household_id):
+    """Send daily summary of meal plan changes to all household members"""
+    from models import MealPlanChange, Household, HouseholdMember
+    from flask_mail import Message
+
+    household = Household.query.get(household_id)
+    if not household:
+        logger.error(f"Household {household_id} not found for daily summary")
+        return
+
+    # Get all unemailed changes for this household
+    changes = MealPlanChange.query.filter_by(
+        household_id=household_id,
+        emailed=False
+    ).order_by(MealPlanChange.changed_at).all()
+
+    if not changes:
+        logger.info(f"No meal plan changes to email for household {household.name}")
+        return
+
+    # Get admin email from config or use default sender
+    admin_email = app.config.get("MAIL_DEFAULT_SENDER", "support@autocart.com")
+
+    # Build homepage URL
+    base_url = request.url_root.rstrip("/") if request else "https://autocart.com"
+    meal_plan_url = f"{base_url}/meal-plan"
+
+    # Group changes by type
+    added_meals = [c for c in changes if c.change_type == 'added']
+    updated_meals = [c for c in changes if c.change_type == 'updated']
+    deleted_meals = [c for c in changes if c.change_type == 'deleted']
+
+    # Build HTML for changes
+    changes_html = ""
+
+    if added_meals:
+        changes_html += "<h3 style='color: #28a745; margin-top: 20px;'>✅ Meals Added</h3><ul style='margin: 10px 0; padding-left: 20px;'>"
+        for change in added_meals:
+            changes_html += f"<li><strong>{change.meal_name}</strong> - {change.meal_date.strftime('%A, %B %d')} ({change.meal_type.capitalize()}) <em>by {change.changed_by.username}</em></li>"
+        changes_html += "</ul>"
+
+    if updated_meals:
+        changes_html += "<h3 style='color: #0d6efd; margin-top: 20px;'>✏️ Meals Updated</h3><ul style='margin: 10px 0; padding-left: 20px;'>"
+        for change in updated_meals:
+            changes_html += f"<li><strong>{change.meal_name}</strong> - {change.meal_date.strftime('%A, %B %d')} ({change.meal_type.capitalize()}) <em>by {change.changed_by.username}</em></li>"
+        changes_html += "</ul>"
+
+    if deleted_meals:
+        changes_html += "<h3 style='color: #dc3545; margin-top: 20px;'>❌ Meals Removed</h3><ul style='margin: 10px 0; padding-left: 20px;'>"
+        for change in deleted_meals:
+            changes_html += f"<li><strong>{change.meal_name}</strong> - {change.meal_date.strftime('%A, %B %d')} ({change.meal_type.capitalize()}) <em>by {change.changed_by.username}</em></li>"
+        changes_html += "</ul>"
+
+    # Build plain text version
+    changes_text = ""
+
+    if added_meals:
+        changes_text += "\n✅ MEALS ADDED\n"
+        for change in added_meals:
+            changes_text += f"• {change.meal_name} - {change.meal_date.strftime('%A, %B %d')} ({change.meal_type.capitalize()}) by {change.changed_by.username}\n"
+
+    if updated_meals:
+        changes_text += "\n✏️ MEALS UPDATED\n"
+        for change in updated_meals:
+            changes_text += f"• {change.meal_name} - {change.meal_date.strftime('%A, %B %d')} ({change.meal_type.capitalize()}) by {change.changed_by.username}\n"
+
+    if deleted_meals:
+        changes_text += "\n❌ MEALS REMOVED\n"
+        for change in deleted_meals:
+            changes_text += f"• {change.meal_name} - {change.meal_date.strftime('%A, %B %d')} ({change.meal_type.capitalize()}) by {change.changed_by.username}\n"
+
+    subject = f"Meal Plan Updates for {household.name}"
+
+    # Create HTML email body
+    html_body = f"""
+    <html>
+    <head>
+        <style>
+            body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+            .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+            .header {{ background: linear-gradient(135deg, #004c91 0%, #1e6bb8 100%); color: white; padding: 30px 20px; text-align: center; border-radius: 5px 5px 0 0; }}
+            .header h1 {{ margin: 0; display: flex; align-items: center; justify-content: center; gap: 15px; }}
+            .logo {{ width: 50px; height: 50px; }}
+            .content {{ background-color: #f9f9f9; padding: 30px; border: 1px solid #ddd; }}
+            .button {{ display: inline-block; padding: 12px 24px; background-color: #004c91; color: white !important; text-decoration: none; border-radius: 5px; margin: 20px 0; font-weight: 600; }}
+            .button:hover {{ background-color: #1e6bb8; color: white !important; }}
+            .footer {{ text-align: center; padding: 20px; color: #999; font-size: 12px; }}
+            h3 {{ margin-top: 20px; margin-bottom: 10px; }}
+            ul {{ margin: 10px 0; padding-left: 20px; }}
+            li {{ margin-bottom: 8px; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="logo">
+                        <circle cx="50" cy="50" r="48" fill="#FF8C42"/>
+                        <g transform="translate(50, 52)">
+                            <path d="M -26 -20 L -20 8 L 20 8 L 24 -20 Z" fill="#007bff" stroke="#004c91" stroke-width="2.5"/>
+                            <path d="M -28 -20 L -32 -32 L -20 -32" fill="none" stroke="#007bff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            <circle cx="-10" cy="16" r="5" fill="#004c91"/>
+                            <circle cx="10" cy="16" r="5" fill="#004c91"/>
+                            <line x1="-16" y1="-14" x2="-16" y2="5" stroke="white" stroke-width="2"/>
+                            <line x1="-5" y1="-14" x2="-5" y2="5" stroke="white" stroke-width="2"/>
+                            <line x1="6" y1="-14" x2="6" y2="5" stroke="white" stroke-width="2"/>
+                            <line x1="16" y1="-14" x2="16" y2="5" stroke="white" stroke-width="2"/>
+                        </g>
+                    </svg>
+                    <span>Meal Plan Updates</span>
+                </h1>
+            </div>
+            <div class="content">
+                <p>Hi there!</p>
+
+                <p>Here's a summary of changes to the <strong>{household.name}</strong> meal plan:</p>
+
+                {changes_html}
+
+                <center>
+                    <a href="{meal_plan_url}" class="button">View Meal Plan</a>
+                </center>
+            </div>
+            <div class="footer">
+                <p style="color: #999; font-size: 11px;">
+                    Auto-Cart - Smart Household Grocery Management<br>
+                    For support or questions, contact: <a href="mailto:{admin_email}" style="color: #999;">{admin_email}</a>
+                </p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
+    # Create plain text version
+    text_body = f"""
+Meal Plan Updates for {household.name}
+
+Hi there!
+
+Here's a summary of changes to the {household.name} meal plan:
+
+{changes_text}
+
+View your meal plan: {meal_plan_url}
+
+---
+Auto-Cart - Smart Household Grocery Management
+For support: {admin_email}
+    """
+
+    # Send email to all household members
+    members = HouseholdMember.query.filter_by(household_id=household_id).all()
+    for member in members:
+        if member.user.email:
+            try:
+                msg = Message(
+                    subject=subject,
+                    recipients=[member.user.email],
+                    body=text_body,
+                    html=html_body
+                )
+                mail.send(msg)
+                logger.info(f"Meal plan summary sent to {member.user.email} for household {household.name}")
+            except Exception as e:
+                logger.error(f"Failed to send meal plan summary to {member.user.email}: {e}")
+
+    # Mark all changes as emailed
+    for change in changes:
+        change.emailed = True
+    db.session.commit()
+
+    logger.info(f"Meal plan daily summary completed for household {household.name} with {len(changes)} changes")
+
+
 @app.route("/household/edit-name", methods=["POST"])
 @require_login
 def edit_household_name():
@@ -2936,6 +3269,18 @@ def add_meal_plan_entry():
                 if cook:
                     entry.assigned_cooks.append(cook)
 
+        # Track the change for daily summary
+        from models import MealPlanChange
+        change = MealPlanChange(
+            household_id=g.household.id,
+            change_type='added',
+            meal_name=entry.meal_name,
+            meal_date=entry.date,
+            meal_type=entry.meal_type,
+            changed_by_user_id=g.user.id
+        )
+        db.session.add(change)
+
         db.session.commit()
 
         flash("Meal added to plan!", "success")
@@ -2976,6 +3321,18 @@ def delete_meal_plan_entry(entry_id):
                     )
                 except Exception as e:
                     logger.error(f"Failed to send meal deleted email to {cook.email}: {e}")
+
+    # Track the change for daily summary
+    from models import MealPlanChange
+    change = MealPlanChange(
+        household_id=g.household.id,
+        change_type='deleted',
+        meal_name=entry.meal_name,
+        meal_date=entry.date,
+        meal_type=entry.meal_type,
+        changed_by_user_id=g.user.id
+    )
+    db.session.add(change)
 
     db.session.delete(entry)
     db.session.commit()
@@ -3034,6 +3391,47 @@ def update_meal_plan_entry(entry_id):
 
     flash("Meal plan updated", "success")
     return redirect(url_for("meal_plan") + f"?week={week_offset}")
+
+
+@app.route("/meal-plan/send-daily-summaries", methods=["POST"])
+def send_daily_meal_plan_summaries():
+    """Send daily meal plan summaries for all households with changes
+
+    This endpoint should be called by a cron job once per day.
+    For security, it requires a secret token in the request.
+    """
+    # Check for authorization token
+    auth_token = request.headers.get("X-Cron-Token") or request.form.get("cron_token")
+    expected_token = app.config.get("CRON_SECRET_TOKEN", os.environ.get("CRON_SECRET_TOKEN"))
+
+    if not expected_token or auth_token != expected_token:
+        logger.warning("Unauthorized attempt to send daily meal plan summaries")
+        return jsonify({"error": "Unauthorized"}), 401
+
+    from models import MealPlanChange, Household
+
+    # Get all households with unemailed changes
+    households_with_changes = db.session.query(MealPlanChange.household_id).filter_by(
+        emailed=False
+    ).distinct().all()
+
+    household_ids = [h[0] for h in households_with_changes]
+
+    logger.info(f"Sending daily meal plan summaries for {len(household_ids)} households")
+
+    results = []
+    for household_id in household_ids:
+        try:
+            send_meal_plan_daily_summary(household_id)
+            results.append({"household_id": household_id, "status": "success"})
+        except Exception as e:
+            logger.error(f"Failed to send daily summary for household {household_id}: {e}", exc_info=True)
+            results.append({"household_id": household_id, "status": "error", "error": str(e)})
+
+    return jsonify({
+        "message": f"Processed {len(household_ids)} households",
+        "results": results
+    })
 
 
 @app.route("/meal-plan/add-to-list", methods=["POST"])
