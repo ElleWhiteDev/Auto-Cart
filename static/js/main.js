@@ -1,206 +1,335 @@
-// Kroger authentication
-function openKrogerAuth() {
-    // Open Kroger authentication in a new tab
-    window.open('/authenticate', '_blank');
+/**
+ * Auto-Cart Frontend Application
+ * Modern, organized JavaScript for grocery list management
+ */
 
-    // Close any open modals
-    window.location.hash = 'modal-closed';
-}
+// ============================================================================
+// MODAL MANAGEMENT
+// ============================================================================
 
-// Modal functionality
-function openModal(modalId) {
-    console.log('Opening modal:', modalId);
-    const modal = document.getElementById(modalId);
-    console.log('Modal element:', modal);
-    if (modal) {
-        modal.style.display = 'flex';
-        modal.style.alignItems = 'center';
-        modal.style.justifyContent = 'center';
-        modal.style.padding = '1rem';
-        console.log('Modal opened successfully');
-    } else {
-        console.error('Modal not found:', modalId);
+const ModalManager = {
+    /**
+     * Open a modal by ID
+     * @param {string} modalId - The ID of the modal to open
+     */
+    open(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.style.display = 'flex';
+            modal.style.alignItems = 'center';
+            modal.style.justifyContent = 'center';
+            modal.style.padding = '1rem';
+            modal.setAttribute('aria-hidden', 'false');
+        } else {
+            console.error(`Modal not found: ${modalId}`);
+        }
+    },
+
+    /**
+     * Close a modal by ID
+     * @param {string} modalId - The ID of the modal to close
+     */
+    close(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.style.display = 'none';
+            modal.setAttribute('aria-hidden', 'true');
+        }
+    },
+
+    /**
+     * Initialize modal event listeners
+     */
+    init() {
+        // Close modal when clicking outside
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('modal-container')) {
+                e.target.style.display = 'none';
+                e.target.setAttribute('aria-hidden', 'true');
+            }
+        });
+
+        // Close modal on Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                const openModals = document.querySelectorAll('.modal-container[aria-hidden="false"]');
+                openModals.forEach(modal => {
+                    modal.style.display = 'none';
+                    modal.setAttribute('aria-hidden', 'true');
+                });
+            }
+        });
     }
+};
+
+// Legacy function support
+function openModal(modalId) {
+    ModalManager.open(modalId);
 }
 
 function closeModal(modalId) {
-    const modal = document.getElementById(modalId);
-    if (modal) {
-        modal.style.display = 'none';
-    }
+    ModalManager.close(modalId);
 }
 
-// Close modal when clicking outside
-document.addEventListener('click', function(e) {
-    if (e.target.classList.contains('modal-container')) {
-        e.target.style.display = 'none';
+// ============================================================================
+// KROGER INTEGRATION
+// ============================================================================
+
+const KrogerAuth = {
+    /**
+     * Open Kroger authentication in a new tab
+     */
+    openAuth() {
+        window.open('/authenticate', '_blank');
+        window.location.hash = 'modal-closed';
     }
-});
+};
 
-// AI Recipe extraction
-document.addEventListener('DOMContentLoaded', function() {
-    const extractBtn = document.getElementById('extract-ai-btn');
-    if (extractBtn) {
-        extractBtn.addEventListener('click', async function() {
-            const urlInput = document.getElementById('url');
+// Legacy function support
+function openKrogerAuth() {
+    KrogerAuth.openAuth();
+}
 
-            if (!urlInput) {
-                alert('Could not find URL input field');
-                return;
-            }
+// ============================================================================
+// UI UTILITIES
+// ============================================================================
 
-            const url = urlInput.value.trim();
-            if (!url) {
-                alert('Please enter a recipe URL first');
-                return;
-            }
+const UIUtils = {
+    /**
+     * Show a flash message to the user
+     * @param {string} message - Message to display
+     * @param {string} category - Message category (success, danger, warning, info)
+     */
+    showFlashMessage(message, category = 'info') {
+        const flashDiv = document.createElement('div');
+        flashDiv.className = `alert alert-${category} alert-dismissible fade show`;
+        flashDiv.setAttribute('role', 'alert');
+        flashDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
 
-            // Show loading state
-            const btn = this;
-            const spinner = document.getElementById('extract-spinner');
-            const originalText = btn.innerHTML;
+        // Find appropriate container
+        const targetElement =
+            document.querySelector('#user_form') ||
+            document.querySelector('.grocery-list-content') ||
+            document.querySelector('.container') ||
+            document.body;
 
-            btn.disabled = true;
-            spinner.classList.remove('d-none');
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Extracting...';
+        targetElement.insertBefore(flashDiv, targetElement.firstChild);
 
-            try {
-                const formData = new FormData();
-                formData.append('url', url);
+        // Auto-dismiss after 5 seconds
+        setTimeout(() => flashDiv.remove(), 5000);
+    },
 
-                const response = await fetch('/extract-recipe-form', {
-                    method: 'POST',
-                    body: formData
-                });
+    /**
+     * Set button loading state
+     * @param {HTMLElement} button - Button element
+     * @param {boolean} isLoading - Whether button should show loading state
+     * @param {string} loadingText - Text to show when loading
+     */
+    setButtonLoading(button, isLoading, loadingText = 'Loading...') {
+        if (isLoading) {
+            button.dataset.originalText = button.innerHTML;
+            button.disabled = true;
+            button.innerHTML = `<span class="spinner-border spinner-border-sm" role="status"></span> ${loadingText}`;
+        } else {
+            button.disabled = false;
+            button.innerHTML = button.dataset.originalText || button.innerHTML;
+        }
+    },
 
-                if (response.ok) {
-                    const result = await response.json();
-
-                    if (result.success) {
-                        populateFormFields(result.data);
-                        showFlashMessage('Recipe extracted successfully! Review and edit as needed.', 'success');
-                    } else {
-                        showFlashMessage(result.error || 'Failed to extract recipe', 'danger');
-                    }
-                } else {
-                    const errorResult = await response.json();
-                    showFlashMessage(errorResult.error || 'Failed to extract recipe', 'danger');
-                }
-            } catch (error) {
-                showFlashMessage('Network error. Please try again.', 'danger');
-            } finally {
-                btn.disabled = false;
-                spinner.classList.add('d-none');
-                btn.innerHTML = originalText;
+    /**
+     * Populate form fields with data
+     * @param {Object} data - Data object with field values
+     */
+    populateFormFields(data) {
+        Object.entries(data).forEach(([fieldName, value]) => {
+            const field = document.getElementById(fieldName);
+            if (field && value) {
+                field.value = value;
             }
         });
     }
+};
 
-    // Standardize ingredients
-    const standardizeBtn = document.getElementById('standardize-btn');
-    if (standardizeBtn) {
-        standardizeBtn.addEventListener('click', async function() {
-            const ingredientsField = document.getElementById('ingredients_text');
+// Legacy function support
+function showFlashMessage(message, category) {
+    UIUtils.showFlashMessage(message, category);
+}
 
-            if (!ingredientsField) {
-                alert('Could not find ingredients field');
-                return;
+function populateFormFields(data) {
+    UIUtils.populateFormFields(data);
+}
+
+// ============================================================================
+// RECIPE MANAGEMENT
+// ============================================================================
+
+const RecipeManager = {
+    /**
+     * Extract recipe data from URL using AI
+     */
+    async extractRecipe() {
+        const urlInput = document.getElementById('url');
+
+        if (!urlInput) {
+            UIUtils.showFlashMessage('Could not find URL input field', 'danger');
+            return;
+        }
+
+        const url = urlInput.value.trim();
+        if (!url) {
+            UIUtils.showFlashMessage('Please enter a recipe URL first', 'warning');
+            return;
+        }
+
+        const btn = document.getElementById('extract-ai-btn');
+        const spinner = document.getElementById('extract-spinner');
+
+        UIUtils.setButtonLoading(btn, true, 'Extracting...');
+        if (spinner) spinner.classList.remove('d-none');
+
+        try {
+            const formData = new FormData();
+            formData.append('url', url);
+
+            const response = await fetch('/extract-recipe-form', {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                UIUtils.populateFormFields(result.data);
+                UIUtils.showFlashMessage('Recipe extracted successfully! Review and edit as needed.', 'success');
+            } else {
+                UIUtils.showFlashMessage(result.error || 'Failed to extract recipe', 'danger');
             }
+        } catch (error) {
+            console.error('Recipe extraction error:', error);
+            UIUtils.showFlashMessage('Network error. Please try again.', 'danger');
+        } finally {
+            UIUtils.setButtonLoading(btn, false);
+            if (spinner) spinner.classList.add('d-none');
+        }
+    },
 
-            const ingredientsText = ingredientsField.value.trim();
-            if (!ingredientsText) {
-                alert('Please enter some ingredients first');
-                return;
+    /**
+     * Standardize ingredients using AI
+     */
+    async standardizeIngredients() {
+        const ingredientsField = document.getElementById('ingredients_text');
+
+        if (!ingredientsField) {
+            UIUtils.showFlashMessage('Could not find ingredients field', 'danger');
+            return;
+        }
+
+        const ingredientsText = ingredientsField.value.trim();
+        if (!ingredientsText) {
+            UIUtils.showFlashMessage('Please enter some ingredients first', 'warning');
+            return;
+        }
+
+        const btn = document.getElementById('standardize-btn');
+        const spinner = document.getElementById('standardize-spinner');
+
+        UIUtils.setButtonLoading(btn, true, 'Standardizing...');
+        if (spinner) spinner.classList.remove('d-none');
+
+        try {
+            const formData = new FormData();
+            formData.append('ingredients_text', ingredientsText);
+
+            const response = await fetch('/standardize-ingredients', {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                ingredientsField.value = result.data.standardized_ingredients;
+                UIUtils.showFlashMessage('Ingredients standardized successfully!', 'success');
+            } else {
+                UIUtils.showFlashMessage(result.error || 'Failed to standardize ingredients', 'danger');
             }
+        } catch (error) {
+            console.error('Ingredient standardization error:', error);
+            UIUtils.showFlashMessage('Network error. Please try again.', 'danger');
+        } finally {
+            UIUtils.setButtonLoading(btn, false);
+            if (spinner) spinner.classList.add('d-none');
+        }
+    },
 
-            // Show loading state
-            const btn = this;
-            const spinner = document.getElementById('standardize-spinner');
-            const originalText = btn.innerHTML;
+    /**
+     * Add a manual ingredient to the grocery list
+     */
+    async addManualIngredient(ingredientText) {
+        if (!ingredientText || !ingredientText.trim()) {
+            UIUtils.showFlashMessage('Please enter an ingredient', 'warning');
+            return false;
+        }
 
-            btn.disabled = true;
-            spinner.classList.remove('d-none');
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Standardizing...';
+        try {
+            const formData = new FormData();
+            formData.append('ingredient_text', ingredientText.trim());
 
-            try {
-                const formData = new FormData();
-                formData.append('ingredients_text', ingredientsText);
+            const response = await fetch('/add_manual_ingredient', {
+                method: 'POST',
+                body: formData
+            });
 
-                const response = await fetch('/standardize-ingredients', {
-                    method: 'POST',
-                    body: formData
-                });
+            const result = await response.json();
 
-                if (response.ok) {
-                    const result = await response.json();
-
-                    if (result.success) {
-                        ingredientsField.value = result.data.standardized_ingredients;
-                        showFlashMessage('Ingredients standardized successfully!', 'success');
-                    } else {
-                        showFlashMessage(result.error || 'Failed to standardize ingredients', 'danger');
-                    }
-                } else {
-                    const errorResult = await response.json();
-                    showFlashMessage(errorResult.error || 'Failed to standardize ingredients', 'danger');
-                }
-            } catch (error) {
-                showFlashMessage('Network error. Please try again.', 'danger');
-            } finally {
-                btn.disabled = false;
-                spinner.classList.add('d-none');
-                btn.innerHTML = originalText;
+            if (result.success) {
+                UIUtils.showFlashMessage(result.message, 'success');
+                window.location.reload();
+                return true;
+            } else {
+                UIUtils.showFlashMessage(result.error || 'Failed to add ingredient', 'danger');
+                return false;
             }
-        });
+        } catch (error) {
+            console.error('Add ingredient error:', error);
+            UIUtils.showFlashMessage('Network error. Please try again.', 'danger');
+            return false;
+        }
+    },
+
+    /**
+     * Delete an ingredient from the grocery list
+     */
+    async deleteIngredient(ingredientId, listItem) {
+        try {
+            const formData = new FormData();
+            formData.append('ingredient_id', ingredientId);
+
+            const response = await fetch('/delete_ingredient', {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                listItem.remove();
+                UIUtils.showFlashMessage(result.message, 'success');
+                return true;
+            } else {
+                UIUtils.showFlashMessage(result.error || 'Failed to remove ingredient', 'danger');
+                return false;
+            }
+        } catch (error) {
+            console.error('Delete ingredient error:', error);
+            UIUtils.showFlashMessage('Network error. Please try again.', 'danger');
+            return false;
+        }
     }
-
-    // Manual ingredient form
-    const manualIngredientForm = document.getElementById('manual-ingredient-form');
-    if (manualIngredientForm) {
-        manualIngredientForm.addEventListener('submit', async function(e) {
-            e.preventDefault();
-
-            const input = document.getElementById('manual-ingredient-input');
-            const ingredientText = input.value.trim();
-
-            if (!ingredientText) {
-                showFlashMessage('Please enter an ingredient', 'danger');
-                return;
-            }
-
-            // Show loading state
-            const submitBtn = this.querySelector('button[type="submit"]');
-            const originalText = submitBtn.innerHTML;
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-
-            try {
-                const formData = new FormData();
-                formData.append('ingredient_text', ingredientText);
-
-                const response = await fetch('/add_manual_ingredient', {
-                    method: 'POST',
-                    body: formData
-                });
-
-                const result = await response.json();
-
-                if (result.success) {
-                    showFlashMessage(result.message, 'success');
-                    input.value = ''; // Clear the input
-                    // Refresh the page immediately to show the new ingredient
-                    window.location.reload();
-                } else {
-                    showFlashMessage(result.error || 'Failed to add ingredient', 'danger');
-                }
-            } catch (error) {
-                showFlashMessage('Network error. Please try again.', 'danger');
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = originalText;
-            }
-        });
-    }
+};
 
     // Delete ingredient functionality
     const deleteIngredientBtns = document.querySelectorAll('.delete-ingredient-btn');
@@ -209,85 +338,57 @@ document.addEventListener('DOMContentLoaded', function() {
             const ingredientId = this.getAttribute('data-ingredient-id');
             const listItem = this.closest('li');
 
-            // Disable button during request
-            this.disabled = true;
-            const originalText = this.innerHTML;
-            this.innerHTML = '...';
+            UIUtils.setButtonLoading(this, true, '...');
 
-            try {
-                const formData = new FormData();
-                formData.append('ingredient_id', ingredientId);
+            const success = await RecipeManager.deleteIngredient(ingredientId, listItem);
 
-                const response = await fetch('/delete_ingredient', {
-                    method: 'POST',
-                    body: formData
-                });
-
-                const result = await response.json();
-
-                if (result.success) {
-                    // Remove the ingredient from the DOM
-                    listItem.remove();
-                    showFlashMessage(result.message, 'success');
-                } else {
-                    showFlashMessage(result.error || 'Failed to remove ingredient', 'danger');
-                    // Re-enable button on error
-                    this.disabled = false;
-                    this.innerHTML = originalText;
-                }
-            } catch (error) {
-                showFlashMessage('Network error. Please try again.', 'danger');
-                // Re-enable button on error
-                this.disabled = false;
-                this.innerHTML = originalText;
+            if (!success) {
+                UIUtils.setButtonLoading(this, false);
             }
         });
     });
 });
 
-// Helper functions
-function populateFormFields(data) {
-    const nameField = document.getElementById('name');
-    const ingredientsField = document.getElementById('ingredients_text');
-    const notesField = document.getElementById('notes');
+// ============================================================================
+// APPLICATION INITIALIZATION
+// ============================================================================
 
-    if (nameField && data.name) {
-        nameField.value = data.name;
+/**
+ * Initialize the application when DOM is ready
+ */
+document.addEventListener('DOMContentLoaded', () => {
+    // Initialize modal manager
+    ModalManager.init();
+
+    // Recipe extraction button
+    const extractBtn = document.getElementById('extract-ai-btn');
+    if (extractBtn) {
+        extractBtn.addEventListener('click', () => RecipeManager.extractRecipe());
     }
 
-    if (ingredientsField && data.ingredients_text) {
-        ingredientsField.value = data.ingredients_text;
+    // Ingredient standardization button
+    const standardizeBtn = document.getElementById('standardize-btn');
+    if (standardizeBtn) {
+        standardizeBtn.addEventListener('click', () => RecipeManager.standardizeIngredients());
     }
 
-    if (notesField && data.notes) {
-        notesField.value = data.notes;
-    }
-}
+    // Manual ingredient form
+    const manualIngredientForm = document.getElementById('manual-ingredient-form');
+    if (manualIngredientForm) {
+        manualIngredientForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
 
-function showFlashMessage(message, category) {
-    const flashDiv = document.createElement('div');
-    flashDiv.className = `alert alert-${category} alert-dismissible fade show`;
-    flashDiv.innerHTML = `
-        ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    `;
+            const input = document.getElementById('manual-ingredient-input');
+            const submitBtn = manualIngredientForm.querySelector('button[type="submit"]');
 
-    // Try to find the form first, otherwise use the grocery list area
-    let targetElement = document.querySelector('#user_form');
-    if (!targetElement) {
-        targetElement = document.querySelector('.grocery-list-content');
-    }
-    if (!targetElement) {
-        targetElement = document.querySelector('.container');
-    }
+            UIUtils.setButtonLoading(submitBtn, true, 'Adding...');
 
-    if (targetElement) {
-        targetElement.insertBefore(flashDiv, targetElement.firstChild);
-    } else {
-        document.body.insertBefore(flashDiv, document.body.firstChild);
-    }
+            const success = await RecipeManager.addManualIngredient(input.value);
 
-    setTimeout(() => {
-        flashDiv.remove();
-    }, 5000);
-}
+            if (success) {
+                input.value = '';
+            } else {
+                UIUtils.setButtonLoading(submitBtn, false);
+            }
+        });
+    }

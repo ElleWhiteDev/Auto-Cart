@@ -55,6 +55,8 @@ from utils import (
     parse_quantity_string,
     get_est_now,
     get_est_date,
+    get_household_kroger_user,
+    validate_kroger_connection,
 )
 from kroger import KrogerAPIService, KrogerSessionManager, KrogerWorkflow
 from recipe_scraper import scrape_recipe_data
@@ -165,13 +167,11 @@ def location_search():
     """Send request to Kroger API for locations"""
     zipcode = request.form.get("zipcode")
 
-    # Use household's Kroger user if set, otherwise current user
-    kroger_user = g.user
-    if g.household and g.household.kroger_user_id:
-        kroger_user = User.query.get(g.household.kroger_user_id)
+    kroger_user = get_household_kroger_user(g.household, g.user)
+    is_valid, error_msg = validate_kroger_connection(kroger_user)
 
-    if not kroger_user.oauth_token:
-        flash("Please connect a Kroger account first", "danger")
+    if not is_valid:
+        flash(error_msg, "danger")
         return redirect(url_for("homepage"))
 
     redirect_url = kroger_workflow.handle_location_search(
@@ -193,13 +193,11 @@ def select_store():
 @require_login
 def kroger_product_search():
     """Search Kroger for ingredients based on name and present user with options."""
-    # Get household's Kroger user
-    kroger_user = g.user
-    if g.household and g.household.kroger_user_id:
-        kroger_user = User.query.get(g.household.kroger_user_id)
+    kroger_user = get_household_kroger_user(g.household, g.user)
+    is_valid, error_msg = validate_kroger_connection(kroger_user)
 
-    if not kroger_user.oauth_token:
-        flash("Please connect a Kroger account first", "danger")
+    if not is_valid:
+        flash(error_msg, "danger")
         return redirect(url_for("homepage"))
 
     # Handle custom search if provided
@@ -265,13 +263,11 @@ def item_choice():
 @require_login
 def kroger_send_to_cart():
     """Add selected products to user's Kroger cart"""
-    # Get household's Kroger user
-    kroger_user = g.user
-    if g.household and g.household.kroger_user_id:
-        kroger_user = User.query.get(g.household.kroger_user_id)
+    kroger_user = get_household_kroger_user(g.household, g.user)
+    is_valid, error_msg = validate_kroger_connection(kroger_user)
 
-    if not kroger_user.oauth_token:
-        flash("Please connect a Kroger account first", "danger")
+    if not is_valid:
+        flash(error_msg, "danger")
         return redirect(url_for("homepage"))
 
     # Check if there are skipped ingredients

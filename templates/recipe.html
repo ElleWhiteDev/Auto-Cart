@@ -67,7 +67,7 @@ block content %}
 				<p class="text-muted small mb-4">
 					Copy this recipe to your other households
 				</p>
-				<form method="POST" action="{{ url_for('export_recipe', recipe_id=recipe.id) }}">
+				<form method="POST" action="{{ url_for('export_recipe', recipe_id=recipe.id) }}" id="export-recipe-form">
 					<div class="mb-4">
 						{% for household in other_households %}
 						<div class="custom-checkbox-wrapper mb-3">
@@ -90,7 +90,7 @@ block content %}
 						{% endfor %}
 					</div>
 					<div class="recipe-actions">
-						<button type="submit" class="button-56">
+						<button type="submit" class="button-56" id="export-recipe-btn">
 							<i class="fas fa-share-alt mr-2"></i>Export Recipe
 						</button>
 					</div>
@@ -179,5 +179,27 @@ block content %}
 	}
 	</style>
 </div>
+
+<script>
+	// Add processing state to export button
+	const exportForm = document.getElementById('export-recipe-form');
+	const exportBtn = document.getElementById('export-recipe-btn');
+
+	if (exportForm && exportBtn) {
+		exportForm.addEventListener('submit', function(e) {
+			// Check if at least one checkbox is selected
+			const checkboxes = exportForm.querySelectorAll('input[name="household_ids"]:checked');
+
+			if (checkboxes.length === 0) {
+				// Let the form submit normally - server will show warning message
+				return;
+			}
+
+			// Disable button and show processing state
+			exportBtn.disabled = true;
+			exportBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Exporting...';
+		});
+	}
+</script>
 
 {% endblock %}

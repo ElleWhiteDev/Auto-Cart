@@ -150,3 +150,37 @@ def is_valid_float(value: str) -> bool:
         return True
     except (ValueError, TypeError):
         return False
+
+
+def get_household_kroger_user(household, current_user):
+    """
+    Get the Kroger-connected user for a household.
+
+    Args:
+        household: Household object or None
+        current_user: Current logged-in user
+
+    Returns:
+        User object with Kroger credentials, or current_user if no household Kroger user is set
+    """
+    if household and household.kroger_user_id:
+        from models import User
+        return User.query.get(household.kroger_user_id)
+    return current_user
+
+
+def validate_kroger_connection(kroger_user) -> Tuple[bool, Optional[str]]:
+    """
+    Validate that a user has a valid Kroger connection.
+
+    Args:
+        kroger_user: User object to check for Kroger credentials
+
+    Returns:
+        Tuple of (is_valid, error_message)
+    """
+    if not kroger_user:
+        return False, "User not found"
+    if not kroger_user.oauth_token:
+        return False, "Please connect a Kroger account first"
+    return True, None
