@@ -4062,6 +4062,78 @@ def admin_delete_household(household_id):
     return redirect(url_for("admin_dashboard"))
 
 
+@app.route("/admin/household/<int:household_id>/members", methods=["GET"])
+@require_admin
+def admin_get_household_members(household_id):
+    """Get all members of a household with their email preferences"""
+    try:
+        household = Household.query.get_or_404(household_id)
+        members = HouseholdMember.query.filter_by(household_id=household_id).all()
+
+        members_data = []
+        for member in members:
+            members_data.append({
+                "member_id": member.id,
+                "user_id": member.user_id,
+                "username": member.user.username,
+                "email": member.user.email,
+                "role": member.role,
+                "receive_meal_plan_emails": member.receive_meal_plan_emails,
+                "receive_chef_assignment_emails": member.receive_chef_assignment_emails,
+                "joined_at": member.joined_at.strftime('%Y-%m-%d') if member.joined_at else None
+            })
+
+        return jsonify({"success": True, "members": members_data})
+
+    except Exception as e:
+        logger.error(f"Error getting household members: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/admin/toggle-member-email", methods=["POST"])
+@require_admin
+def admin_toggle_member_email():
+    """Toggle email preferences for a household member (admin only)"""
+    try:
+        data = request.get_json()
+        member_id = data.get("member_id")
+        email_type = data.get("email_type")  # 'meal_plan' or 'chef'
+        enabled = data.get("enabled")
+
+        if member_id is None or email_type is None or enabled is None:
+            return jsonify({"success": False, "error": "Missing required fields"}), 400
+
+        # Get the household member record
+        member = HouseholdMember.query.get(member_id)
+
+        if not member:
+            return jsonify({"success": False, "error": "Member not found"}), 404
+
+        # Update the appropriate preference
+        if email_type == "meal_plan":
+            member.receive_meal_plan_emails = enabled
+            email_type_name = "meal plan"
+        elif email_type == "chef":
+            member.receive_chef_assignment_emails = enabled
+            email_type_name = "chef assignment"
+        else:
+            return jsonify({"success": False, "error": "Invalid email type"}), 400
+
+        db.session.commit()
+
+        logger.info(
+            f"Admin {g.user.username} {'enabled' if enabled else 'disabled'} {email_type_name} emails "
+            f"for user {member.user.username} in household {member.household_id}"
+        )
+
+        return jsonify({"success": True})
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error toggling member email preference: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @app.route("/admin/delete-user/<int:user_id>", methods=["POST"])
 @require_admin
 def admin_delete_user(user_id):

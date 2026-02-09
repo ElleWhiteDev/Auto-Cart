@@ -166,6 +166,9 @@
 								{% endif %}
 							</td>
 							<td>
+								<button type="button" class="btn btn-sm btn-info me-1" onclick="showMembersModal({{ stat.household.id }}, '{{ stat.household.name }}')">
+									<i class="fas fa-users-cog"></i> Manage
+								</button>
 								<form method="POST" action="{{ url_for('admin_delete_household', household_id=stat.household.id) }}" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete household {{ stat.household.name }}? This will delete {{ stat.members_count }} memberships, {{ stat.recipes_count }} recipes, {{ stat.lists_count }} lists, and {{ stat.meals_count }} meals. This action cannot be undone.');">
 									<button type="submit" class="btn btn-sm btn-danger">
 										<i class="fas fa-trash"></i> Delete
@@ -226,6 +229,50 @@
 	</div>
 </div>
 
+<!-- Manage Members Modal -->
+<div class="modal fade" id="manageMembersModal" tabindex="-1" aria-labelledby="manageMembersModalLabel" aria-hidden="true">
+	<div class="modal-dialog modal-lg">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title" id="manageMembersModalLabel">
+					<i class="fas fa-users-cog"></i> Manage Members - <span id="householdName"></span>
+				</h5>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<div class="modal-body">
+				<div id="membersLoadingSpinner" class="text-center py-4">
+					<div class="spinner-border text-primary" role="status">
+						<span class="visually-hidden">Loading...</span>
+					</div>
+					<p class="mt-2 text-muted">Loading members...</p>
+				</div>
+				<div id="membersContent" style="display: none;">
+					<div class="table-responsive">
+						<table class="table table-hover">
+							<thead>
+								<tr>
+									<th>Username</th>
+									<th>Email</th>
+									<th>Role</th>
+									<th class="text-center">Meal Plan Emails</th>
+									<th class="text-center">Chef Emails</th>
+								</tr>
+							</thead>
+							<tbody id="membersTableBody">
+								<!-- Members will be loaded here -->
+							</tbody>
+						</table>
+					</div>
+				</div>
+				<div id="membersError" class="alert alert-danger" style="display: none;"></div>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+			</div>
+		</div>
+	</div>
+</div>
+
 <script>
 // Add processing states to all delete buttons
 document.addEventListener('DOMContentLoaded', function() {
@@ -259,5 +306,121 @@ document.addEventListener('DOMContentLoaded', function() {
 		});
 	});
 });
+
+// Show members modal and load members
+function showMembersModal(householdId, householdName) {
+	const modal = new bootstrap.Modal(document.getElementById('manageMembersModal'));
+	document.getElementById('householdName').textContent = householdName;
+	document.getElementById('membersLoadingSpinner').style.display = 'block';
+	document.getElementById('membersContent').style.display = 'none';
+	document.getElementById('membersError').style.display = 'none';
+
+	modal.show();
+
+	// Load members
+	fetch(`/admin/household/${householdId}/members`)
+		.then(response => response.json())
+		.then(data => {
+			if (data.success) {
+				displayMembers(data.members);
+				document.getElementById('membersLoadingSpinner').style.display = 'none';
+				document.getElementById('membersContent').style.display = 'block';
+			} else {
+				showError(data.error || 'Failed to load members');
+			}
+		})
+		.catch(error => {
+			console.error('Error loading members:', error);
+			showError('Failed to load members. Please try again.');
+		});
+}
+
+function displayMembers(members) {
+	const tbody = document.getElementById('membersTableBody');
+	tbody.innerHTML = '';
+
+	members.forEach(member => {
+		const row = document.createElement('tr');
+		row.innerHTML = `
+			<td><strong>${escapeHtml(member.username)}</strong></td>
+			<td>${escapeHtml(member.email)}</td>
+			<td>
+				<span class="badge bg-${member.role === 'owner' ? 'primary' : 'secondary'}">
+					${member.role === 'owner' ? 'Owner' : 'Member'}
+				</span>
+			</td>
+			<td class="text-center">
+				<div class="form-check form-switch d-inline-block">
+					<input
+						class="form-check-input"
+						type="checkbox"
+						id="mealPlanEmail_${member.member_id}"
+						${member.receive_meal_plan_emails ? 'checked' : ''}
+						onchange="toggleMemberEmail(${member.member_id}, 'meal_plan', this.checked, '${escapeHtml(member.username)}')"
+					>
+				</div>
+			</td>
+			<td class="text-center">
+				<div class="form-check form-switch d-inline-block">
+					<input
+						class="form-check-input"
+						type="checkbox"
+						id="chefEmail_${member.member_id}"
+						${member.receive_chef_assignment_emails ? 'checked' : ''}
+						onchange="toggleMemberEmail(${member.member_id}, 'chef', this.checked, '${escapeHtml(member.username)}')"
+					>
+				</div>
+			</td>
+		`;
+		tbody.appendChild(row);
+	});
+}
+
+function toggleMemberEmail(memberId, emailType, enabled, username) {
+	const checkbox = document.getElementById(`${emailType === 'meal_plan' ? 'mealPlanEmail' : 'chefEmail'}_${memberId}`);
+	const originalState = checkbox.checked;
+
+	fetch('/admin/toggle-member-email', {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+		},
+		body: JSON.stringify({
+			member_id: memberId,
+			email_type: emailType,
+			enabled: enabled
+		})
+	})
+	.then(response => response.json())
+	.then(data => {
+		if (data.success) {
+			// Show success feedback
+			const emailTypeName = emailType === 'meal_plan' ? 'meal plan' : 'chef assignment';
+			console.log(`${emailTypeName} emails ${enabled ? 'enabled' : 'disabled'} for ${username}`);
+		} else {
+			// Revert checkbox on error
+			checkbox.checked = !enabled;
+			alert(data.error || 'Failed to update email preference');
+		}
+	})
+	.catch(error => {
+		console.error('Error toggling email:', error);
+		checkbox.checked = !enabled;
+		alert('Failed to update email preference. Please try again.');
+	});
+}
+
+function showError(message) {
+	document.getElementById('membersLoadingSpinner').style.display = 'none';
+	document.getElementById('membersContent').style.display = 'none';
+	document.getElementById('membersError').textContent = message;
+	document.getElementById('membersError').style.display = 'block';
+}
+
+function escapeHtml(text) {
+	const div = document.createElement('div');
+	div.textContent = text;
+	return div.innerHTML;
+}
 </script>
 {% endblock %}
