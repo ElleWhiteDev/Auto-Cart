@@ -216,7 +216,7 @@
 										<div class="fw-bold text-primary mb-2" style="font-size: 0.95rem; overflow-x: auto; white-space: nowrap;">{{ entry.meal_name }}</div>
 										{% endif %}
 
-										<!-- Chef and Delete Button Row -->
+										<!-- Chef and Action Buttons Row -->
 										<div class="d-flex justify-content-between align-items-center">
 											<div class="flex-grow-1">
 												{% if entry.assigned_cooks.count() > 0 %}
@@ -231,12 +231,19 @@
 												<div class="text-info" style="font-size: 0.75rem;"><i class="fas fa-sticky-note"></i> {{ entry.notes }}</div>
 												{% endif %}
 											</div>
-											<form method="POST" action="{{ url_for('delete_meal_plan_entry', entry_id=entry.id) }}" style="display: inline; flex-shrink: 0; margin-left: 4px;">
-												<input type="hidden" name="week_offset" value="{{ week_offset }}">
-												<button type="submit" class="btn btn-sm btn-outline-danger rounded-circle" onclick="return confirm('Remove this meal?');" style="width: 18px; height: 18px; padding: 0; line-height: 1; font-size: 0.65rem; border-width: 1px;">
-													<i class="fas fa-times"></i>
+											<div style="display: flex; gap: 2px; flex-shrink: 0; margin-left: 4px;">
+												<!-- Edit Button -->
+												<button type="button" class="btn btn-sm btn-outline-primary rounded-circle" data-bs-toggle="modal" data-bs-target="#editMealModal{{ entry.id }}" style="width: 18px; height: 18px; padding: 0; line-height: 1; font-size: 0.65rem; border-width: 1px;">
+													<i class="fas fa-edit"></i>
 												</button>
-											</form>
+												<!-- Delete Button -->
+												<form method="POST" action="{{ url_for('delete_meal_plan_entry', entry_id=entry.id) }}" style="display: inline;">
+													<input type="hidden" name="week_offset" value="{{ week_offset }}">
+													<button type="submit" class="btn btn-sm btn-outline-danger rounded-circle" onclick="return confirm('Remove this meal? All assigned chefs will be notified.');" style="width: 18px; height: 18px; padding: 0; line-height: 1; font-size: 0.65rem; border-width: 1px;">
+														<i class="fas fa-times"></i>
+													</button>
+												</form>
+											</div>
 										</div>
 									</div>
 								</div>
@@ -286,7 +293,7 @@
 								<div class="fw-bold text-primary mb-2" style="font-size: 0.95rem; overflow-x: auto; white-space: nowrap;">{{ entry.meal_name }}</div>
 								{% endif %}
 
-								<!-- Chef and Delete Button Row -->
+								<!-- Chef and Action Buttons Row -->
 								<div class="d-flex justify-content-between align-items-center">
 									<div class="flex-grow-1">
 										{% if entry.assigned_cooks.count() > 0 %}
@@ -301,12 +308,19 @@
 										<div class="text-info" style="font-size: 0.75rem;"><i class="fas fa-sticky-note"></i> {{ entry.notes }}</div>
 										{% endif %}
 									</div>
-									<form method="POST" action="{{ url_for('delete_meal_plan_entry', entry_id=entry.id) }}" style="display: inline; flex-shrink: 0; margin-left: 4px;">
-										<input type="hidden" name="week_offset" value="{{ week_offset }}">
-										<button type="submit" class="btn btn-sm btn-outline-danger rounded-circle" onclick="return confirm('Remove this meal?');" style="width: 18px; height: 18px; padding: 0; line-height: 1; font-size: 0.65rem; border-width: 1px;">
-											<i class="fas fa-times"></i>
+									<div style="display: flex; gap: 2px; flex-shrink: 0; margin-left: 4px;">
+										<!-- Edit Button -->
+										<button type="button" class="btn btn-sm btn-outline-primary rounded-circle" data-bs-toggle="modal" data-bs-target="#editMealModal{{ entry.id }}" style="width: 18px; height: 18px; padding: 0; line-height: 1; font-size: 0.65rem; border-width: 1px;">
+											<i class="fas fa-edit"></i>
 										</button>
-									</form>
+										<!-- Delete Button -->
+										<form method="POST" action="{{ url_for('delete_meal_plan_entry', entry_id=entry.id) }}" style="display: inline;">
+											<input type="hidden" name="week_offset" value="{{ week_offset }}">
+											<button type="submit" class="btn btn-sm btn-outline-danger rounded-circle" onclick="return confirm('Remove this meal? All assigned chefs will be notified.');" style="width: 18px; height: 18px; padding: 0; line-height: 1; font-size: 0.65rem; border-width: 1px;">
+												<i class="fas fa-times"></i>
+											</button>
+										</form>
+									</div>
 								</div>
 							</div>
 						</div>
@@ -491,4 +505,56 @@ if (addToListForm && addToListBtn) {
 	});
 }
 </script>
+
+<!-- Edit Meal Modals (one for each meal entry) -->
+{% for date, meals in meal_plan.items() %}
+	{% for meal_type in ['breakfast', 'lunch', 'dinner'] %}
+		{% for entry in meals[meal_type] %}
+		<div class="modal fade" id="editMealModal{{ entry.id }}" tabindex="-1" aria-labelledby="editMealModalLabel{{ entry.id }}" aria-hidden="true">
+			<div class="modal-dialog">
+				<div class="modal-content">
+					<div class="modal-header">
+						<h5 class="modal-title" id="editMealModalLabel{{ entry.id }}">Edit Meal: {{ entry.meal_name }}</h5>
+						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+					</div>
+					<form method="POST" action="{{ url_for('update_meal_plan_entry', entry_id=entry.id) }}">
+						<div class="modal-body">
+							<input type="hidden" name="week_offset" value="{{ week_offset }}">
+
+							<div class="mb-3">
+								<label class="form-label"><strong>Meal:</strong> {{ entry.meal_name }}</label>
+								<div class="text-muted" style="font-size: 0.9rem;">
+									<strong>Date:</strong> {{ entry.date.strftime('%A, %B %d, %Y') }}<br>
+									<strong>Type:</strong> {{ entry.meal_type.capitalize() if entry.meal_type else 'Not specified' }}
+								</div>
+							</div>
+
+							<div class="mb-3">
+								<label for="assigned_cook_ids_{{ entry.id }}" class="form-label">
+									<strong>Assigned Cooks</strong>
+									<small class="text-muted">(hold Ctrl/Cmd to select multiple)</small>
+								</label>
+								<select name="assigned_cook_ids" id="assigned_cook_ids_{{ entry.id }}" class="form-control" style="min-height: 120px;" multiple>
+									{% for user in household_users %}
+									<option value="{{ user.id }}" {% if user in entry.assigned_cooks %}selected{% endif %}>
+										{{ user.username }}
+									</option>
+									{% endfor %}
+								</select>
+								<div class="form-text">
+									Removed chefs will receive an email notification.
+								</div>
+							</div>
+						</div>
+						<div class="modal-footer">
+							<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+							<button type="submit" class="btn btn-primary">Save Changes</button>
+						</div>
+					</form>
+				</div>
+			</div>
+		</div>
+		{% endfor %}
+	{% endfor %}
+{% endfor %}
 {% endblock %}

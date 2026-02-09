@@ -2217,6 +2217,272 @@ For support: {admin_email}
     mail.send(msg)
 
 
+def send_chef_removed_from_meal_email(
+    recipient_email, recipient_name, meal_name, meal_date, meal_type, household_name
+):
+    """Send email to chef when they're removed from a meal plan entry"""
+    from flask_mail import Message
+
+    # Get admin email from config or use default sender
+    admin_email = app.config.get("MAIL_DEFAULT_SENDER", "support@autocart.com")
+
+    # Build meal plan URL
+    base_url = request.url_root.rstrip("/")
+    meal_plan_url = f"{base_url}/meal-plan"
+
+    # Format the date nicely
+    from datetime import datetime
+    if isinstance(meal_date, str):
+        meal_date = datetime.strptime(meal_date, "%Y-%m-%d").date()
+    formatted_date = meal_date.strftime("%A, %B %d, %Y")
+
+    subject = f"You've been removed from cooking {meal_name} on {formatted_date}"
+
+    # Create HTML email body
+    html_body = f"""
+    <html>
+    <head>
+        <style>
+            body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+            .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+            .header {{ background: linear-gradient(135deg, #004c91 0%, #1e6bb8 100%); color: white; padding: 30px 20px; text-align: center; border-radius: 5px 5px 0 0; }}
+            .header h1 {{ margin: 0; display: flex; align-items: center; justify-content: center; gap: 15px; }}
+            .logo {{ width: 50px; height: 50px; }}
+            .content {{ background-color: #f9f9f9; padding: 30px; border: 1px solid #ddd; }}
+            .button {{ display: inline-block; padding: 12px 24px; background-color: #004c91; color: white !important; text-decoration: none; border-radius: 5px; margin: 20px 0; font-weight: 600; }}
+            .button:hover {{ background-color: #1e6bb8; color: white !important; }}
+            .meal-info {{ background-color: white; padding: 20px; margin: 20px 0; border-left: 4px solid #ff6600; border-radius: 5px; }}
+            .meal-info h3 {{ color: #ff6600; margin-top: 0; }}
+            .info-box {{ background-color: #fff5f0; padding: 15px; border-radius: 5px; border-left: 4px solid #ff6600; margin: 20px 0; }}
+            .footer {{ text-align: center; padding: 20px; color: #999; font-size: 12px; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="logo">
+                        <circle cx="50" cy="50" r="48" fill="#FF8C42"/>
+                        <g transform="translate(50, 52)">
+                            <path d="M -26 -20 L -20 8 L 20 8 L 24 -20 Z" fill="#007bff" stroke="#004c91" stroke-width="2.5"/>
+                            <path d="M -28 -20 L -32 -32 L -20 -32" fill="none" stroke="#007bff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            <circle cx="-10" cy="16" r="5" fill="#004c91"/>
+                            <circle cx="10" cy="16" r="5" fill="#004c91"/>
+                            <line x1="-16" y1="-14" x2="-16" y2="5" stroke="white" stroke-width="2"/>
+                            <line x1="-5" y1="-14" x2="-5" y2="5" stroke="white" stroke-width="2"/>
+                            <line x1="6" y1="-14" x2="6" y2="5" stroke="white" stroke-width="2"/>
+                            <line x1="16" y1="-14" x2="16" y2="5" stroke="white" stroke-width="2"/>
+                        </g>
+                    </svg>
+                    <span>Meal Plan Update</span>
+                </h1>
+            </div>
+            <div class="content">
+                <p>Hi <strong>{recipient_name}</strong>,</p>
+
+                <p>You've been removed from cooking a meal in the <strong>{household_name}</strong> household meal plan.</p>
+
+                <div class="meal-info">
+                    <h3>🍽️ Meal Details</h3>
+                    <ul style="list-style: none; padding-left: 0;">
+                        <li><strong>Meal:</strong> {meal_name}</li>
+                        <li><strong>Date:</strong> {formatted_date}</li>
+                        <li><strong>Type:</strong> {meal_type.capitalize() if meal_type else 'Not specified'}</li>
+                    </ul>
+                </div>
+
+                <div class="info-box">
+                    <strong>ℹ️ What This Means</strong><br>
+                    You're no longer assigned to cook this meal. The meal plan has been updated, and you can view the current schedule anytime.
+                </div>
+
+                <center>
+                    <a href="{meal_plan_url}" class="button">View Meal Plan</a>
+                </center>
+
+                <p>If you have questions about this change, please check with your household members.</p>
+
+                <p>Happy cooking!</p>
+            </div>
+            <div class="footer">
+                <p style="color: #999; font-size: 11px;">
+                    Auto-Cart - Smart Household Grocery Management<br>
+                    For support or questions, contact: <a href="mailto:{admin_email}" style="color: #999;">{admin_email}</a>
+                </p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
+    # Create plain text version
+    text_body = f"""
+Meal Plan Update
+
+Hi {recipient_name},
+
+You've been removed from cooking a meal in the {household_name} household meal plan.
+
+Meal Details:
+• Meal: {meal_name}
+• Date: {formatted_date}
+• Type: {meal_type.capitalize() if meal_type else 'Not specified'}
+
+What This Means:
+You're no longer assigned to cook this meal. The meal plan has been updated, and you can view the current schedule anytime.
+
+View your meal plan: {meal_plan_url}
+
+If you have questions about this change, please check with your household members.
+
+Happy cooking!
+
+---
+Auto-Cart - Smart Household Grocery Management
+For support: {admin_email}
+    """
+
+    msg = Message(
+        subject=subject, recipients=[recipient_email], body=text_body, html=html_body
+    )
+
+    mail.send(msg)
+    logger.info(f"Chef removed email sent to {recipient_email} for meal {meal_name}")
+
+
+def send_meal_deleted_email(
+    recipient_email, recipient_name, meal_name, meal_date, meal_type, household_name
+):
+    """Send email to chef when a meal they're assigned to is deleted from the plan"""
+    from flask_mail import Message
+
+    # Get admin email from config or use default sender
+    admin_email = app.config.get("MAIL_DEFAULT_SENDER", "support@autocart.com")
+
+    # Build meal plan URL
+    base_url = request.url_root.rstrip("/")
+    meal_plan_url = f"{base_url}/meal-plan"
+
+    # Format the date nicely
+    from datetime import datetime
+    if isinstance(meal_date, str):
+        meal_date = datetime.strptime(meal_date, "%Y-%m-%d").date()
+    formatted_date = meal_date.strftime("%A, %B %d, %Y")
+
+    subject = f"Meal removed from plan: {meal_name} on {formatted_date}"
+
+    # Create HTML email body
+    html_body = f"""
+    <html>
+    <head>
+        <style>
+            body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+            .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+            .header {{ background: linear-gradient(135deg, #004c91 0%, #1e6bb8 100%); color: white; padding: 30px 20px; text-align: center; border-radius: 5px 5px 0 0; }}
+            .header h1 {{ margin: 0; display: flex; align-items: center; justify-content: center; gap: 15px; }}
+            .logo {{ width: 50px; height: 50px; }}
+            .content {{ background-color: #f9f9f9; padding: 30px; border: 1px solid #ddd; }}
+            .button {{ display: inline-block; padding: 12px 24px; background-color: #004c91; color: white !important; text-decoration: none; border-radius: 5px; margin: 20px 0; font-weight: 600; }}
+            .button:hover {{ background-color: #1e6bb8; color: white !important; }}
+            .meal-info {{ background-color: white; padding: 20px; margin: 20px 0; border-left: 4px solid #dc3545; border-radius: 5px; }}
+            .meal-info h3 {{ color: #dc3545; margin-top: 0; }}
+            .info-box {{ background-color: #fff5f0; padding: 15px; border-radius: 5px; border-left: 4px solid #dc3545; margin: 20px 0; }}
+            .footer {{ text-align: center; padding: 20px; color: #999; font-size: 12px; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="logo">
+                        <circle cx="50" cy="50" r="48" fill="#FF8C42"/>
+                        <g transform="translate(50, 52)">
+                            <path d="M -26 -20 L -20 8 L 20 8 L 24 -20 Z" fill="#007bff" stroke="#004c91" stroke-width="2.5"/>
+                            <path d="M -28 -20 L -32 -32 L -20 -32" fill="none" stroke="#007bff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            <circle cx="-10" cy="16" r="5" fill="#004c91"/>
+                            <circle cx="10" cy="16" r="5" fill="#004c91"/>
+                            <line x1="-16" y1="-14" x2="-16" y2="5" stroke="white" stroke-width="2"/>
+                            <line x1="-5" y1="-14" x2="-5" y2="5" stroke="white" stroke-width="2"/>
+                            <line x1="6" y1="-14" x2="6" y2="5" stroke="white" stroke-width="2"/>
+                            <line x1="16" y1="-14" x2="16" y2="5" stroke="white" stroke-width="2"/>
+                        </g>
+                    </svg>
+                    <span>Meal Plan Update</span>
+                </h1>
+            </div>
+            <div class="content">
+                <p>Hi <strong>{recipient_name}</strong>,</p>
+
+                <p>A meal you were assigned to cook has been removed from the <strong>{household_name}</strong> household meal plan.</p>
+
+                <div class="meal-info">
+                    <h3>🗑️ Removed Meal</h3>
+                    <ul style="list-style: none; padding-left: 0;">
+                        <li><strong>Meal:</strong> {meal_name}</li>
+                        <li><strong>Date:</strong> {formatted_date}</li>
+                        <li><strong>Type:</strong> {meal_type.capitalize() if meal_type else 'Not specified'}</li>
+                    </ul>
+                </div>
+
+                <div class="info-box">
+                    <strong>ℹ️ What This Means</strong><br>
+                    This meal has been completely removed from the meal plan. You're no longer assigned to cook it, and it won't appear on the schedule.
+                </div>
+
+                <center>
+                    <a href="{meal_plan_url}" class="button">View Current Meal Plan</a>
+                </center>
+
+                <p>If you have questions about this change, please check with your household members.</p>
+
+                <p>Happy cooking!</p>
+            </div>
+            <div class="footer">
+                <p style="color: #999; font-size: 11px;">
+                    Auto-Cart - Smart Household Grocery Management<br>
+                    For support or questions, contact: <a href="mailto:{admin_email}" style="color: #999;">{admin_email}</a>
+                </p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
+    # Create plain text version
+    text_body = f"""
+Meal Plan Update
+
+Hi {recipient_name},
+
+A meal you were assigned to cook has been removed from the {household_name} household meal plan.
+
+Removed Meal:
+• Meal: {meal_name}
+• Date: {formatted_date}
+• Type: {meal_type.capitalize() if meal_type else 'Not specified'}
+
+What This Means:
+This meal has been completely removed from the meal plan. You're no longer assigned to cook it, and it won't appear on the schedule.
+
+View your current meal plan: {meal_plan_url}
+
+If you have questions about this change, please check with your household members.
+
+Happy cooking!
+
+---
+Auto-Cart - Smart Household Grocery Management
+For support: {admin_email}
+    """
+
+    msg = Message(
+        subject=subject, recipients=[recipient_email], body=text_body, html=html_body
+    )
+
+    mail.send(msg)
+    logger.info(f"Meal deleted email sent to {recipient_email} for meal {meal_name}")
+
+
 @app.route("/household/edit-name", methods=["POST"])
 @require_login
 def edit_household_name():
@@ -2695,10 +2961,78 @@ def delete_meal_plan_entry(entry_id):
 
     week_offset = request.form.get("week_offset", 0)
 
+    # Send emails to all assigned cooks before deleting
+    if entry.assigned_cooks:
+        for cook in entry.assigned_cooks:
+            if cook.email:
+                try:
+                    send_meal_deleted_email(
+                        recipient_email=cook.email,
+                        recipient_name=cook.username,
+                        meal_name=entry.meal_name,
+                        meal_date=entry.date,
+                        meal_type=entry.meal_type,
+                        household_name=g.household.name
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to send meal deleted email to {cook.email}: {e}")
+
     db.session.delete(entry)
     db.session.commit()
 
     flash("Meal removed from plan", "success")
+    return redirect(url_for("meal_plan") + f"?week={week_offset}")
+
+
+@app.route("/meal-plan/update/<int:entry_id>", methods=["POST"])
+@require_login
+def update_meal_plan_entry(entry_id):
+    """Update a meal plan entry (e.g., change assigned cooks)"""
+    entry = MealPlanEntry.query.get_or_404(entry_id)
+
+    if entry.household_id != g.household.id:
+        flash("Unauthorized", "danger")
+        return redirect(url_for("meal_plan"))
+
+    week_offset = request.form.get("week_offset", 0)
+
+    # Get the new list of assigned cook IDs from the form
+    new_cook_ids = request.form.getlist("assigned_cook_ids")
+    new_cook_ids = [int(cook_id) for cook_id in new_cook_ids if cook_id]
+
+    # Get current assigned cooks
+    current_cooks = set(entry.assigned_cooks)
+    current_cook_ids = {cook.id for cook in current_cooks}
+
+    # Find removed cooks (those who were assigned but are no longer)
+    removed_cook_ids = current_cook_ids - set(new_cook_ids)
+    removed_cooks = [cook for cook in current_cooks if cook.id in removed_cook_ids]
+
+    # Send emails to removed cooks
+    for cook in removed_cooks:
+        if cook.email:
+            try:
+                send_chef_removed_from_meal_email(
+                    recipient_email=cook.email,
+                    recipient_name=cook.username,
+                    meal_name=entry.meal_name,
+                    meal_date=entry.date,
+                    meal_type=entry.meal_type,
+                    household_name=g.household.name
+                )
+            except Exception as e:
+                logger.error(f"Failed to send chef removed email to {cook.email}: {e}")
+
+    # Update the assigned cooks
+    entry.assigned_cooks = []
+    for cook_id in new_cook_ids:
+        cook = User.query.get(cook_id)
+        if cook:
+            entry.assigned_cooks.append(cook)
+
+    db.session.commit()
+
+    flash("Meal plan updated", "success")
     return redirect(url_for("meal_plan") + f"?week={week_offset}")
 
 
