@@ -69,6 +69,28 @@ class Household(db.Model):
         ).first()
         return membership is not None
 
+    def get_connected_households(self):
+        """Get all households that share at least one member with this household.
+
+        Returns households that have overlapping membership - useful for finding
+        households where recipes can be shared by owners.
+        """
+        # Get all member user IDs from this household
+        member_user_ids = [m.user_id for m in self.members]
+
+        if not member_user_ids:
+            return []
+
+        # Find all households that have any of these users as members
+        connected_households = db.session.query(Household).join(
+            HouseholdMember
+        ).filter(
+            HouseholdMember.user_id.in_(member_user_ids),
+            Household.id != self.id  # Exclude this household itself
+        ).distinct().all()
+
+        return connected_households
+
     def __repr__(self):
         return f"<Household #{self.id}: {self.name}>"
 

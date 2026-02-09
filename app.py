@@ -1004,10 +1004,37 @@ def view_recipe(recipe_id):
             logger.error(f"Recipe update error: {error}", exc_info=True)
             flash("Error occurred. Please try again", "danger")
 
-    # Get user's other households (excluding the current recipe's household)
-    other_households = [
-        h for h in g.user.get_households() if h.id != recipe.household_id
-    ]
+    # Get households where this recipe can be exported
+    # If user is an owner of the recipe's household, they can export to:
+    # 1. Their other households (where they are a member)
+    # 2. Connected households (households that share members with any household they own)
+    other_households = []
+
+    if recipe.household_id:
+        source_household = Household.query.get(recipe.household_id)
+
+        # Check if user is an owner of the source household
+        if source_household and source_household.is_user_owner(g.user.id):
+            # Owner can export to:
+            # 1. All households they belong to (excluding source)
+            user_households = [h for h in g.user.get_households() if h.id != recipe.household_id]
+
+            # 2. All connected households from households they own
+            connected_households = set()
+            for owned_household in g.user.get_owned_households():
+                for connected in owned_household.get_connected_households():
+                    if connected.id != recipe.household_id:
+                        connected_households.add(connected)
+
+            # Combine and deduplicate
+            all_households = set(user_households) | connected_households
+            other_households = sorted(list(all_households), key=lambda h: h.name)
+        else:
+            # Regular member can only export to their other households
+            other_households = [h for h in g.user.get_households() if h.id != recipe.household_id]
+    else:
+        # Legacy recipe with no household
+        other_households = [h for h in g.user.get_households()]
 
     return render_template(
         "recipe.html", recipe=recipe, form=form, other_households=other_households
@@ -1506,13 +1533,36 @@ def export_recipe(recipe_id):
         flash("Please select at least one household to export to", "warning")
         return redirect(url_for("view_recipe", recipe_id=recipe_id))
 
+    # Determine which households the user can export to
+    # If user is an owner of the source household, they can export to connected households
+    allowed_household_ids = set()
+    source_household = Household.query.get(recipe.household_id) if recipe.household_id else None
+
+    if source_household and source_household.is_user_owner(g.user.id):
+        # Owner can export to:
+        # 1. All households they belong to
+        for h in g.user.get_households():
+            allowed_household_ids.add(h.id)
+
+        # 2. All connected households from households they own
+        for owned_household in g.user.get_owned_households():
+            for connected in owned_household.get_connected_households():
+                allowed_household_ids.add(connected.id)
+    else:
+        # Regular member can only export to households they belong to
+        for h in g.user.get_households():
+            allowed_household_ids.add(h.id)
+
     exported_count = 0
     for household_id in household_ids:
         household_id = int(household_id)
 
-        # Verify user is a member of the target household
+        # Verify user has permission to export to this household
         target_household = Household.query.get(household_id)
-        if not target_household or not target_household.is_user_member(g.user.id):
+        if not target_household or household_id not in allowed_household_ids:
+            logger.warning(
+                f"User {g.user.id} attempted to export recipe {recipe_id} to unauthorized household {household_id}"
+            )
             continue
 
         # Check if recipe with same name already exists in target household
