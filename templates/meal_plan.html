@@ -7,48 +7,103 @@
 	.meal-plan-table {
 		border-collapse: separate;
 		border-spacing: 0;
-		border-radius: 8px;
+		border-radius: 0;
 		overflow: hidden;
 	}
 
 	.meal-plan-table thead th {
 		font-weight: 600;
 		text-transform: uppercase;
-		letter-spacing: 0.3px;
+		letter-spacing: 0.5px;
+		font-size: 0.7rem;
+		padding: 10px 8px !important;
+		background: #f97316 !important;
+		border: none !important;
+		color: white !important;
+	}
+
+	.meal-plan-table tbody tr {
+		border-bottom: 1px solid #e5e7eb;
+		transition: background-color 0.15s ease;
+	}
+
+	.meal-plan-table tbody tr:hover {
+		background-color: #f9fafb;
+	}
+
+	.meal-plan-table tbody td {
+		padding: 6px !important;
+		vertical-align: top;
 	}
 
 	.meal-card {
-		transition: transform 0.15s, box-shadow 0.15s;
+		transition: all 0.15s ease;
+		border-radius: 6px !important;
+		border: 1px solid #e5e7eb !important;
+		border-left: 2px solid #3b82f6 !important;
+		margin-bottom: 6px !important;
 	}
 
 	.meal-card:hover {
 		transform: translateY(-1px);
-		box-shadow: 0 3px 8px rgba(0,0,0,0.12) !important;
+		box-shadow: 0 2px 8px rgba(0,0,0,0.08) !important;
+		border-left-color: #2563eb !important;
 	}
 
-	.date-badge {
-		display: inline-block;
-		font-weight: 600;
-		letter-spacing: 0.3px;
+	.meal-link {
+		color: #1e40af;
+		transition: color 0.15s ease;
 	}
 
 	.meal-link:hover {
-		text-decoration: underline !important;
-		color: #0a58ca !important;
+		color: #1e3a8a !important;
+		text-decoration: none !important;
 	}
 
-	/* Clickable day cells */
-	.clickable-day {
-		transition: background-color 0.2s ease, transform 0.1s ease;
+	/* Clickable day header cells */
+	.clickable-day-header {
+		transition: all 0.15s ease;
+		position: relative;
 	}
 
-	.clickable-day:hover {
-		background-color: rgba(13, 110, 253, 0.08) !important;
-		transform: scale(1.02);
+	.clickable-day-header:hover {
+		background-color: #ea580c !important;
+		transform: translateY(-1px);
 	}
 
-	.clickable-day:active {
-		transform: scale(0.98);
+	.clickable-day-header:active {
+		transform: translateY(0);
+	}
+
+	.day-name {
+		font-size: 0.75rem;
+		font-weight: 600;
+		color: white;
+		line-height: 1.2;
+		text-transform: uppercase;
+		letter-spacing: 0.3px;
+	}
+
+	.day-date {
+		font-size: 0.7rem;
+		color: rgba(255, 255, 255, 0.9);
+		font-weight: 500;
+		margin-top: 2px;
+	}
+
+	.add-meal-icon {
+		position: absolute;
+		top: 50%;
+		right: 8px;
+		transform: translateY(-50%);
+		font-size: 1rem;
+		color: white;
+		opacity: 0.7;
+		transition: opacity 0.15s ease;
+	}
+
+	.clickable-day:hover .add-meal-icon {
+		opacity: 1;
 	}
 
 	/* Multi-select styling */
@@ -208,68 +263,84 @@
 		<div class="card-body p-0">
 			<!-- Desktop Table View -->
 			<div class="table-responsive desktop-view">
-				<table class="table table-hover mb-0 meal-plan-table" style="table-layout: fixed; width: 100%;">
-					<thead class="bg-primary text-white">
+				<table class="table mb-0 meal-plan-table" style="table-layout: fixed; width: 100%;">
+					<thead>
 						<tr>
-							<th style="width: 12%; padding: 8px; border: none; font-size: 0.85rem;">Day</th>
-							<th style="width: 29.33%; padding: 8px; border: none; font-size: 0.85rem;">Breakfast</th>
-							<th style="width: 29.33%; padding: 8px; border: none; font-size: 0.85rem;">Lunch</th>
-							<th style="width: 29.34%; padding: 8px; border: none; font-size: 0.85rem;">Dinner</th>
+							<th style="width: 10%;">Meal</th>
+							{% for date, meals in meal_plan.items() %}
+							<th style="width: 12.86%; cursor: pointer; position: relative;"
+								class="clickable-day-header"
+								data-date="{{ date.strftime('%Y-%m-%d') }}"
+								title="Click to add a meal for this day">
+								<div class="day-name">{{ date.strftime('%a') }}</div>
+								<div class="day-date">{{ date.strftime('%b %d') }}</div>
+								<i class="fas fa-plus add-meal-icon"></i>
+							</th>
+							{% endfor %}
 						</tr>
 					</thead>
 					<tbody>
-						{% for date, meals in meal_plan.items() %}
-						<tr style="border-bottom: 1px solid #dee2e6;">
-							<td class="fw-bold align-middle {% if date == today %}bg-info bg-opacity-10{% endif %} clickable-day"
-								style="padding: 10px; border-left: none; border-right: 1px solid #dee2e6; cursor: pointer;"
-								data-date="{{ date.strftime('%Y-%m-%d') }}"
-								title="Click to add a meal for this day">
-								<div style="font-size: 0.9rem;">
-									{{ date.strftime('%A') }}
-									<span class="text-muted ms-2" style="font-size: 0.85rem; font-weight: 500;">{{ date.strftime('%b %d') }}</span>
-								</div>
+						{% for meal_type in ['breakfast', 'lunch', 'dinner'] %}
+						<tr>
+							<td class="clickable-meal-type" style="font-weight: 600; font-size: 0.8rem; color: #1f2937;">
+								{% if meal_type == 'breakfast' %}🍳 Breakfast{% endif %}
+								{% if meal_type == 'lunch' %}🥗 Lunch{% endif %}
+								{% if meal_type == 'dinner' %}🍽️ Dinner{% endif %}
 							</td>
-							{% for meal_type in ['breakfast', 'lunch', 'dinner'] %}
-							<td class="align-top" style="padding: 8px; background-color: #fafbfc; {% if not loop.last %}border-right: 1px solid #dee2e6;{% endif %}">
+							{% for date, meals in meal_plan.items() %}
+							<td style="background-color: #f9fafb; {% if not loop.last %}border-right: 1px solid #e5e7eb;{% endif %}">
 								{% for entry in meals[meal_type] %}
-								<div class="card mb-2 border-0 shadow-sm meal-card" id="meal-card-{{ entry.id }}" style="border-left: 3px solid #0d6efd !important; background: white;">
-									<div class="card-body p-2">
+								<div class="meal-card" id="meal-card-{{ entry.id }}" style="background: white;">
+									<div style="padding: 8px;">
 										<!-- Recipe Title Row -->
 										{% if entry.recipe and entry.recipe.url %}
-										<div class="fw-bold mb-2" style="font-size: 0.95rem; overflow-x: auto; white-space: nowrap;">
-											<a href="{{ entry.recipe.url }}" target="_blank" class="text-primary text-decoration-none meal-link" title="View recipe at {{ entry.recipe.url }}">
-												{{ entry.meal_name }} <i class="fas fa-external-link-alt" style="font-size: 0.7rem;"></i>
+										<div class="mb-1" style="font-size: 0.8rem; font-weight: 600; color: #111827; line-height: 1.3;">
+											<a href="{{ entry.recipe.url }}" target="_blank" class="meal-link text-decoration-none" title="View recipe">
+												{{ entry.meal_name }} <i class="fas fa-external-link-alt" style="font-size: 0.6rem; opacity: 0.5;"></i>
 											</a>
 										</div>
 										{% else %}
-										<div class="fw-bold text-primary mb-2" style="font-size: 0.95rem; overflow-x: auto; white-space: nowrap;">{{ entry.meal_name }}</div>
+										<div class="mb-1" style="font-size: 0.8rem; font-weight: 600; color: #1e40af; line-height: 1.3;">{{ entry.meal_name }}</div>
 										{% endif %}
 
 										<!-- Chef Display Mode (default) -->
 										<div class="chef-display">
-											<div class="d-flex justify-content-between align-items-center">
-												<div class="flex-grow-1">
+											<div class="d-flex justify-content-between align-items-start">
+												<div class="flex-grow-1" style="min-width: 0;">
 													{% if entry.assigned_cooks.count() > 0 %}
-													<span class="text-muted" style="font-size: 0.8rem;">
-														<i class="fas fa-utensils"></i>
-														{% for cook in entry.assigned_cooks %}{{ cook.username }}{% if not loop.last %}, {% endif %}{% endfor %}
-													</span>
+													<div style="font-size: 0.7rem; color: #6b7280; margin-bottom: 2px;">
+														<i class="fas fa-utensils" style="width: 11px; opacity: 0.6; font-size: 0.65rem; margin-right: 4px;"></i>
+														<span style="font-weight: 500;">
+															{% for cook in entry.assigned_cooks %}{{ cook.username }}{% if not loop.last %}, {% endif %}{% endfor %}
+														</span>
+													</div>
 													{% elif entry.assigned_cook %}
-													<span class="text-muted" style="font-size: 0.8rem; white-space: nowrap;"><i class="fas fa-utensils"></i> {{ entry.assigned_cook.username }}</span>
+													<div style="font-size: 0.7rem; color: #6b7280; margin-bottom: 2px;">
+														<i class="fas fa-utensils" style="width: 11px; opacity: 0.6; font-size: 0.65rem; margin-right: 4px;"></i>
+														<span style="font-weight: 500;">{{ entry.assigned_cook.username }}</span>
+													</div>
 													{% endif %}
 													{% if entry.notes %}
-													<div class="text-info" style="font-size: 0.75rem;"><i class="fas fa-sticky-note"></i> {{ entry.notes }}</div>
+													<div style="font-size: 0.65rem; color: #059669; background-color: #d1fae5; padding: 2px 6px; border-radius: 3px; display: inline-block; margin-top: 2px;">
+														<i class="fas fa-sticky-note" style="font-size: 0.6rem;"></i> {{ entry.notes }}
+													</div>
 													{% endif %}
 												</div>
-												<div style="display: flex; gap: 2px; flex-shrink: 0; margin-left: 4px;">
+												<div style="display: flex; gap: 4px; flex-shrink: 0; margin-left: 6px; align-items: center;">
 													<!-- Edit Button -->
-													<button type="button" class="btn btn-sm btn-outline-primary rounded-circle edit-meal-btn" data-entry-id="{{ entry.id }}" style="width: 18px; height: 18px; padding: 0; line-height: 1; font-size: 0.65rem; border-width: 1px;">
+													<button type="button" class="edit-meal-btn" data-entry-id="{{ entry.id }}"
+														style="width: 20px; height: 20px; padding: 0; display: flex; align-items: center; justify-content: center; font-size: 0.65rem;
+														border: 1px solid #d1d5db; border-radius: 4px; background: white; color: #6b7280;
+														transition: all 0.15s ease; cursor: pointer;">
 														<i class="fas fa-edit"></i>
 													</button>
 													<!-- Delete Button -->
 													<form method="POST" action="{{ url_for('delete_meal_plan_entry', entry_id=entry.id) }}" style="display: inline;">
 														<input type="hidden" name="week_offset" value="{{ week_offset }}">
-														<button type="submit" class="btn btn-sm btn-outline-danger rounded-circle" onclick="return confirm('Remove this meal? All assigned chefs will be notified.');" style="width: 18px; height: 18px; padding: 0; line-height: 1; font-size: 0.65rem; border-width: 1px;">
+														<button type="submit" onclick="return confirm('Remove this meal from the plan?');"
+															style="width: 20px; height: 20px; padding: 0; display: flex; align-items: center; justify-content: center; font-size: 0.65rem;
+															border: 1px solid #fecaca; border-radius: 4px; background: white; color: #dc2626;
+															transition: all 0.15s ease; cursor: pointer;">
 															<i class="fas fa-times"></i>
 														</button>
 													</form>
@@ -374,7 +445,7 @@
 											<!-- Delete Button -->
 											<form method="POST" action="{{ url_for('delete_meal_plan_entry', entry_id=entry.id) }}" style="display: inline;">
 												<input type="hidden" name="week_offset" value="{{ week_offset }}">
-												<button type="submit" class="btn btn-sm btn-outline-danger rounded-circle" onclick="return confirm('Remove this meal? All assigned chefs will be notified.');" style="width: 18px; height: 18px; padding: 0; line-height: 1; font-size: 0.65rem; border-width: 1px;">
+												<button type="submit" class="btn btn-sm btn-outline-danger rounded-circle" onclick="return confirm('Remove this meal from the plan?');" style="width: 18px; height: 18px; padding: 0; line-height: 1; font-size: 0.65rem; border-width: 1px;">
 													<i class="fas fa-times"></i>
 												</button>
 											</form>
@@ -505,19 +576,14 @@ function toggleCustomMeal() {
 	}
 }
 
-// Handle clicking on day cells to add meals
+// Handle clicking on day header cells to add meals
 document.addEventListener('DOMContentLoaded', function() {
-	const clickableDays = document.querySelectorAll('.clickable-day');
+	const clickableDayHeaders = document.querySelectorAll('.clickable-day-header');
 	const dateInput = document.getElementById('date');
 	const addMealForm = document.getElementById('addMealForm');
 
-	clickableDays.forEach(function(dayCell) {
-		dayCell.addEventListener('click', function(e) {
-			// Don't trigger if clicking on a button or link inside the cell
-			if (e.target.closest('button') || e.target.closest('a') || e.target.closest('form')) {
-				return;
-			}
-
+	clickableDayHeaders.forEach(function(dayHeader) {
+		dayHeader.addEventListener('click', function(e) {
 			const selectedDate = this.getAttribute('data-date');
 
 			// Set the date in the form

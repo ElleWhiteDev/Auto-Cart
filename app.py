@@ -2712,7 +2712,11 @@ def send_meal_plan_daily_summary(household_id):
         for change in deleted_meals:
             changes_text += f"• {change.meal_name} - {change.meal_date.strftime('%A, %B %d')} ({change.meal_type.capitalize()}) by {change.changed_by.username}\n"
 
-    subject = f"Meal Plan Updates for {household.name}"
+    # Get today's date for the subject
+    from datetime import datetime
+    today = datetime.now().strftime('%B %d, %Y')
+
+    subject = f"Daily Meal Plan Summary - {household.name} ({today})"
 
     # Create HTML email body
     html_body = f"""
@@ -2722,9 +2726,11 @@ def send_meal_plan_daily_summary(household_id):
             body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
             .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
             .header {{ background: linear-gradient(135deg, #004c91 0%, #1e6bb8 100%); color: white; padding: 30px 20px; text-align: center; border-radius: 5px 5px 0 0; }}
-            .header h1 {{ margin: 0; display: flex; align-items: center; justify-content: center; gap: 15px; }}
+            .header h1 {{ margin: 0; display: flex; align-items: center; justify-content: center; gap: 15px; font-size: 24px; }}
+            .header .subtitle {{ font-size: 14px; margin-top: 8px; opacity: 0.9; }}
             .logo {{ width: 50px; height: 50px; }}
             .content {{ background-color: #f9f9f9; padding: 30px; border: 1px solid #ddd; }}
+            .intro {{ background-color: #e8f4f8; padding: 15px; border-left: 4px solid #004c91; margin-bottom: 20px; border-radius: 4px; }}
             .button {{ display: inline-block; padding: 12px 24px; background-color: #004c91; color: white !important; text-decoration: none; border-radius: 5px; margin: 20px 0; font-weight: 600; }}
             .button:hover {{ background-color: #1e6bb8; color: white !important; }}
             .footer {{ text-align: center; padding: 20px; color: #999; font-size: 12px; }}
@@ -2750,19 +2756,26 @@ def send_meal_plan_daily_summary(household_id):
                             <line x1="16" y1="-14" x2="16" y2="5" stroke="white" stroke-width="2"/>
                         </g>
                     </svg>
-                    <span>Meal Plan Updates</span>
+                    <span>Daily Meal Plan Summary</span>
                 </h1>
+                <div class="subtitle">📅 {today}</div>
             </div>
             <div class="content">
-                <p>Hi there!</p>
-
-                <p>Here's a summary of changes to the <strong>{household.name}</strong> meal plan:</p>
+                <div class="intro">
+                    <strong>📬 Your Daily Update</strong><br>
+                    Here's everything that happened in the <strong>{household.name}</strong> meal planner today. Stay in sync with your household's meal planning!
+                </div>
 
                 {changes_html}
 
                 <center>
-                    <a href="{meal_plan_url}" class="button">View Meal Plan</a>
+                    <a href="{meal_plan_url}" class="button">View Full Meal Plan</a>
                 </center>
+
+                <p style="margin-top: 25px; font-size: 13px; color: #666; border-top: 1px solid #ddd; padding-top: 15px;">
+                    💡 <strong>Tip:</strong> You receive this daily summary when changes are made to your household's meal plan.
+                    This helps everyone stay informed about upcoming meals!
+                </p>
             </div>
             <div class="footer">
                 <p style="color: #999; font-size: 11px;">
@@ -2777,15 +2790,19 @@ def send_meal_plan_daily_summary(household_id):
 
     # Create plain text version
     text_body = f"""
-Meal Plan Updates for {household.name}
+📅 DAILY MEAL PLAN SUMMARY - {today}
+{household.name}
 
 Hi there!
 
-Here's a summary of changes to the {household.name} meal plan:
+Here's everything that happened in your meal planner today:
 
 {changes_text}
 
-View your meal plan: {meal_plan_url}
+View your full meal plan: {meal_plan_url}
+
+💡 TIP: You receive this daily summary when changes are made to your household's
+meal plan. This helps everyone stay informed about upcoming meals!
 
 ---
 Auto-Cart - Smart Household Grocery Management
@@ -3306,23 +3323,7 @@ def delete_meal_plan_entry(entry_id):
 
     week_offset = request.form.get("week_offset", 0)
 
-    # Send emails to all assigned cooks before deleting
-    if entry.assigned_cooks:
-        for cook in entry.assigned_cooks:
-            if cook.email:
-                try:
-                    send_meal_deleted_email(
-                        recipient_email=cook.email,
-                        recipient_name=cook.username,
-                        meal_name=entry.meal_name,
-                        meal_date=entry.date,
-                        meal_type=entry.meal_type,
-                        household_name=g.household.name
-                    )
-                except Exception as e:
-                    logger.error(f"Failed to send meal deleted email to {cook.email}: {e}")
-
-    # Track the change for daily summary
+    # Track the change for daily summary (no immediate email sent)
     from models import MealPlanChange
     change = MealPlanChange(
         household_id=g.household.id,
