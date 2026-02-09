@@ -142,6 +142,12 @@
 							</td>
 							<td>
 								<span class="badge bg-info">{{ stat.members_count }}</span>
+								{% if stat.email_enabled_count is defined %}
+								<br><small class="text-muted">{{ stat.email_enabled_count }} meal plan emails</small>
+								{% endif %}
+								{% if stat.chef_email_enabled_count is defined %}
+								<br><small class="text-muted">{{ stat.chef_email_enabled_count }} chef emails</small>
+								{% endif %}
 							</td>
 							<td>
 								<span class="badge bg-success">{{ stat.recipes_count }}</span>

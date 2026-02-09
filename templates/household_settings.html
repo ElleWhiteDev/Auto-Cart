@@ -28,8 +28,9 @@
 				</p>
 				<div class="list-group mb-3">
 					{% for hh in user_households %}
+					{% set hh_membership = g.user.household_memberships|selectattr('household_id', 'equalto', hh.id)|first %}
 					<div class="list-group-item {% if hh.id == household.id %}active{% endif %}">
-						<div class="d-flex justify-content-between align-items-center">
+						<div class="d-flex justify-content-between align-items-center mb-2">
 							<div>
 								<strong>
 									<i class="fas fa-home"></i> {{ hh.name }}
@@ -53,6 +54,42 @@
 							</a>
 							{% endif %}
 						</div>
+						{% if hh_membership %}
+						<div class="d-flex justify-content-between align-items-center pt-2" style="border-top: 1px solid rgba(0,0,0,0.1);">
+							<div>
+								<small><i class="fas fa-envelope"></i> <strong>Meal Plan Emails</strong></small>
+								<br>
+								<small class="text-muted">Daily summaries of meal plan changes</small>
+							</div>
+							<div class="form-check form-switch">
+								<input
+									class="form-check-input"
+									type="checkbox"
+									id="email-toggle-{{ hh_membership.id }}"
+									{% if hh_membership.receive_meal_plan_emails %}checked{% endif %}
+									onchange="toggleMealPlanEmails({{ hh_membership.id }}, this.checked)"
+									style="cursor: pointer;"
+								>
+							</div>
+						</div>
+						<div class="d-flex justify-content-between align-items-center pt-2" style="border-top: 1px solid rgba(0,0,0,0.1);">
+							<div>
+								<small><i class="fas fa-utensils"></i> <strong>Chef Assignment Emails</strong></small>
+								<br>
+								<small class="text-muted">Notifications when you're assigned to cook</small>
+							</div>
+							<div class="form-check form-switch">
+								<input
+									class="form-check-input"
+									type="checkbox"
+									id="chef-email-toggle-{{ hh_membership.id }}"
+									{% if hh_membership.receive_chef_assignment_emails %}checked{% endif %}
+									onchange="toggleChefAssignmentEmails({{ hh_membership.id }}, this.checked)"
+									style="cursor: pointer;"
+								>
+							</div>
+						</div>
+						{% endif %}
 					</div>
 					{% endfor %}
 				</div>
@@ -335,6 +372,84 @@
 			// Submit the form
 			deleteForm.submit();
 		}
+	}
+
+	// Toggle meal plan email notifications
+	function toggleMealPlanEmails(memberId, enabled) {
+		const checkbox = document.getElementById('email-toggle-' + memberId);
+
+		// Disable checkbox during request
+		checkbox.disabled = true;
+
+		fetch('{{ url_for("toggle_meal_plan_emails") }}', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+			},
+			body: JSON.stringify({
+				member_id: memberId,
+				enabled: enabled
+			})
+		})
+		.then(response => response.json())
+		.then(data => {
+			if (data.success) {
+				// Success - checkbox state is already updated
+				console.log('Email preference updated successfully');
+			} else {
+				// Revert checkbox on error
+				checkbox.checked = !enabled;
+				alert('Error updating email preference: ' + (data.error || 'Unknown error'));
+			}
+		})
+		.catch(error => {
+			// Revert checkbox on error
+			checkbox.checked = !enabled;
+			alert('Error updating email preference. Please try again.');
+			console.error('Error:', error);
+		})
+		.finally(() => {
+			checkbox.disabled = false;
+		});
+	}
+
+	// Toggle chef assignment email notifications
+	function toggleChefAssignmentEmails(memberId, enabled) {
+		const checkbox = document.getElementById('chef-email-toggle-' + memberId);
+
+		// Disable checkbox during request
+		checkbox.disabled = true;
+
+		fetch('{{ url_for("toggle_chef_assignment_emails") }}', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+			},
+			body: JSON.stringify({
+				member_id: memberId,
+				enabled: enabled
+			})
+		})
+		.then(response => response.json())
+		.then(data => {
+			if (data.success) {
+				// Success - checkbox state is already updated
+				console.log('Chef assignment email preference updated successfully');
+			} else {
+				// Revert checkbox on error
+				checkbox.checked = !enabled;
+				alert('Error updating chef assignment email preference: ' + (data.error || 'Unknown error'));
+			}
+		})
+		.catch(error => {
+			// Revert checkbox on error
+			checkbox.checked = !enabled;
+			alert('Error updating chef assignment email preference. Please try again.');
+			console.error('Error:', error);
+		})
+		.finally(() => {
+			checkbox.disabled = false;
+		});
 	}
 </script>
 {% endblock %}

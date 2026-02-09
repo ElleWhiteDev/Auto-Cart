@@ -119,6 +119,8 @@ class HouseholdMember(db.Model):
         db.String(20), nullable=False, default="member"
     )  # 'owner' or 'member'
     joined_at = db.Column(db.DateTime, nullable=False, default=get_est_now)
+    receive_meal_plan_emails = db.Column(db.Boolean, nullable=False, default=True)
+    receive_chef_assignment_emails = db.Column(db.Boolean, nullable=False, default=True)
 
     user = db.relationship("User", backref="household_memberships")
 
@@ -531,6 +533,10 @@ class User(db.Model):
 
     last_activity = db.Column(db.DateTime, nullable=True)
 
+    # Password reset fields
+    reset_token = db.Column(db.Text, nullable=True, unique=True)
+    reset_token_expiry = db.Column(db.DateTime, nullable=True)
+
     recipes = db.relationship("Recipe", backref="user", cascade="all, delete-orphan")
     grocery_lists = db.relationship(
         "GroceryList",
@@ -594,6 +600,35 @@ class User(db.Model):
                 return user
 
         return False
+
+    def generate_reset_token(self):
+        """Generate a password reset token that expires in 1 hour"""
+        import secrets
+        from datetime import timedelta
+
+        self.reset_token = secrets.token_urlsafe(32)
+        self.reset_token_expiry = get_est_now() + timedelta(hours=1)
+        return self.reset_token
+
+    @classmethod
+    def verify_reset_token(cls, token):
+        """Verify a reset token and return the user if valid"""
+        user = cls.query.filter_by(reset_token=token).first()
+
+        if not user or not user.reset_token_expiry:
+            return None
+
+        # Check if token has expired
+        if get_est_now() > user.reset_token_expiry:
+            return None
+
+        return user
+
+    def reset_password(self, new_password):
+        """Reset password using a reset token"""
+        self.password = bcrypt.generate_password_hash(new_password).decode("UTF-8")
+        self.reset_token = None
+        self.reset_token_expiry = None
 
 
 class RecipeIngredient(db.Model):

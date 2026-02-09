@@ -70,3 +70,23 @@ class AlexaSettingsForm(FlaskForm):
         coerce=int,
         validators=[Optional()],
     )
+
+
+class RequestPasswordResetForm(FlaskForm):
+    """Form to request password reset"""
+
+    email = StringField("Email", validators=[DataRequired(), Email()])
+
+
+class ResetPasswordForm(FlaskForm):
+    """Form to reset password with token"""
+
+    password = PasswordField(
+        "New Password",
+        validators=[
+            DataRequired(),
+            Length(min=6, max=20),
+            EqualTo("confirm", message="Passwords must match"),
+        ],
+    )
+    confirm = PasswordField("Confirm New Password", validators=[DataRequired()])

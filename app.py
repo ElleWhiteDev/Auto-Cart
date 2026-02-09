@@ -42,6 +42,8 @@ from forms import (
     UpdateEmailForm,
     UpdateUsernameForm,
     AlexaSettingsForm,
+    RequestPasswordResetForm,
+    ResetPasswordForm,
 )
 from app_config import config
 from utils import (
@@ -709,6 +711,151 @@ def logout():
     do_logout()
     flash("Successfully logged out", "success")
     return redirect(url_for("login"))
+
+
+@app.route("/forgot-password", methods=["GET", "POST"])
+def forgot_password():
+    """Handle password reset request"""
+    form = RequestPasswordResetForm()
+
+    if form.validate_on_submit():
+        email = form.email.data.strip()
+        user = User.query.filter_by(email=email).first()
+
+        # Always show success message to prevent email enumeration
+        if user:
+            # Generate reset token
+            token = user.generate_reset_token()
+            db.session.commit()
+
+            # Send reset email
+            try:
+                send_password_reset_email(user.email, user.username, token)
+                logger.info(f"Password reset email sent to {user.email}")
+            except Exception as e:
+                logger.error(f"Failed to send password reset email: {e}", exc_info=True)
+                flash("Failed to send reset email. Please try again later.", "danger")
+                return render_template("forgot_password.html", form=form)
+
+        flash(
+            "If an account exists with that email, a password reset link has been sent.",
+            "info",
+        )
+        return redirect(url_for("login"))
+
+    return render_template("forgot_password.html", form=form)
+
+
+@app.route("/reset-password/<token>", methods=["GET", "POST"])
+def reset_password(token):
+    """Handle password reset with token"""
+    user = User.verify_reset_token(token)
+
+    if not user:
+        flash("Invalid or expired reset link.", "danger")
+        return redirect(url_for("forgot_password"))
+
+    form = ResetPasswordForm()
+
+    if form.validate_on_submit():
+        user.reset_password(form.password.data)
+        db.session.commit()
+        flash("Your password has been reset successfully! Please log in.", "success")
+        return redirect(url_for("login"))
+
+    return render_template("reset_password.html", form=form, token=token)
+
+
+def send_password_reset_email(recipient_email, username, token):
+    """Send password reset email to user"""
+    from flask_mail import Message
+
+    # Build reset URL
+    base_url = request.url_root.rstrip("/")
+    reset_url = f"{base_url}/reset-password/{token}"
+
+    # Get admin email from config or use default sender
+    admin_email = app.config.get("MAIL_DEFAULT_SENDER", "support@autocart.com")
+
+    subject = "Reset Your Auto-Cart Password"
+
+    html_body = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+        .header {{ background-color: #007bff; color: white; padding: 20px; text-align: center; border-radius: 5px 5px 0 0; }}
+        .content {{ background-color: #f9f9f9; padding: 30px; border-radius: 0 0 5px 5px; }}
+        .button {{ display: inline-block; padding: 12px 30px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }}
+        .footer {{ margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 12px; color: #666; }}
+        .warning {{ background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 10px; margin: 15px 0; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔐 Password Reset Request</h1>
+        </div>
+        <div class="content">
+            <p>Hi {username},</p>
+
+            <p>We received a request to reset your Auto-Cart password. Click the button below to create a new password:</p>
+
+            <div style="text-align: center;">
+                <a href="{reset_url}" class="button">Reset My Password</a>
+            </div>
+
+            <p>Or copy and paste this link into your browser:</p>
+            <p style="word-break: break-all; background-color: #fff; padding: 10px; border: 1px solid #ddd; border-radius: 3px;">
+                {reset_url}
+            </p>
+
+            <div class="warning">
+                <strong>⏰ This link will expire in 1 hour</strong> for security reasons.
+            </div>
+
+            <p><strong>Didn't request this?</strong><br>
+            If you didn't request a password reset, you can safely ignore this email. Your password will remain unchanged.</p>
+
+            <div class="footer">
+                <p>---<br>
+                Auto-Cart - Your Kitchen's Command Center<br>
+                Questions? Reply to {admin_email}</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+    """
+
+    text_body = f"""
+Password Reset Request
+
+Hi {username},
+
+We received a request to reset your Auto-Cart password.
+
+To reset your password, click the link below or copy and paste it into your browser:
+{reset_url}
+
+⏰ This link will expire in 1 hour for security reasons.
+
+DIDN'T REQUEST THIS?
+If you didn't request a password reset, you can safely ignore this email. Your password will remain unchanged.
+
+---
+Auto-Cart - Your Kitchen's Command Center
+Questions? Reply to {admin_email}
+    """
+
+    msg = Message(
+        subject=subject, recipients=[recipient_email], html=html_body, body=text_body
+    )
+
+    mail.send(msg)
+    logger.info(f"Password reset email sent to {recipient_email}")
 
 
 @app.route("/profile", methods=["GET", "POST"])
@@ -2855,8 +3002,13 @@ Auto-Cart - Smart Household Grocery Management
 For support: {admin_email}
     """
 
-    # Send email to all household members
-    members = HouseholdMember.query.filter_by(household_id=household_id).all()
+    # Send email to household members who have opted in to receive emails
+    members = HouseholdMember.query.filter_by(
+        household_id=household_id,
+        receive_meal_plan_emails=True
+    ).all()
+
+    sent_count = 0
     for member in members:
         if member.user.email:
             try:
@@ -2867,9 +3019,12 @@ For support: {admin_email}
                     html=html_body
                 )
                 mail.send(msg)
+                sent_count += 1
                 logger.info(f"Meal plan summary sent to {member.user.email} for household {household.name}")
             except Exception as e:
                 logger.error(f"Failed to send meal plan summary to {member.user.email}: {e}")
+
+    logger.info(f"Sent meal plan summary to {sent_count} members (out of {len(members)} who opted in)")
 
     # Mark all changes as emailed
     for change in changes:
@@ -3096,6 +3251,78 @@ def set_kroger_user(user_id):
 
     flash(f"Kroger account set to {user.username}", "success")
     return redirect(url_for("household_settings"))
+
+
+@app.route("/household/toggle-meal-plan-emails", methods=["POST"])
+@require_login
+def toggle_meal_plan_emails():
+    """Toggle meal plan email notifications for a household member"""
+    try:
+        data = request.get_json()
+        member_id = data.get("member_id")
+        enabled = data.get("enabled")
+
+        if member_id is None or enabled is None:
+            return jsonify({"success": False, "error": "Missing required fields"}), 400
+
+        # Get the household member record
+        member = HouseholdMember.query.get(member_id)
+
+        if not member:
+            return jsonify({"success": False, "error": "Member not found"}), 404
+
+        # Verify the current user is updating their own preference
+        if member.user_id != g.user.id:
+            return jsonify({"success": False, "error": "You can only update your own email preferences"}), 403
+
+        # Update the preference
+        member.receive_meal_plan_emails = enabled
+        db.session.commit()
+
+        logger.info(f"User {g.user.username} {'enabled' if enabled else 'disabled'} meal plan emails for household {member.household_id}")
+
+        return jsonify({"success": True})
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error toggling meal plan emails: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/household/toggle-chef-assignment-emails", methods=["POST"])
+@require_login
+def toggle_chef_assignment_emails():
+    """Toggle chef assignment email notifications for a household member"""
+    try:
+        data = request.get_json()
+        member_id = data.get("member_id")
+        enabled = data.get("enabled")
+
+        if member_id is None or enabled is None:
+            return jsonify({"success": False, "error": "Missing required fields"}), 400
+
+        # Get the household member record
+        member = HouseholdMember.query.get(member_id)
+
+        if not member:
+            return jsonify({"success": False, "error": "Member not found"}), 404
+
+        # Verify the current user is updating their own preference
+        if member.user_id != g.user.id:
+            return jsonify({"success": False, "error": "You can only update your own email preferences"}), 403
+
+        # Update the preference
+        member.receive_chef_assignment_emails = enabled
+        db.session.commit()
+
+        logger.info(f"User {g.user.username} {'enabled' if enabled else 'disabled'} chef assignment emails for household {member.household_id}")
+
+        return jsonify({"success": True})
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error toggling chef assignment emails: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 @app.before_request
@@ -3412,20 +3639,27 @@ def update_meal_plan_entry(entry_id):
     removed_cook_ids = current_cook_ids - set(new_cook_ids)
     removed_cooks = [cook for cook in current_cooks if cook.id in removed_cook_ids]
 
-    # Send emails to removed cooks
+    # Send emails to removed cooks who have opted in
     for cook in removed_cooks:
         if cook.email:
-            try:
-                send_chef_removed_from_meal_email(
-                    recipient_email=cook.email,
-                    recipient_name=cook.username,
-                    meal_name=entry.meal_name,
-                    meal_date=entry.date,
-                    meal_type=entry.meal_type,
-                    household_name=g.household.name
-                )
-            except Exception as e:
-                logger.error(f"Failed to send chef removed email to {cook.email}: {e}")
+            # Check if the cook has chef assignment emails enabled for this household
+            member = HouseholdMember.query.filter_by(
+                household_id=g.household.id,
+                user_id=cook.id
+            ).first()
+
+            if member and member.receive_chef_assignment_emails:
+                try:
+                    send_chef_removed_from_meal_email(
+                        recipient_email=cook.email,
+                        recipient_name=cook.username,
+                        meal_name=entry.meal_name,
+                        meal_date=entry.date,
+                        meal_type=entry.meal_type,
+                        household_name=g.household.name
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to send chef removed email to {cook.email}: {e}")
 
     # Update the assigned cooks
     entry.assigned_cooks = []
@@ -3767,12 +4001,16 @@ def admin_dashboard():
         recipes_count = Recipe.query.filter_by(household_id=household.id).count()
         lists_count = GroceryList.query.filter_by(household_id=household.id).count()
         meals_count = MealPlanEntry.query.filter_by(household_id=household.id).count()
+        email_enabled_count = sum(1 for m in members if m.receive_meal_plan_emails)
+        chef_email_enabled_count = sum(1 for m in members if m.receive_chef_assignment_emails)
 
         household_stats.append(
             {
                 "household": household,
                 "owner": owner,
                 "members_count": len(members),
+                "email_enabled_count": email_enabled_count,
+                "chef_email_enabled_count": chef_email_enabled_count,
                 "recipes_count": recipes_count,
                 "lists_count": lists_count,
                 "meals_count": meals_count,
@@ -4251,6 +4489,50 @@ def migrate_database():
             db.session.rollback()
             migration_results.append(f"❌ Failed to create meal_plan_changes: {str(e2)[:100]}")
             logger.error(f"Failed to create meal_plan_changes table: {e2}")
+
+    # Migration 11: Add receive_meal_plan_emails column to household_members table
+    try:
+        logger.info("Checking for receive_meal_plan_emails column...")
+        db.session.execute(text("SELECT receive_meal_plan_emails FROM household_members LIMIT 1"))
+        db.session.commit()
+        migration_results.append("✓ receive_meal_plan_emails column already exists")
+    except Exception as e:
+        db.session.rollback()
+        logger.info(f"receive_meal_plan_emails column check failed: {e}")
+        try:
+            logger.info("Adding receive_meal_plan_emails column to household_members table...")
+            db.session.execute(
+                text("ALTER TABLE household_members ADD COLUMN receive_meal_plan_emails BOOLEAN NOT NULL DEFAULT 1")
+            )
+            db.session.commit()
+            migration_results.append("✓ Added receive_meal_plan_emails column to household_members table")
+            logger.info("receive_meal_plan_emails column added successfully")
+        except Exception as e2:
+            db.session.rollback()
+            migration_results.append(f"❌ Failed to add receive_meal_plan_emails: {str(e2)[:100]}")
+            logger.error(f"Failed to add receive_meal_plan_emails column: {e2}")
+
+    # Migration 12: Add receive_chef_assignment_emails column to household_members table
+    try:
+        logger.info("Checking for receive_chef_assignment_emails column...")
+        db.session.execute(text("SELECT receive_chef_assignment_emails FROM household_members LIMIT 1"))
+        db.session.commit()
+        migration_results.append("✓ receive_chef_assignment_emails column already exists")
+    except Exception as e:
+        db.session.rollback()
+        logger.info(f"receive_chef_assignment_emails column check failed: {e}")
+        try:
+            logger.info("Adding receive_chef_assignment_emails column to household_members table...")
+            db.session.execute(
+                text("ALTER TABLE household_members ADD COLUMN receive_chef_assignment_emails BOOLEAN NOT NULL DEFAULT 1")
+            )
+            db.session.commit()
+            migration_results.append("✓ Added receive_chef_assignment_emails column to household_members table")
+            logger.info("receive_chef_assignment_emails column added successfully")
+        except Exception as e2:
+            db.session.rollback()
+            migration_results.append(f"❌ Failed to add receive_chef_assignment_emails: {str(e2)[:100]}")
+            logger.error(f"Failed to add receive_chef_assignment_emails column: {e2}")
 
     logger.info("All migrations completed!")
 
