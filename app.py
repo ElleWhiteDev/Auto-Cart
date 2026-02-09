@@ -4186,6 +4186,25 @@ def migrate_database():
             )
             logger.error("Failed to add alexa_default_grocery_list_id column: %s", e2)
 
+    # Migration 10: Create meal_plan_changes table for daily summary emails
+    try:
+        logger.info("Checking for meal_plan_changes table...")
+        db.session.execute(text("SELECT 1 FROM meal_plan_changes LIMIT 1"))
+        db.session.commit()
+        migration_results.append("✓ meal_plan_changes table already exists")
+    except Exception as e:
+        db.session.rollback()
+        logger.info(f"meal_plan_changes table check failed: {e}")
+        try:
+            logger.info("Creating meal_plan_changes table...")
+            db.create_all()  # This will create any missing tables including meal_plan_changes
+            migration_results.append("✓ Created meal_plan_changes table for daily summaries")
+            logger.info("meal_plan_changes table created successfully")
+        except Exception as e2:
+            db.session.rollback()
+            migration_results.append(f"❌ Failed to create meal_plan_changes: {str(e2)[:100]}")
+            logger.error(f"Failed to create meal_plan_changes table: {e2}")
+
     logger.info("All migrations completed!")
 
     flash(
