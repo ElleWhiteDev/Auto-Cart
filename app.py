@@ -480,6 +480,8 @@ def send_generic_invitation_email(
                         <li><strong>Save Your Recipes</strong> - Keep all your favorite recipes in one organized place</li>
                         <li><strong>Weekly Meal Planning</strong> - Plan your meals for the week and assign who's cooking</li>
                         <li><strong>Email Meal Plans</strong> - Send your weekly meal plan to family members with all the details</li>
+                        <li><strong>Daily Meal Summaries</strong> - Get automatic email updates when meal plans change</li>
+                        <li><strong>Chef Notifications</strong> - Receive alerts when you're assigned to cook or removed from a meal</li>
                     </ul>
 
                     <h4 style="color: #004c91; margin-top: 15px;">🛍️ Smart Shopping</h4>
@@ -494,6 +496,8 @@ def send_generic_invitation_email(
                         <li><strong>Manage Multiple Households</strong> - Perfect if you shop for parents, have a vacation home, or coordinate with roommates</li>
                         <li><strong>Collaborate</strong> - Share recipes, lists, and meal plans with household members</li>
                         <li><strong>Switch Easily</strong> - Toggle between households with one click</li>
+                        <li><strong>Share Recipes Between Households</strong> - Copy recipes from one household to another with a single click</li>
+                        <li><strong>Customizable Email Preferences</strong> - Control which notifications you receive for each household</li>
                     </ul>
 
                     <h4 style="color: #004c91; margin-top: 15px;">🤖 AI-Powered Features</h4>
@@ -551,6 +555,8 @@ RECIPE & MEAL PLANNING:
 • Save Your Recipes - Keep all your favorite recipes in one organized place
 • Weekly Meal Planning - Plan your meals for the week and assign who's cooking
 • Email Meal Plans - Send your weekly meal plan to family members with all the details
+• Daily Meal Summaries - Get automatic email updates when meal plans change
+• Chef Notifications - Receive alerts when you're assigned to cook or removed from a meal
 
 SMART SHOPPING:
 • Auto-Generate Lists - Turn your recipes into grocery lists automatically
@@ -561,6 +567,8 @@ MULTIPLE HOUSEHOLD SUPPORT:
 • Manage Multiple Households - Perfect if you shop for parents, have a vacation home, or coordinate with roommates
 • Collaborate - Share recipes, lists, and meal plans with household members
 • Switch Easily - Toggle between households with one click
+• Share Recipes Between Households - Copy recipes from one household to another with a single click
+• Customizable Email Preferences - Control which notifications you receive for each household
 
 AI-POWERED FEATURES:
 • Smart Consolidation - Automatically combines ingredients (e.g., "1 cup milk" + "2 cups milk" = "3 cups milk")
@@ -2184,6 +2192,8 @@ def send_household_invitation_email(
                         <li>🛒 <strong>Smart Grocery Lists</strong> - Automatically generate shopping lists from recipes</li>
                         <li>🏠 <strong>Household Collaboration</strong> - Share recipes and lists with family members</li>
                         <li>📅 <strong>Meal Planning</strong> - Plan your weekly meals and assign cooking duties</li>
+                        <li>🔔 <strong>Smart Notifications</strong> - Get daily meal plan summaries and chef assignment alerts</li>
+                        <li>🔄 <strong>Recipe Sharing</strong> - Copy recipes between your different households</li>
                         <li>🛍️ <strong>Kroger Integration</strong> - Send your list directly to your Kroger cart</li>
                         <li>📧 <strong>Email Lists</strong> - Email grocery lists and recipes to anyone</li>
                         <li>🤖 <strong>AI-Powered</strong> - Smart ingredient consolidation and recipe parsing</li>
@@ -2251,6 +2261,8 @@ Key Features:
 • Smart Grocery Lists - Automatically generate shopping lists from recipes
 • Household Collaboration - Share recipes and lists with family members
 • Meal Planning - Plan your weekly meals and assign cooking duties
+• Smart Notifications - Get daily meal plan summaries and chef assignment alerts
+• Recipe Sharing - Copy recipes between your different households
 • Kroger Integration - Send your list directly to your Kroger cart
 • Email Lists - Email grocery lists and recipes to anyone
 • AI-Powered - Smart ingredient consolidation and recipe parsing
@@ -2349,6 +2361,7 @@ def send_household_added_email(
                         <li><strong>Shared Recipe Box</strong> - Access and add recipes everyone can use</li>
                         <li><strong>Collaborative Grocery Lists</strong> - Build shopping lists together</li>
                         <li><strong>Meal Planning</strong> - Plan weekly meals and assign cooking duties</li>
+                        <li><strong>Smart Notifications</strong> - Get daily meal plan summaries and chef assignment alerts</li>
                         <li><strong>Kroger Integration</strong> - Share Kroger cart access for easy shopping</li>
                     </ul>
                 </div>
@@ -2358,11 +2371,28 @@ def send_household_added_email(
                     Households are shared spaces for families, roommates, or groups to manage groceries together. You can belong to multiple households (like one for family and one for roommates) and create your own households anytime from your settings.
                 </div>
 
+                <div class="info-box" style="background-color: #fff5f0; border-left-color: #ff6600;">
+                    <strong>🔔 Customize Your Email Notifications</strong><br>
+                    You can control which email notifications you receive for each household in the <strong>Household Panel</strong>. Choose to receive:
+                    <ul style="margin: 8px 0 0 20px;">
+                        <li><strong>Daily Meal Plan Summaries</strong> - Get updates when meal plans change</li>
+                        <li><strong>Chef Assignment Alerts</strong> - Know when you're assigned to cook or removed from a meal</li>
+                    </ul>
+                    Visit your household settings to customize these preferences per household!
+                </div>
+
+                <div class="info-box" style="background-color: #f0f9ff; border-left-color: #0066cc;">
+                    <strong>🔄 Share Recipes Between Households</strong><br>
+                    If you belong to multiple households, you can easily copy recipes from one household to another with a single click. Perfect for sharing your favorite family recipes across different groups!
+                </div>
+
                 <h3>Get Started:</h3>
                 <ul>
                     <li>View household recipes and grocery lists on your homepage</li>
                     <li>Add your favorite recipes to share with the household</li>
                     <li>Contribute to meal planning and shopping lists</li>
+                    <li>Customize your email notification preferences in household settings</li>
+                    <li>Share recipes between your different households</li>
                     <li>Create your own household anytime from settings</li>
                 </ul>
 
@@ -2398,15 +2428,27 @@ Now you can collaborate with your household members on:
 • Shared Recipe Box - Access and add recipes everyone can use
 • Collaborative Grocery Lists - Build shopping lists together
 • Meal Planning - Plan weekly meals and assign cooking duties
+• Smart Notifications - Get daily meal plan summaries and chef assignment alerts
 • Kroger Integration - Share Kroger cart access for easy shopping
 
 About Households:
 Households are shared spaces for families, roommates, or groups to manage groceries together. You can belong to multiple households (like one for family and one for roommates) and create your own households anytime from your settings.
 
+Customize Your Email Notifications:
+You can control which email notifications you receive for each household in the Household Panel. Choose to receive:
+• Daily Meal Plan Summaries - Get updates when meal plans change
+• Chef Assignment Alerts - Know when you're assigned to cook or removed from a meal
+Visit your household settings to customize these preferences per household!
+
+Share Recipes Between Households:
+If you belong to multiple households, you can easily copy recipes from one household to another with a single click. Perfect for sharing your favorite family recipes across different groups!
+
 Get Started:
 • View household recipes and grocery lists on your homepage
 • Add your favorite recipes to share with the household
 • Contribute to meal planning and shopping lists
+• Customize your email notification preferences in household settings
+• Share recipes between your different households
 • Create your own household anytime from settings
 
 View your household settings: {household_url}
@@ -2511,6 +2553,11 @@ def send_chef_removed_from_meal_email(
                 </center>
 
                 <p>If you have questions about this change, please check with your household members.</p>
+
+                <p style="margin-top: 20px; font-size: 12px; color: #888; background-color: #f5f5f5; padding: 12px; border-radius: 5px;">
+                    ⚙️ <strong>Manage Email Preferences:</strong> You can control whether you receive chef assignment notifications for each household in the <strong>Household Panel</strong>.
+                    Visit your household settings to customize your email preferences per household.
+                </p>
 
                 <p>Happy cooking!</p>
             </div>
@@ -2644,6 +2691,11 @@ def send_meal_deleted_email(
                 </center>
 
                 <p>If you have questions about this change, please check with your household members.</p>
+
+                <p style="margin-top: 20px; font-size: 12px; color: #888; background-color: #f5f5f5; padding: 12px; border-radius: 5px;">
+                    ⚙️ <strong>Manage Email Preferences:</strong> You can control whether you receive chef assignment notifications for each household in the <strong>Household Panel</strong>.
+                    Visit your household settings to customize your email preferences per household.
+                </p>
 
                 <p>Happy cooking!</p>
             </div>
@@ -2968,6 +3020,11 @@ def send_meal_plan_daily_summary(household_id):
                 <p style="margin-top: 25px; font-size: 13px; color: #666; border-top: 1px solid #ddd; padding-top: 15px;">
                     💡 <strong>Tip:</strong> You receive this daily summary when changes are made to your household's meal plan.
                     This helps everyone stay informed about upcoming meals!
+                </p>
+
+                <p style="margin-top: 15px; font-size: 12px; color: #888; background-color: #f5f5f5; padding: 12px; border-radius: 5px;">
+                    ⚙️ <strong>Manage Email Preferences:</strong> You can customize which email notifications you receive for each household in the <strong>Household Panel</strong>.
+                    Visit your household settings to enable or disable daily summaries, chef assignment notifications, and more.
                 </p>
             </div>
             <div class="footer">
