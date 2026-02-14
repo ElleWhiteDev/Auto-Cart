@@ -44,6 +44,81 @@
 		margin-bottom: 6px !important;
 	}
 
+	.desktop-view .meal-card[draggable="true"] {
+		cursor: grab;
+	}
+
+	.desktop-view .meal-card.dragging {
+		opacity: 0.55;
+		transform: scale(0.98);
+	}
+
+	.desktop-view .meal-drop-zone {
+		transition: background-color 0.15s ease, outline-color 0.15s ease;
+	}
+
+	.desktop-view .meal-drop-zone.drag-over {
+		background-color: #eff6ff !important;
+		outline: 2px dashed #60a5fa;
+		outline-offset: -2px;
+	}
+
+	.desktop-meal-actions {
+		display: flex;
+		gap: 4px;
+		flex-shrink: 0;
+		margin-left: 6px;
+		align-items: center;
+	}
+
+	.desktop-meal-actions form {
+		margin: 0;
+		display: flex;
+		align-items: center;
+	}
+
+	.desktop-action-btn {
+		width: 22px;
+		min-width: 22px;
+		height: 22px;
+		min-height: 22px !important;
+		padding: 0 !important;
+		display: flex !important;
+		align-items: center;
+		justify-content: center;
+		line-height: 1 !important;
+		font-size: 0.7rem !important;
+		border-width: 1px !important;
+		border-style: solid;
+		border-radius: 4px !important;
+		box-sizing: border-box;
+		background: #ffffff;
+		cursor: pointer;
+		appearance: none;
+		-webkit-appearance: none;
+		transition: all 0.15s ease;
+	}
+
+	.desktop-action-btn-edit {
+		border-color: #d1d5db;
+		color: #6b7280;
+	}
+
+	.desktop-action-btn-delete {
+		border-color: #fecaca;
+		color: #dc2626;
+	}
+
+	.desktop-action-btn i {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 1em;
+		height: 1em;
+		line-height: 1;
+		pointer-events: none;
+	}
+
 	.meal-card:hover {
 		transform: translateY(-1px);
 		box-shadow: 0 2px 8px rgba(0,0,0,0.08) !important;
@@ -153,6 +228,63 @@
 		font-weight: 500;
 	}
 
+	.mobile-meal-actions {
+		display: flex;
+		gap: 6px;
+		flex-shrink: 0;
+		margin-left: 6px;
+		align-items: center;
+	}
+
+	.mobile-meal-actions form {
+		margin: 0;
+		display: flex;
+		align-items: center;
+	}
+
+	.mobile-action-btn {
+		width: 28px;
+		min-width: 28px;
+		height: 28px;
+		min-height: 28px !important;
+		min-width: 28px !important;
+		padding: 0 !important;
+		display: flex !important;
+		align-items: center;
+		justify-content: center;
+		line-height: 1 !important;
+		font-size: 0.75rem !important;
+		border-width: 1px !important;
+		border-style: solid;
+		border-radius: 6px !important;
+		box-sizing: border-box;
+		background: #ffffff;
+		cursor: pointer;
+		appearance: none;
+		-webkit-appearance: none;
+	}
+
+	.mobile-action-btn-edit {
+		border-color: #93c5fd;
+		color: #1d4ed8;
+	}
+
+	.mobile-action-btn-delete {
+		border-color: #fecaca;
+		color: #dc2626;
+	}
+
+	.mobile-action-btn i {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 1em;
+		height: 1em;
+		line-height: 1;
+		pointer-events: none;
+		font-size: 0.8rem;
+	}
+
 	/* Mobile-specific styles */
 	@media (max-width: 768px) {
 		/* Hide table on mobile */
@@ -225,6 +357,7 @@
 	}
 </style>
 <div class="container-fluid mt-4">
+	<div id="meal-plan-notification-anchor" class="mb-4"></div>
 	<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap">
 		<h1 class="mb-2 mb-md-0"><i class="fas fa-calendar-alt"></i> Meal Plan</h1>
 		<div class="week-nav-buttons d-flex gap-2">
@@ -288,9 +421,16 @@
 								{% if meal_type == 'dinner' %}🍽️ Dinner{% endif %}
 							</td>
 							{% for date, meals in meal_plan.items() %}
-							<td style="background-color: #f9fafb; {% if not loop.last %}border-right: 1px solid #e5e7eb;{% endif %}">
+							<td class="meal-drop-zone"
+								data-date="{{ date.strftime('%Y-%m-%d') }}"
+								data-meal-type="{{ meal_type }}"
+								style="background-color: #f9fafb; {% if not loop.last %}border-right: 1px solid #e5e7eb;{% endif %}">
 								{% for entry in meals[meal_type] %}
-								<div class="meal-card" id="meal-card-{{ entry.id }}" style="background: white;">
+								<div class="meal-card"
+									id="meal-card-{{ entry.id }}"
+									data-entry-id="{{ entry.id }}"
+									draggable="true"
+									style="background: white;">
 									<div style="padding: 8px;">
 										<!-- Recipe Title Row -->
 										{% if entry.recipe and entry.recipe.url %}
@@ -326,24 +466,18 @@
 													</div>
 													{% endif %}
 												</div>
-												<div style="display: flex; gap: 4px; flex-shrink: 0; margin-left: 6px; align-items: center;">
-													<!-- Edit Button -->
-													<button type="button" class="edit-meal-btn" data-entry-id="{{ entry.id }}"
-														style="width: 20px; height: 20px; padding: 0; display: flex; align-items: center; justify-content: center; font-size: 0.65rem;
-														border: 1px solid #d1d5db; border-radius: 4px; background: white; color: #6b7280;
-														transition: all 0.15s ease; cursor: pointer;">
-														<i class="fas fa-edit"></i>
-													</button>
-													<!-- Delete Button -->
-													<form method="POST" action="{{ url_for('delete_meal_plan_entry', entry_id=entry.id) }}" style="display: inline;">
-														<input type="hidden" name="week_offset" value="{{ week_offset }}">
-														<button type="submit" onclick="return confirm('Remove this meal from the plan?');"
-															style="width: 20px; height: 20px; padding: 0; display: flex; align-items: center; justify-content: center; font-size: 0.65rem;
-															border: 1px solid #fecaca; border-radius: 4px; background: white; color: #dc2626;
-															transition: all 0.15s ease; cursor: pointer;">
-															<i class="fas fa-times"></i>
+													<div class="desktop-meal-actions">
+														<!-- Edit Button -->
+														<button type="button" class="edit-meal-btn desktop-action-btn desktop-action-btn-edit" data-entry-id="{{ entry.id }}">
+															<i class="fas fa-edit"></i>
 														</button>
-													</form>
+														<!-- Delete Button -->
+														<form method="POST" action="{{ url_for('delete_meal_plan_entry', entry_id=entry.id) }}">
+															<input type="hidden" name="week_offset" value="{{ week_offset }}">
+															<button type="submit" class="desktop-action-btn desktop-action-btn-delete" onclick="return confirm('Remove this meal from the plan?');">
+																<i class="fas fa-times"></i>
+															</button>
+														</form>
 												</div>
 											</div>
 										</div>
@@ -437,18 +571,18 @@
 											<div class="text-info" style="font-size: 0.75rem;"><i class="fas fa-sticky-note"></i> {{ entry.notes }}</div>
 											{% endif %}
 										</div>
-										<div style="display: flex; gap: 2px; flex-shrink: 0; margin-left: 4px;">
+										<div class="mobile-meal-actions">
 											<!-- Edit Button -->
-											<button type="button" class="btn btn-sm btn-outline-primary rounded-circle edit-meal-btn" data-entry-id="{{ entry.id }}" data-mobile="true" style="width: 18px; height: 18px; padding: 0; line-height: 1; font-size: 0.65rem; border-width: 1px;">
+											<button type="button" class="edit-meal-btn mobile-action-btn mobile-action-btn-edit" data-entry-id="{{ entry.id }}" data-mobile="true">
 												<i class="fas fa-edit"></i>
 											</button>
 											<!-- Delete Button -->
-											<form method="POST" action="{{ url_for('delete_meal_plan_entry', entry_id=entry.id) }}" style="display: inline;">
-												<input type="hidden" name="week_offset" value="{{ week_offset }}">
-												<button type="submit" class="btn btn-sm btn-outline-danger rounded-circle" onclick="return confirm('Remove this meal from the plan?');" style="width: 18px; height: 18px; padding: 0; line-height: 1; font-size: 0.65rem; border-width: 1px;">
-													<i class="fas fa-times"></i>
-												</button>
-											</form>
+												<form method="POST" action="{{ url_for('delete_meal_plan_entry', entry_id=entry.id) }}">
+													<input type="hidden" name="week_offset" value="{{ week_offset }}">
+														<button type="submit" class="mobile-action-btn mobile-action-btn-delete" onclick="return confirm('Remove this meal from the plan?');">
+															<i class="fas fa-times"></i>
+														</button>
+												</form>
 										</div>
 									</div>
 								</div>
@@ -457,6 +591,10 @@
 								<div class="chef-edit">
 									<form method="POST" action="{{ url_for('update_meal_plan_entry', entry_id=entry.id) }}" class="edit-meal-form">
 										<input type="hidden" name="week_offset" value="{{ week_offset }}">
+										<div class="mb-2 d-md-none">
+											<label style="font-size: 0.75rem; font-weight: 600; margin-bottom: 2px;">Date:</label>
+											<input type="date" name="date" class="form-control form-control-sm" value="{{ entry.date.strftime('%Y-%m-%d') }}">
+										</div>
 										<div class="mb-2">
 											<label style="font-size: 0.75rem; font-weight: 600; margin-bottom: 2px;">Assigned Cooks:</label>
 											<select name="assigned_cook_ids" class="form-control edit-cook-select" multiple>
@@ -658,6 +796,132 @@ if (addToListForm && addToListBtn) {
 
 // Inline edit functionality for meal cards
 document.addEventListener('DOMContentLoaded', function() {
+	const isDesktop = window.matchMedia('(min-width: 769px)').matches;
+	const weekOffset = {{ week_offset|tojson }};
+	const mealTypeLabels = {
+		breakfast: 'Breakfast',
+		lunch: 'Lunch',
+		dinner: 'Dinner'
+	};
+
+	function showPlannerSuccess(message) {
+		const notificationAnchor = document.getElementById('meal-plan-notification-anchor');
+		if (!notificationAnchor) return;
+
+		notificationAnchor.innerHTML = '';
+
+		const flashDiv = document.createElement('div');
+		flashDiv.className = 'alert alert-success';
+		flashDiv.setAttribute('role', 'alert');
+		flashDiv.innerHTML = `<i class="fas fa-check-circle"></i> ${message}`;
+		notificationAnchor.appendChild(flashDiv);
+		setTimeout(() => flashDiv.remove(), 5000);
+	}
+
+	function getWeekdayLabel(dateIso) {
+		if (!dateIso) return '';
+		const parts = dateIso.split('-');
+		if (parts.length !== 3) return '';
+		const year = parseInt(parts[0], 10);
+		const month = parseInt(parts[1], 10) - 1;
+		const day = parseInt(parts[2], 10);
+		const dateObj = new Date(year, month, day);
+		if (Number.isNaN(dateObj.getTime())) return '';
+		return dateObj.toLocaleDateString(undefined, { weekday: 'long' });
+	}
+
+	function clearDropHighlights() {
+		document.querySelectorAll('.meal-drop-zone.drag-over').forEach(zone => {
+			zone.classList.remove('drag-over');
+		});
+	}
+
+	if (isDesktop) {
+		let draggingCard = null;
+
+		document.querySelectorAll('.desktop-view .meal-card[draggable="true"]').forEach(card => {
+			card.addEventListener('dragstart', function(e) {
+				if (this.classList.contains('editing')) {
+					e.preventDefault();
+					return;
+				}
+				draggingCard = this;
+				this.classList.add('dragging');
+				e.dataTransfer.effectAllowed = 'move';
+				e.dataTransfer.setData('text/plain', this.dataset.entryId || '');
+			});
+
+			card.addEventListener('dragend', function() {
+				this.classList.remove('dragging');
+				draggingCard = null;
+				clearDropHighlights();
+			});
+		});
+
+		document.querySelectorAll('.desktop-view .meal-drop-zone').forEach(zone => {
+			zone.addEventListener('dragover', function(e) {
+				if (!draggingCard) return;
+				e.preventDefault();
+				e.dataTransfer.dropEffect = 'move';
+				this.classList.add('drag-over');
+			});
+
+			zone.addEventListener('dragleave', function() {
+				this.classList.remove('drag-over');
+			});
+
+			zone.addEventListener('drop', async function(e) {
+				e.preventDefault();
+				this.classList.remove('drag-over');
+
+				if (!draggingCard) return;
+				const movedCard = draggingCard;
+				const originalParent = movedCard.parentElement;
+
+				const entryId = movedCard.dataset.entryId || e.dataTransfer.getData('text/plain');
+				const targetDate = this.dataset.date;
+				const targetMealType = this.dataset.mealType;
+
+				if (!entryId || !targetDate || !targetMealType) {
+					return;
+				}
+
+				try {
+					const response = await fetch(`/meal-plan/move/${entryId}`, {
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json',
+							'X-Requested-With': 'XMLHttpRequest'
+						},
+						body: JSON.stringify({
+							date: targetDate,
+							meal_type: targetMealType,
+							week_offset: weekOffset
+						})
+					});
+
+					const result = await response.json();
+					if (!response.ok || !result.success) {
+						throw new Error((result && result.error) || 'Failed to move meal');
+					}
+
+					if (originalParent && originalParent.classList.contains('meal-drop-zone')) {
+						originalParent.classList.remove('drag-over');
+					}
+					this.appendChild(movedCard);
+					movedCard.classList.remove('dragging');
+					draggingCard = null;
+					const mealLabel = mealTypeLabels[targetMealType] || targetMealType;
+					const weekdayLabel = getWeekdayLabel(targetDate);
+					const destinationLabel = weekdayLabel ? `${weekdayLabel} ${mealLabel}` : mealLabel;
+					showPlannerSuccess(`Meal moved to ${destinationLabel}.`);
+				} catch (err) {
+					alert(err.message || 'Could not move meal. Please try again.');
+				}
+			});
+		});
+	}
+
 	// Edit button click handler
 	document.querySelectorAll('.edit-meal-btn').forEach(btn => {
 		btn.addEventListener('click', function() {

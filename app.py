@@ -1263,6 +1263,11 @@ def update_grocery_list():
     GroceryList.update_grocery_list(
         selected_recipe_ids, grocery_list=grocery_list, user_id=g.user.id
     )
+    recipe_count = len(selected_recipe_ids)
+    flash(
+        f"Grocery list updated from {recipe_count} recipe{'s' if recipe_count != 1 else ''}!",
+        "success",
+    )
     return redirect(url_for("homepage"))
 
 
@@ -3675,7 +3680,7 @@ def delete_meal_plan_entry(entry_id):
 @app.route("/meal-plan/update/<int:entry_id>", methods=["POST"])
 @require_login
 def update_meal_plan_entry(entry_id):
-    """Update a meal plan entry (e.g., change assigned cooks)"""
+    """Update a meal plan entry (e.g., date and assigned cooks)"""
     entry = MealPlanEntry.query.get_or_404(entry_id)
 
     if entry.household_id != g.household.id:
@@ -3683,10 +3688,19 @@ def update_meal_plan_entry(entry_id):
         return redirect(url_for("meal_plan"))
 
     week_offset = request.form.get("week_offset", 0)
+    date_str = request.form.get("date", "").strip()
 
     # Get the new list of assigned cook IDs from the form
     new_cook_ids = request.form.getlist("assigned_cook_ids")
     new_cook_ids = [int(cook_id) for cook_id in new_cook_ids if cook_id]
+
+    # Optional date update (used by mobile edit form)
+    if date_str:
+        try:
+            entry.date = datetime.strptime(date_str, "%Y-%m-%d").date()
+        except ValueError:
+            flash("Invalid date format", "danger")
+            return redirect(url_for("meal_plan") + f"?week={week_offset}")
 
     # Get current assigned cooks
     current_cooks = set(entry.assigned_cooks)
@@ -3729,6 +3743,55 @@ def update_meal_plan_entry(entry_id):
 
     flash("Meal plan updated", "success")
     return redirect(url_for("meal_plan") + f"?week={week_offset}")
+
+
+@app.route("/meal-plan/move/<int:entry_id>", methods=["POST"])
+@require_login
+def move_meal_plan_entry(entry_id):
+    """Move a meal plan card to a different date/meal type."""
+    entry = MealPlanEntry.query.get_or_404(entry_id)
+
+    if not g.household or entry.household_id != g.household.id:
+        return jsonify({"success": False, "error": "Unauthorized"}), 403
+
+    payload = request.get_json(silent=True) or {}
+    date_str = (payload.get("date") or request.form.get("date", "")).strip()
+    meal_type = (payload.get("meal_type") or request.form.get("meal_type", "")).strip().lower()
+
+    if not date_str or not meal_type:
+        return jsonify({"success": False, "error": "Missing required fields"}), 400
+
+    if meal_type not in {"breakfast", "lunch", "dinner"}:
+        return jsonify({"success": False, "error": "Invalid meal type"}), 400
+
+    try:
+        new_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"success": False, "error": "Invalid date format"}), 400
+
+    old_date = entry.date
+    old_meal_type = entry.meal_type
+
+    if old_date == new_date and old_meal_type == meal_type:
+        return jsonify({"success": True, "message": "No change"})
+
+    entry.date = new_date
+    entry.meal_type = meal_type
+
+    from models import MealPlanChange
+    change = MealPlanChange(
+        household_id=g.household.id,
+        change_type='updated',
+        meal_name=entry.meal_name,
+        meal_date=entry.date,
+        meal_type=entry.meal_type,
+        changed_by_user_id=g.user.id,
+        change_details=f"Moved from {old_date} {old_meal_type} to {entry.date} {entry.meal_type}"
+    )
+    db.session.add(change)
+
+    db.session.commit()
+    return jsonify({"success": True, "message": "Meal moved successfully"})
 
 
 @app.route("/meal-plan/send-daily-summaries", methods=["POST"])
