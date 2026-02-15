@@ -219,12 +219,16 @@ class MealPlanEntry(db.Model):
                 if entry.meal_type in all_meals_by_date[entry.date]:
                     all_meals_by_date[entry.date][entry.meal_type].append(entry)
 
-            # Get user's assigned meals
-            my_meals = [
-                entry
-                for entry in meal_entries
-                if entry.assigned_cook_user_id == user_id
-            ]
+            # Get user's assigned meals (check both legacy single cook and new multi-cook)
+            my_meals = []
+            for entry in meal_entries:
+                # Check legacy single cook field
+                if entry.assigned_cook_user_id == user_id:
+                    my_meals.append(entry)
+                    continue
+                # Check new multi-cook relationship (lazy='dynamic' returns a query)
+                if entry.assigned_cooks.filter_by(id=user_id).first():
+                    my_meals.append(entry)
             my_meals_by_date = defaultdict(list)
             for entry in my_meals:
                 my_meals_by_date[entry.date].append(entry)
