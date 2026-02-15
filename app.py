@@ -3857,15 +3857,16 @@ def add_meal_plan_to_list():
     )
     week_end = week_start + timedelta(days=6)
 
-    # Get all meal plan entries for this week
+    # Get all meal plan entries for this week that have recipes
     meal_entries = MealPlanEntry.query.filter(
         MealPlanEntry.household_id == g.household.id,
         MealPlanEntry.date >= week_start,
         MealPlanEntry.date <= week_end,
+        MealPlanEntry.recipe_id.isnot(None),  # Only entries with recipes
     ).all()
 
     if not meal_entries:
-        flash("No meals planned for this week", "warning")
+        flash("No meals with recipes planned for this week", "warning")
         return redirect(url_for("meal_plan") + f"?week={week_offset}")
 
     # Get unique recipe IDs
