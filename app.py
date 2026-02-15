@@ -3899,7 +3899,7 @@ def add_meal_plan_to_list():
 @app.route("/meal-plan/similar-recipes", methods=["POST"])
 @require_login
 def find_similar_recipes():
-    """Find recipes with 50%+ ingredient overlap with current meal plan's shopping list"""
+    """Find recipes with 25%+ ingredient overlap with current meal plan's shopping list"""
     if not g.household:
         return jsonify({"success": False, "error": "Please create or join a household first"}), 400
 
@@ -4008,8 +4008,8 @@ Example: If a recipe has 10 ingredients and ingredients at indices 0, 2, 3, 5, 7
 
             logger.info(f"Recipe {recipe.id} ({recipe.name}): {match_percentage}% match")
 
-            # Only include recipes with 50%+ match
-            if match_percentage >= 50:
+            # Only include recipes with 25%+ match
+            if match_percentage >= 25:
                 # Format ingredients for display with match indicators
                 ingredients_list = []
                 for idx, ing in enumerate(recipe.recipe_ingredients):
@@ -5105,7 +5105,7 @@ We're excited to share a brand new feature that's going to make meal planning ev
 
 🎯 What is it?
 
-Similar Recipes uses AI to suggest recipes from your household collection that share 50% or more ingredients with what's already in your meal plan. It's like having a smart cooking assistant that helps you:
+Similar Recipes uses AI to suggest recipes from your household collection that share 25% or more ingredients with what's already in your meal plan. It's like having a smart cooking assistant that helps you:
 
 • Save money by using ingredients you're already buying
 • Reduce waste by planning meals that share common ingredients
