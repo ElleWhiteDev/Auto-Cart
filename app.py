@@ -4043,7 +4043,7 @@ Example: If a recipe has 10 ingredients and ingredients at indices 0, 2, 3, 5, 7
 @app.route("/meal-plan/apply-similar-recipes", methods=["POST"])
 @require_login
 def apply_similar_recipes():
-    """Add selected similar recipes to meal plan and consolidate ingredients to grocery list"""
+    """Add selected similar recipes to meal plan"""
     if not g.household:
         flash("Please create or join a household first", "warning")
         return redirect(url_for("homepage"))
@@ -4123,49 +4123,9 @@ def apply_similar_recipes():
 
     db.session.commit()
 
-    # Now consolidate ALL meal plan recipes into the grocery list
-    # Calculate week range
-    today = get_est_date()
-    days_since_monday = today.weekday()
-    week_start = (
-        today - timedelta(days=days_since_monday) + timedelta(weeks=week_offset)
-    )
-    week_end = week_start + timedelta(days=6)
-
-    # Get ALL meal plan entries for this week (including newly added ones)
-    meal_entries = MealPlanEntry.query.filter(
-        MealPlanEntry.household_id == g.household.id,
-        MealPlanEntry.date >= week_start,
-        MealPlanEntry.date <= week_end,
-        MealPlanEntry.recipe_id.isnot(None),
-    ).all()
-
-    # Get unique recipe IDs
-    recipe_ids = list(set([str(entry.recipe_id) for entry in meal_entries]))
-
-    # Get or create grocery list
-    grocery_list = g.grocery_list
-    if not grocery_list and g.household:
-        grocery_list = GroceryList(
-            household_id=g.household.id,
-            user_id=g.user.id,
-            created_by_user_id=g.user.id,
-            name="Household Grocery List",
-            status="planning",
-        )
-        db.session.add(grocery_list)
-        db.session.commit()
-        session[CURR_GROCERY_LIST_KEY] = grocery_list.id
-        g.grocery_list = grocery_list
-
-    # Update grocery list with all recipes (this will consolidate)
-    GroceryList.update_grocery_list(
-        recipe_ids, grocery_list=grocery_list, user_id=g.user.id
-    )
-
     return jsonify({
         "success": True,
-        "message": f"Added {added_count} recipe{'s' if added_count != 1 else ''} to meal plan and updated grocery list!",
+        "message": f"Added {added_count} recipe{'s' if added_count != 1 else ''} to meal plan!",
         "added_count": added_count
     })
 
@@ -5118,7 +5078,6 @@ Similar Recipes uses AI to suggest recipes from your household collection that s
 2. Our AI compares your current meal plan's shopping list with all your household recipes
 3. See recipes with matching ingredients highlighted in orange
 4. Select the ones you want, pick dates and meal types, and add them to your plan
-5. Your grocery list automatically updates with any new ingredients needed
 
 We think you're going to love how this makes meal planning smarter and more efficient. Give it a try next time you're planning your week!
 

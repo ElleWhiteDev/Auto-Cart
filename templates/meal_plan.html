@@ -1392,8 +1392,8 @@ async function applySimilarRecipes() {
 		const result = await response.json();
 
 		if (result.success) {
-			// Redirect to grocery list page with success message
-			window.location.href = '{{ url_for("homepage") }}?message=' + encodeURIComponent(result.message);
+			// Reload the meal plan page to show the newly added recipes
+			window.location.reload();
 		} else {
 			alert(result.error || 'Failed to apply recipes');
 			applyBtn.disabled = false;
