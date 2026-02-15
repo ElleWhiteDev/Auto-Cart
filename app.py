@@ -5038,6 +5038,112 @@ def migrate_database():
     return redirect(url_for("homepage"))
 
 
+@app.route("/admin/send-feature-announcement", methods=["POST"])
+@require_admin
+def send_feature_announcement():
+    """Send the latest feature announcement email to all registered users"""
+    try:
+        # Get all users
+        users = User.query.all()
+
+        if not users:
+            flash("No users found to send emails to", "warning")
+            return redirect(url_for("admin_dashboard"))
+
+        # Send email to each user
+        sent_count = 0
+        failed_count = 0
+
+        for user in users:
+            try:
+                send_feature_announcement_email(user.email, user.username)
+                sent_count += 1
+            except Exception as e:
+                logger.error(f"Failed to send feature announcement to {user.email}: {e}")
+                failed_count += 1
+
+        if sent_count > 0:
+            flash(f"✅ Feature announcement sent to {sent_count} user(s)!", "success")
+        if failed_count > 0:
+            flash(f"⚠️ Failed to send to {failed_count} user(s). Check logs for details.", "warning")
+
+        logger.info(f"Feature announcement sent to {sent_count} users, {failed_count} failed")
+
+    except Exception as e:
+        logger.error(f"Error sending feature announcements: {e}", exc_info=True)
+        flash(f"❌ Error sending announcements: {str(e)}", "danger")
+
+    return redirect(url_for("admin_dashboard"))
+
+
+def send_feature_announcement_email(recipient_email, recipient_name):
+    """Send feature announcement email to a user"""
+    from flask_mail import Message
+
+    # Build URLs
+    base_url = request.url_root.rstrip("/")
+    meal_plan_url = f"{base_url}/meal-plan"
+    homepage_url = f"{base_url}/"
+    profile_url = f"{base_url}/profile"
+
+    subject = "🎉 New Feature: Similar Recipes - Smart Meal Planning with AI!"
+
+    # Render HTML email from template
+    html_body = render_template(
+        "feature_announcement_email.html",
+        recipient_name=recipient_name,
+        meal_plan_url=meal_plan_url,
+        homepage_url=homepage_url,
+        profile_url=profile_url
+    )
+
+    # Create plain text version
+    text_body = f"""
+Hey {recipient_name}! 👋
+
+We're excited to share a brand new feature that's going to make meal planning even easier: Similar Recipes!
+
+🎯 What is it?
+
+Similar Recipes uses AI to suggest recipes from your household collection that share 50% or more ingredients with what's already in your meal plan. It's like having a smart cooking assistant that helps you:
+
+• Save money by using ingredients you're already buying
+• Reduce waste by planning meals that share common ingredients
+• Simplify shopping by consolidating your grocery list
+• Discover recipes you might have forgotten about
+
+✨ How it works:
+
+1. Click the "Similar Recipes" button in your meal planner
+2. Our AI compares your current meal plan's shopping list with all your household recipes
+3. See recipes with matching ingredients highlighted in orange
+4. Select the ones you want, pick dates and meal types, and add them to your plan
+5. Your grocery list automatically updates with any new ingredients needed
+
+We think you're going to love how this makes meal planning smarter and more efficient. Give it a try next time you're planning your week!
+
+Try it now: {meal_plan_url}
+
+Happy cooking! 🍳
+— The Auto-Cart Team
+
+---
+You're receiving this because you have an Auto-Cart account.
+Visit Auto-Cart: {homepage_url}
+Manage Your Profile: {profile_url}
+    """
+
+    msg = Message(
+        subject=subject,
+        recipients=[recipient_email],
+        html=html_body,
+        body=text_body
+    )
+
+    mail.send(msg)
+    logger.info(f"Feature announcement email sent to {recipient_email}")
+
+
 @app.route("/admin/setup-admin", methods=["GET", "POST"])
 def setup_admin():
     """One-time setup to make a user an admin - NO AUTH REQUIRED for initial setup"""

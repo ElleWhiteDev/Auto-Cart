@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f8f9fa;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .header .icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+        .content {
+            padding: 30px 20px;
+        }
+        .content h2 {
+            color: #f97316;
+            font-size: 22px;
+            margin-top: 0;
+        }
+        .content p {
+            margin: 15px 0;
+            font-size: 16px;
+        }
+        .feature-box {
+            background-color: #fff7ed;
+            border-left: 4px solid #f97316;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .feature-box h3 {
+            color: #f97316;
+            margin-top: 0;
+            font-size: 18px;
+        }
+        .feature-box ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .feature-box li {
+            margin: 8px 0;
+        }
+        .cta-button {
+            display: inline-block;
+            background: #0d6efd;
+            color: white !important;
+            padding: 15px 30px;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 16px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .cta-button:hover {
+            background: #0b5ed7;
+            color: white !important;
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            font-size: 14px;
+            color: #6c757d;
+        }
+        .footer a {
+            color: #f97316;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="icon">💡</div>
+            <h1>New Feature: Similar Recipes!</h1>
+        </div>
+        
+        <div class="content">
+            <h2>Hey there! 👋</h2>
+            
+            <p>We're excited to share a brand new feature that's going to make meal planning even easier: <strong>Similar Recipes</strong>!</p>
+            
+            <div class="feature-box">
+                <h3>🎯 What is it?</h3>
+                <p>Similar Recipes uses AI to suggest recipes from your household collection that share 50% or more ingredients with what's already in your meal plan. It's like having a smart cooking assistant that helps you:</p>
+                <ul>
+                    <li><strong>Save money</strong> by using ingredients you're already buying</li>
+                    <li><strong>Reduce waste</strong> by planning meals that share common ingredients</li>
+                    <li><strong>Simplify shopping</strong> by consolidating your grocery list</li>
+                    <li><strong>Discover recipes</strong> you might have forgotten about</li>
+                </ul>
+            </div>
+            
+            <div class="feature-box">
+                <h3>✨ How it works:</h3>
+                <ul>
+                    <li>Click the <strong>"Similar Recipes"</strong> button in your meal planner</li>
+                    <li>Our AI compares your current meal plan's shopping list with all your household recipes</li>
+                    <li>See recipes with matching ingredients highlighted in orange</li>
+                    <li>Select the ones you want, pick dates and meal types, and add them to your plan</li>
+                    <li>Your grocery list automatically updates with any new ingredients needed</li>
+                </ul>
+            </div>
+            
+            <p>We think you're going to love how this makes meal planning smarter and more efficient. Give it a try next time you're planning your week!</p>
+            
+            <div style="text-align: center;">
+                <a href="{{ meal_plan_url }}" class="cta-button">Try Similar Recipes Now →</a>
+            </div>
+            
+            <p style="margin-top: 30px;">Happy cooking! 🍳</p>
+            <p><strong>— The Auto-Cart Team</strong></p>
+        </div>
+        
+        <div class="footer">
+            <p>You're receiving this because you have an Auto-Cart account.</p>
+            <p><a href="{{ homepage_url }}">Visit Auto-Cart</a> | <a href="{{ profile_url }}">Manage Your Profile</a></p>
+        </div>
+    </div>
+</body>
+</html>
+
