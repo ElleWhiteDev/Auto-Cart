@@ -664,6 +664,8 @@ p {
   padding: var(--space-3);
   border-bottom: 1px solid var(--gray-200);
   transition: all var(--transition-fast);
+  overflow: visible;
+  position: relative;
 }
 
 .grocery-item:last-child {
@@ -679,7 +681,8 @@ p {
   display: flex;
   align-items: center;
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
+  width: 100%;
 }
 
 .grocery-item-text {
@@ -758,24 +761,37 @@ p {
 /* Mobile responsive adjustments */
 @media (max-width: 768px) {
   .grocery-item {
-    padding: 8px;
-  }
-
-  .grocery-item-edit {
+    padding: 2px 4px;
+    flex-wrap: nowrap;
     gap: 2px;
   }
 
+  .grocery-item-content {
+    flex: 1;
+    min-width: 0;
+    max-width: calc(100% - 24px);
+  }
+
+  .grocery-item-edit {
+    gap: 1px;
+    width: 100%;
+    max-width: 100%;
+  }
+
   .grocery-item-edit input {
-    padding: 4px;
-    font-size: 11px;
+    padding: 2px;
+    font-size: 10px;
+    border-width: 1px;
   }
 
   .grocery-item-edit .edit-quantity {
-    width: 35px;
+    width: 28px;
+    flex-shrink: 0;
   }
 
   .grocery-item-edit .edit-measurement {
-    width: 45px;
+    width: 38px;
+    flex-shrink: 0;
   }
 
   .grocery-item-edit .edit-name {
@@ -785,16 +801,23 @@ p {
 
   .grocery-item-edit .btn-save,
   .grocery-item-edit .btn-cancel {
-    padding: 4px;
-    font-size: 14px;
-    min-width: 28px;
+    padding: 2px;
+    font-size: 12px;
+    min-width: 22px;
+    flex-shrink: 0;
   }
 
   .grocery-item-remove {
-    width: 28px;
-    height: 28px;
+    width: 18px;
+    height: 18px;
+    font-size: 9px;
+    margin-left: 0;
+    padding: 0;
+    flex-shrink: 0;
+  }
+
+  .grocery-item-text {
     font-size: 12px;
-    margin-left: 4px;
   }
 }
 

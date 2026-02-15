@@ -1423,3 +1423,35 @@ nav {
 .grocery-item-edit .btn-cancel:hover {
 	background-color: var(--gray-500, #6b7280);
 }
+
+/* Mobile grocery list editing - ULTRA COMPACT */
+@media (max-width: 768px) {
+	.grocery-item-edit {
+		gap: 2px !important;
+	}
+
+	.grocery-item-edit input {
+		padding: 3px !important;
+		font-size: 11px !important;
+		border-width: 1px !important;
+	}
+
+	.grocery-item-edit .edit-quantity {
+		width: 32px !important;
+	}
+
+	.grocery-item-edit .edit-measurement {
+		width: 42px !important;
+	}
+
+	.grocery-item-edit .edit-name {
+		min-width: 0 !important;
+		flex: 1;
+	}
+
+	/* Hide save/cancel buttons on mobile - use Enter key instead */
+	.grocery-item-edit .btn-save,
+	.grocery-item-edit .btn-cancel {
+		display: none !important;
+	}
+}

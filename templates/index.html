@@ -869,10 +869,17 @@ function editIngredient(ingredientId) {
         });
     });
 
-    // Focus on the name input
+    // Scroll the item into view on mobile to ensure it's visible
+    setTimeout(() => {
+        item.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
+
+    // Focus on the name input (most important field)
     const nameInput = editDiv.querySelector('.edit-name');
-    nameInput.focus();
-    nameInput.select();
+    setTimeout(() => {
+        nameInput.focus();
+        nameInput.select();
+    }, 150);
 }
 
 function cancelEdit(ingredientId) {
@@ -1097,6 +1104,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Skip if it's a checkbox or radio (they have different behavior)
         if (activeElement.type === 'checkbox' || activeElement.type === 'radio') {
+            return;
+        }
+
+        // Special handling for grocery list edit inputs - they have their own Enter handler
+        if (activeElement.classList.contains('edit-quantity') ||
+            activeElement.classList.contains('edit-measurement') ||
+            activeElement.classList.contains('edit-name')) {
+            // Let the specific edit handler deal with it (already set up in editIngredient function)
             return;
         }
 
