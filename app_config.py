@@ -1,10 +1,18 @@
 import os
+from datetime import timedelta
 
 
 class Config:
     """Base configuration"""
 
     SECRET_KEY = os.environ.get("SECRET_KEY") or "dev-secret-key"
+
+    # Session configuration - persistent sessions
+    SESSION_PERMANENT = True
+    PERMANENT_SESSION_LIFETIME = timedelta(days=365)  # Sessions last 1 year
+    SESSION_COOKIE_SECURE = False  # Set to True in production with HTTPS
+    SESSION_COOKIE_HTTPONLY = True  # Prevent JavaScript access to session cookie
+    SESSION_COOKIE_SAMESITE = 'Lax'  # CSRF protection
 
     # Database configuration - auto-detect environment
     # Check if running on Heroku (Heroku sets DYNO environment variable)
@@ -70,6 +78,7 @@ class ProductionConfig(Config):
     """Production configuration"""
 
     DEBUG = False
+    SESSION_COOKIE_SECURE = True  # Enable secure cookies in production (HTTPS only)
 
 
 config = {

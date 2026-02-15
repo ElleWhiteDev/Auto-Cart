@@ -59,6 +59,7 @@ def require_admin(func):
 def do_login(user):
     """Log in user."""
     session[CURR_USER_KEY] = user.id
+    session.permanent = True  # Make session persistent
 
 
 def do_logout():

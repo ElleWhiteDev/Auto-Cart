@@ -1023,6 +1023,28 @@ async function deleteIngredient(ingredientId, button) {
         button.innerHTML = originalContent;
     }
 }
+
+// Check for success message in URL (from similar recipes redirect)
+document.addEventListener('DOMContentLoaded', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const message = urlParams.get('message');
+    if (message) {
+        // Create and show flash message
+        const flashContainer = document.querySelector('.container');
+        if (flashContainer) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-success alert-dismissible fade show';
+            alertDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            `;
+            flashContainer.insertBefore(alertDiv, flashContainer.firstChild);
+
+            // Clean up URL
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+    }
+});
 </script>
 
 {% endblock %}

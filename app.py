@@ -33,6 +33,7 @@ from models import (
     HouseholdMember,
     MealPlanEntry,
     GroceryListItem,
+    openai_client,
 )
 from forms import (
     UserAddForm,
@@ -3893,6 +3894,280 @@ def add_meal_plan_to_list():
 
     flash(f"Added {len(meal_entries)} meals to grocery list!", "success")
     return redirect(url_for("homepage"))
+
+
+@app.route("/meal-plan/similar-recipes", methods=["POST"])
+@require_login
+def find_similar_recipes():
+    """Find recipes with 50%+ ingredient overlap with current meal plan's shopping list"""
+    if not g.household:
+        return jsonify({"success": False, "error": "Please create or join a household first"}), 400
+
+    from datetime import timedelta
+    import json
+
+    # Get week offset
+    week_offset = int(request.form.get("week_offset", 0))
+
+    # Calculate week range in EST
+    today = get_est_date()
+    days_since_monday = today.weekday()
+    week_start = (
+        today - timedelta(days=days_since_monday) + timedelta(weeks=week_offset)
+    )
+    week_end = week_start + timedelta(days=6)
+
+    # Get meal plan entries for this week
+    meal_entries = MealPlanEntry.query.filter(
+        MealPlanEntry.household_id == g.household.id,
+        MealPlanEntry.date >= week_start,
+        MealPlanEntry.date <= week_end,
+        MealPlanEntry.recipe_id.isnot(None),  # Only entries with recipes
+    ).all()
+
+    logger.info(f"Found {len(meal_entries)} meal entries for week {week_offset}")
+
+    # Get recipe IDs already in the meal plan
+    meal_plan_recipe_ids = set([entry.recipe_id for entry in meal_entries])
+
+    # Build shopping list from meal plan
+    shopping_list_ingredients = []
+    for entry in meal_entries:
+        if entry.recipe and entry.recipe.recipe_ingredients:
+            for ingredient in entry.recipe.recipe_ingredients:
+                shopping_list_ingredients.append({
+                    "quantity": ingredient.quantity,
+                    "measurement": ingredient.measurement,
+                    "ingredient_name": ingredient.ingredient_name,
+                })
+
+    logger.info(f"Built shopping list with {len(shopping_list_ingredients)} ingredients")
+
+    # If no ingredients in meal plan, return empty
+    if not shopping_list_ingredients:
+        logger.info("No ingredients in meal plan, returning empty results")
+        return jsonify({"success": True, "matched_recipes": []})
+
+    # Get all household recipes NOT in the current meal plan
+    candidate_recipes = Recipe.query.filter(
+        Recipe.household_id == g.household.id,
+        ~Recipe.id.in_(meal_plan_recipe_ids) if meal_plan_recipe_ids else True
+    ).all()
+
+    logger.info(f"Found {len(candidate_recipes)} candidate recipes (excluding {len(meal_plan_recipe_ids)} already in meal plan)")
+
+    # Use AI to compare each recipe's ingredients with the shopping list
+    matched_recipes = []
+
+    for recipe in candidate_recipes:
+        if not recipe.recipe_ingredients:
+            logger.debug(f"Skipping recipe {recipe.id} ({recipe.name}) - no ingredients")
+            continue
+
+        # Format shopping list and recipe ingredients for AI
+        shopping_list_text = "\n".join([
+            f"{ing['quantity']} {ing['measurement']} {ing['ingredient_name']}"
+            for ing in shopping_list_ingredients
+        ])
+
+        recipe_ingredients_text = "\n".join([
+            f"{ing.quantity} {ing.measurement} {ing.ingredient_name}"
+            for ing in recipe.recipe_ingredients
+        ])
+
+        try:
+            system_prompt = """You are an ingredient comparison expert. Compare the shopping list ingredients with the recipe ingredients.
+
+Calculate what percentage of the recipe's ingredients are already on the shopping list (or very similar).
+Consider similar ingredients as matches (e.g., "flour" matches "all-purpose flour", "chicken breast" matches "chicken").
+
+For each recipe ingredient, determine if it matches something on the shopping list.
+
+Return ONLY a JSON object with this exact format:
+{
+    "match_percentage": <number 0-100>,
+    "matched_indices": [<array of 0-based indices of recipe ingredients that match the shopping list>]
+}
+
+Example: If a recipe has 10 ingredients and ingredients at indices 0, 2, 3, 5, 7, 9 match the shopping list, return:
+{"match_percentage": 60, "matched_indices": [0, 2, 3, 5, 7, 9]}"""
+
+            response = openai_client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": f"Shopping list:\n{shopping_list_text}\n\nRecipe ingredients:\n{recipe_ingredients_text}"}
+                ],
+                temperature=0.1,
+                max_tokens=200,
+            )
+
+            result = json.loads(response.choices[0].message.content.strip())
+            match_percentage = result.get("match_percentage", 0)
+            matched_indices = set(result.get("matched_indices", []))
+
+            logger.info(f"Recipe {recipe.id} ({recipe.name}): {match_percentage}% match")
+
+            # Only include recipes with 50%+ match
+            if match_percentage >= 50:
+                # Format ingredients for display with match indicators
+                ingredients_list = []
+                for idx, ing in enumerate(recipe.recipe_ingredients):
+                    ingredient_text = f"{ing.quantity} {ing.measurement} {ing.ingredient_name}".strip()
+                    is_matched = idx in matched_indices
+                    ingredients_list.append({
+                        "text": ingredient_text,
+                        "matched": is_matched
+                    })
+
+                matched_recipes.append({
+                    "id": recipe.id,
+                    "name": recipe.name,
+                    "match_percentage": match_percentage,
+                    "ingredient_count": len(recipe.recipe_ingredients),
+                    "ingredients": ingredients_list,
+                })
+
+        except Exception as e:
+            logger.error(f"Error comparing recipe {recipe.id}: {e}", exc_info=True)
+            continue
+
+    # Sort by match percentage (highest first)
+    matched_recipes.sort(key=lambda x: x["match_percentage"], reverse=True)
+
+    logger.info(f"Returning {len(matched_recipes)} matched recipes with 50%+ match")
+
+    return jsonify({"success": True, "matched_recipes": matched_recipes})
+
+
+@app.route("/meal-plan/apply-similar-recipes", methods=["POST"])
+@require_login
+def apply_similar_recipes():
+    """Add selected similar recipes to meal plan and consolidate ingredients to grocery list"""
+    if not g.household:
+        flash("Please create or join a household first", "warning")
+        return redirect(url_for("homepage"))
+
+    from datetime import datetime, timedelta
+    import json
+
+    # Get the selected recipes data from the request
+    try:
+        data = request.get_json()
+        selected_recipes = data.get("recipes", [])
+        week_offset = int(data.get("week_offset", 0))
+    except Exception as e:
+        logger.error(f"Error parsing request data: {e}", exc_info=True)
+        return jsonify({"success": False, "error": "Invalid request data"}), 400
+
+    if not selected_recipes:
+        return jsonify({"success": False, "error": "No recipes selected"}), 400
+
+    # Add meal plan entries for each selected recipe
+    added_count = 0
+    for recipe_data in selected_recipes:
+        try:
+            recipe_id = recipe_data.get("recipe_id")
+            date_str = recipe_data.get("date")
+            meal_type = recipe_data.get("meal_type")
+            notes = recipe_data.get("notes", "").strip()
+            assigned_cook_ids = recipe_data.get("assigned_cooks", [])
+
+            if not all([recipe_id, date_str, meal_type]):
+                continue
+
+            # Verify recipe belongs to household
+            recipe = Recipe.query.filter_by(
+                id=recipe_id, household_id=g.household.id
+            ).first()
+            if not recipe:
+                continue
+
+            date = datetime.strptime(date_str, "%Y-%m-%d").date()
+
+            # Create meal plan entry
+            entry = MealPlanEntry(
+                household_id=g.household.id,
+                recipe_id=recipe_id,
+                date=date,
+                meal_type=meal_type.lower(),
+                notes=notes if notes else None,
+            )
+            db.session.add(entry)
+            db.session.flush()
+
+            # Add assigned cooks
+            if assigned_cook_ids:
+                for cook_id in assigned_cook_ids:
+                    cook = User.query.get(cook_id)
+                    if cook:
+                        entry.assigned_cooks.append(cook)
+
+            # Track the change for daily summary
+            from models import MealPlanChange
+            change = MealPlanChange(
+                household_id=g.household.id,
+                change_type='added',
+                meal_name=entry.meal_name,
+                meal_date=entry.date,
+                meal_type=entry.meal_type,
+                changed_by_user_id=g.user.id
+            )
+            db.session.add(change)
+
+            added_count += 1
+
+        except Exception as e:
+            logger.error(f"Error adding meal plan entry: {e}", exc_info=True)
+            continue
+
+    db.session.commit()
+
+    # Now consolidate ALL meal plan recipes into the grocery list
+    # Calculate week range
+    today = get_est_date()
+    days_since_monday = today.weekday()
+    week_start = (
+        today - timedelta(days=days_since_monday) + timedelta(weeks=week_offset)
+    )
+    week_end = week_start + timedelta(days=6)
+
+    # Get ALL meal plan entries for this week (including newly added ones)
+    meal_entries = MealPlanEntry.query.filter(
+        MealPlanEntry.household_id == g.household.id,
+        MealPlanEntry.date >= week_start,
+        MealPlanEntry.date <= week_end,
+        MealPlanEntry.recipe_id.isnot(None),
+    ).all()
+
+    # Get unique recipe IDs
+    recipe_ids = list(set([str(entry.recipe_id) for entry in meal_entries]))
+
+    # Get or create grocery list
+    grocery_list = g.grocery_list
+    if not grocery_list and g.household:
+        grocery_list = GroceryList(
+            household_id=g.household.id,
+            user_id=g.user.id,
+            created_by_user_id=g.user.id,
+            name="Household Grocery List",
+            status="planning",
+        )
+        db.session.add(grocery_list)
+        db.session.commit()
+        session[CURR_GROCERY_LIST_KEY] = grocery_list.id
+        g.grocery_list = grocery_list
+
+    # Update grocery list with all recipes (this will consolidate)
+    GroceryList.update_grocery_list(
+        recipe_ids, grocery_list=grocery_list, user_id=g.user.id
+    )
+
+    return jsonify({
+        "success": True,
+        "message": f"Added {added_count} recipe{'s' if added_count != 1 else ''} to meal plan and updated grocery list!",
+        "added_count": added_count
+    })
 
 
 @app.route("/meal-plan/email", methods=["POST"])
