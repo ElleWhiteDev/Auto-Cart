@@ -335,24 +335,6 @@ const RecipeManager = {
     }
 };
 
-    // Delete ingredient functionality
-    const deleteIngredientBtns = document.querySelectorAll('.delete-ingredient-btn');
-    deleteIngredientBtns.forEach(btn => {
-        btn.addEventListener('click', async function() {
-            const ingredientId = this.getAttribute('data-ingredient-id');
-            const listItem = this.closest('li');
-
-            UIUtils.setButtonLoading(this, true, '...');
-
-            const success = await RecipeManager.deleteIngredient(ingredientId, listItem);
-
-            if (!success) {
-                UIUtils.setButtonLoading(this, false);
-            }
-        });
-    });
-});
-
 // ============================================================================
 // APPLICATION INITIALIZATION
 // ============================================================================
@@ -378,3 +360,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Manual ingredient form - handled by inline onsubmit handler in template
     // This ensures the handler is attached before any user interaction
+
+    // Delete ingredient functionality
+    const deleteIngredientBtns = document.querySelectorAll('.delete-ingredient-btn');
+    deleteIngredientBtns.forEach(btn => {
+        btn.addEventListener('click', async function() {
+            const ingredientId = this.getAttribute('data-ingredient-id');
+            const listItem = this.closest('li');
+
+            UIUtils.setButtonLoading(this, true, '...');
+
+            const success = await RecipeManager.deleteIngredient(ingredientId, listItem);
+
+            if (!success) {
+                UIUtils.setButtonLoading(this, false);
+            }
+        });
+    });
+});

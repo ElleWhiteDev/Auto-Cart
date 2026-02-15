@@ -299,7 +299,9 @@
 						</div>
 					</div>
 					<button type="button" class="grocery-item-remove delete-ingredient-btn"
-							data-ingredient-id="{{ ingredient.id }}" title="Remove ingredient">
+							data-ingredient-id="{{ ingredient.id }}"
+							onclick="deleteIngredient({{ ingredient.id }}, this)"
+							title="Remove ingredient">
 						<i class="fas fa-times"></i>
 					</button>
 				</li>
@@ -982,6 +984,44 @@ async function handleManualIngredientSubmit(event) {
     }
 
     return false;
+}
+
+// Handle delete ingredient button click
+async function deleteIngredient(ingredientId, button) {
+    // Show loading state
+    const originalContent = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+
+    try {
+        const formData = new FormData();
+        formData.append('ingredient_id', ingredientId);
+
+        const response = await fetch('/delete_ingredient', {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            // Success - remove the item from the DOM
+            const listItem = button.closest('li');
+            if (listItem) {
+                listItem.remove();
+            }
+        } else {
+            // Error - show message and restore button
+            alert(result.error || 'Failed to remove ingredient');
+            button.disabled = false;
+            button.innerHTML = originalContent;
+        }
+    } catch (error) {
+        console.error('Error deleting ingredient:', error);
+        alert('Network error. Please try again.');
+        button.disabled = false;
+        button.innerHTML = originalContent;
+    }
 }
 </script>
 
