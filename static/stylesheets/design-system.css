@@ -674,9 +674,128 @@ p {
   background-color: var(--gray-50);
 }
 
+.grocery-item-content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  overflow: hidden;
+}
+
 .grocery-item-text {
   font-size: var(--text-sm);
   color: var(--gray-700);
+  cursor: pointer;
+  flex: 1;
+}
+
+.grocery-item-text:hover {
+  color: var(--accent);
+}
+
+.grocery-item-edit {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  width: 100%;
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+
+.grocery-item-edit input {
+  padding: 6px 8px;
+  border: 1px solid var(--gray-300);
+  border-radius: 4px;
+  font-size: var(--text-sm);
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.grocery-item-edit .edit-quantity {
+  width: 50px;
+  flex-shrink: 0;
+}
+
+.grocery-item-edit .edit-measurement {
+  width: 60px;
+  flex-shrink: 0;
+}
+
+.grocery-item-edit .edit-name {
+  flex: 1;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.grocery-item-edit .btn-save,
+.grocery-item-edit .btn-cancel {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 4px;
+  transition: all var(--transition-fast);
+  font-size: var(--text-sm);
+  flex-shrink: 0;
+}
+
+.grocery-item-edit .btn-save {
+  color: var(--success);
+}
+
+.grocery-item-edit .btn-save:hover {
+  background: #dcfce7;
+}
+
+.grocery-item-edit .btn-cancel {
+  color: var(--error);
+}
+
+.grocery-item-edit .btn-cancel:hover {
+  background: #fee2e2;
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+  .grocery-item {
+    padding: 8px;
+  }
+
+  .grocery-item-edit {
+    gap: 2px;
+  }
+
+  .grocery-item-edit input {
+    padding: 4px;
+    font-size: 11px;
+  }
+
+  .grocery-item-edit .edit-quantity {
+    width: 35px;
+  }
+
+  .grocery-item-edit .edit-measurement {
+    width: 45px;
+  }
+
+  .grocery-item-edit .edit-name {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .grocery-item-edit .btn-save,
+  .grocery-item-edit .btn-cancel {
+    padding: 4px;
+    font-size: 14px;
+    min-width: 28px;
+  }
+
+  .grocery-item-remove {
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
+    margin-left: 4px;
+  }
 }
 
 .grocery-item-remove {
@@ -692,6 +811,7 @@ p {
   cursor: pointer;
   transition: all var(--transition-fast);
   font-size: var(--text-xs);
+  flex-shrink: 0;
 }
 
 .grocery-item-remove:hover {

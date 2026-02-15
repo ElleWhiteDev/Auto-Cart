@@ -287,13 +287,13 @@
 							{% endif %}
 						</span>
 						<div class="grocery-item-edit" style="display: none;">
-							<input type="number" class="edit-quantity" value="{{ ingredient.quantity or 1 }}" min="0" step="0.1" placeholder="Qty">
-							<input type="text" class="edit-measurement" value="{{ ingredient.measurement or '' }}" placeholder="unit">
-							<input type="text" class="edit-name" value="{{ ingredient.ingredient_name }}" placeholder="Ingredient name">
-							<button type="button" class="btn-save" onclick="saveIngredient({{ ingredient.id }})">
+							<input type="number" class="edit-quantity" value="{{ ingredient.quantity or 1 }}" min="0" step="0.1" placeholder="Qty" title="Press Enter to save">
+							<input type="text" class="edit-measurement" value="{{ ingredient.measurement or '' }}" placeholder="unit" title="Press Enter to save">
+							<input type="text" class="edit-name" value="{{ ingredient.ingredient_name }}" placeholder="Name (Enter to save)" title="Press Enter to save, Escape to cancel">
+							<button type="button" class="btn-save" onclick="saveIngredient({{ ingredient.id }})" title="Save changes">
 								<i class="fas fa-check"></i>
 							</button>
-							<button type="button" class="btn-cancel" onclick="cancelEdit({{ ingredient.id }})">
+							<button type="button" class="btn-cancel" onclick="cancelEdit({{ ingredient.id }})" title="Cancel editing">
 								<i class="fas fa-times"></i>
 							</button>
 						</div>
@@ -838,6 +838,37 @@ function editIngredient(ingredientId) {
     textSpan.style.display = 'none';
     editDiv.style.display = 'flex';
 
+    // Add keyboard event listeners to all inputs
+    const inputs = editDiv.querySelectorAll('input');
+    inputs.forEach(input => {
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                saveIngredient(ingredientId);
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                cancelEdit(ingredientId);
+            }
+        });
+
+        // On mobile, blur (close keyboard) when user taps outside
+        input.addEventListener('blur', function(e) {
+            // Small delay to allow save/cancel button clicks to register
+            setTimeout(() => {
+                const editDiv = item.querySelector('.grocery-item-edit');
+                if (editDiv && editDiv.style.display === 'flex') {
+                    // Check if focus moved to another input in the same edit form
+                    const activeElement = document.activeElement;
+                    const isStillEditing = editDiv.contains(activeElement);
+                    if (!isStillEditing) {
+                        // Auto-save when user closes keyboard/taps away
+                        saveIngredient(ingredientId);
+                    }
+                }
+            }, 200);
+        });
+    });
+
     // Focus on the name input
     const nameInput = editDiv.querySelector('.edit-name');
     nameInput.focus();
@@ -1044,6 +1075,63 @@ document.addEventListener('DOMContentLoaded', function() {
             window.history.replaceState({}, document.title, window.location.pathname);
         }
     }
+
+    // Global Enter key handler for all input fields
+    // Makes all inputs submit their parent form on Enter key press
+    document.addEventListener('keydown', function(e) {
+        // Only handle Enter key
+        if (e.key !== 'Enter') return;
+
+        // Get the active element (focused input)
+        const activeElement = document.activeElement;
+
+        // Only handle input and textarea elements
+        if (!activeElement || (activeElement.tagName !== 'INPUT' && activeElement.tagName !== 'TEXTAREA')) {
+            return;
+        }
+
+        // Skip if it's a textarea (allow newlines)
+        if (activeElement.tagName === 'TEXTAREA') {
+            return;
+        }
+
+        // Skip if it's a checkbox or radio (they have different behavior)
+        if (activeElement.type === 'checkbox' || activeElement.type === 'radio') {
+            return;
+        }
+
+        // Skip if it's a number input with a form that has multiple number inputs
+        // (user might be tabbing through quantity fields)
+        if (activeElement.type === 'number') {
+            const form = activeElement.closest('form');
+            if (form) {
+                const numberInputs = form.querySelectorAll('input[type="number"]');
+                if (numberInputs.length > 1) {
+                    // Allow default behavior (might be tabbing)
+                    return;
+                }
+            }
+        }
+
+        // Find the parent form
+        const form = activeElement.closest('form');
+
+        if (form) {
+            // Prevent default Enter behavior
+            e.preventDefault();
+
+            // Find the submit button in the form
+            const submitButton = form.querySelector('button[type="submit"], input[type="submit"]');
+
+            if (submitButton) {
+                // Click the submit button (triggers any onclick handlers)
+                submitButton.click();
+            } else {
+                // No submit button found, just submit the form
+                form.submit();
+            }
+        }
+    });
 });
 </script>
 
