@@ -324,11 +324,11 @@
 		<!-- Manual ingredient input -->
 		{% if g.grocery_list %}
 		<div class="p-4 border-top bg-gray-50">
-			<form method="POST" action="{{ url_for('add_manual_ingredient') }}" id="manual-ingredient-form">
+			<form method="POST" action="{{ url_for('add_manual_ingredient') }}" id="manual-ingredient-form" onsubmit="handleManualIngredientSubmit(event)">
 				<div class="d-flex gap-2">
 					<input type="text" name="ingredient_text" class="form-input flex-1"
 						   placeholder="e.g., 2 cups flour or just milk" id="manual-ingredient-input">
-					<button type="submit" class="btn btn-primary" style="min-width: 60px;">
+					<button type="submit" class="btn btn-primary" id="manual-ingredient-submit-btn" style="min-width: 60px;">
 						<i class="fas fa-plus"></i>
 					</button>
 				</div>
@@ -933,6 +933,55 @@ function toggleRenameListForm() {
     } else {
         form.style.display = 'none';
     }
+}
+
+// Handle manual ingredient form submission
+async function handleManualIngredientSubmit(event) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const form = event.target;
+    const input = document.getElementById('manual-ingredient-input');
+    const submitBtn = document.getElementById('manual-ingredient-submit-btn');
+    const ingredientText = input.value.trim();
+
+    if (!ingredientText) {
+        alert('Please enter an ingredient');
+        return false;
+    }
+
+    // Show loading state
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+
+    try {
+        const formData = new FormData();
+        formData.append('ingredient_text', ingredientText);
+
+        const response = await fetch('/add_manual_ingredient', {
+            method: 'POST',
+            body: formData
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            // Success - reload the page to show updated list
+            window.location.reload();
+        } else {
+            // Error - show message and restore button
+            alert(result.error || 'Failed to add ingredient');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-plus"></i>';
+        }
+    } catch (error) {
+        console.error('Error adding ingredient:', error);
+        alert('Network error. Please try again.');
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fas fa-plus"></i>';
+    }
+
+    return false;
 }
 </script>
 

@@ -287,7 +287,11 @@ const RecipeManager = {
 
             if (result.success) {
                 UIUtils.showFlashMessage(result.message, 'success');
-                window.location.reload();
+                // Reload the page to show updated grocery list
+                // Use a slight delay to ensure the flash message is visible
+                setTimeout(() => {
+                    window.location.reload();
+                }, 100);
                 return true;
             } else {
                 UIUtils.showFlashMessage(result.error || 'Failed to add ingredient', 'danger');
@@ -372,23 +376,5 @@ document.addEventListener('DOMContentLoaded', () => {
         standardizeBtn.addEventListener('click', () => RecipeManager.standardizeIngredients());
     }
 
-    // Manual ingredient form
-    const manualIngredientForm = document.getElementById('manual-ingredient-form');
-    if (manualIngredientForm) {
-        manualIngredientForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-
-            const input = document.getElementById('manual-ingredient-input');
-            const submitBtn = manualIngredientForm.querySelector('button[type="submit"]');
-
-            UIUtils.setButtonLoading(submitBtn, true, 'Adding...');
-
-            const success = await RecipeManager.addManualIngredient(input.value);
-
-            if (success) {
-                input.value = '';
-            } else {
-                UIUtils.setButtonLoading(submitBtn, false);
-            }
-        });
-    }
+    // Manual ingredient form - handled by inline onsubmit handler in template
+    // This ensures the handler is attached before any user interaction
