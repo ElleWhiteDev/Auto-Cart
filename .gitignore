@@ -149,3 +149,6 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+
+# Augment files
+.augment/

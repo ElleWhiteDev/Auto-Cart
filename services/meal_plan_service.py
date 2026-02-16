@@ -7,9 +7,11 @@ from datetime import datetime, timedelta, date
 from models import db, MealPlanEntry, Recipe, User
 from utils import get_est_date
 from logging_config import logger
+from services.base_service import BaseService
+from constants import MealType
 
 
-class MealPlanService:
+class MealPlanService(BaseService):
     """Service class for meal plan-related business logic."""
 
     @staticmethod
@@ -88,28 +90,30 @@ class MealPlanService:
         Returns:
             Tuple of (MealPlanEntry object, error message)
         """
-        try:
-            # Validate meal type
-            valid_meal_types = ["breakfast", "lunch", "dinner", "snack"]
-            if meal_type.lower() not in valid_meal_types:
-                return None, f"Invalid meal type. Must be one of: {', '.join(valid_meal_types)}"
+        # Validate meal type using enum
+        if not MealType.is_valid(meal_type):
+            return (
+                None,
+                f"Invalid meal type. Must be one of: {', '.join(MealType.values())}",
+            )
 
+        def create_operation():
             entry = MealPlanEntry(
                 household_id=household_id,
                 recipe_id=recipe_id,
                 date=meal_date,
                 meal_type=meal_type.lower(),
                 cook_user_id=cook_user_id,
-                notes=notes.strip() if notes else None,
+                notes=BaseService.safe_strip(notes),
             )
             db.session.add(entry)
-            db.session.commit()
-            return entry, None
+            return entry
 
-        except Exception as e:
-            db.session.rollback()
-            logger.error(f"Error adding meal plan entry: {e}", exc_info=True)
-            return None, "Failed to add meal to plan. Please try again."
+        return BaseService.execute_with_transaction(
+            create_operation,
+            "Failed to add meal to plan. Please try again.",
+            "adding meal plan entry",
+        )
 
     @staticmethod
     def update_meal_plan_entry(
@@ -177,4 +181,3 @@ class MealPlanService:
             db.session.rollback()
             logger.error(f"Error deleting meal plan entry: {e}", exc_info=True)
             return False, "Failed to delete meal plan entry. Please try again."
-

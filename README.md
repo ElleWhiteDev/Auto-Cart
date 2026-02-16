@@ -6,6 +6,9 @@
 [![Python](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![Flask](https://img.shields.io/badge/flask-2.3+-green.svg)](https://flask.palletsprojects.com/)
 [![PostgreSQL](https://img.shields.io/badge/postgresql-latest-blue.svg)](https://www.postgresql.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Tests](https://img.shields.io/badge/tests-pytest-green.svg)](https://docs.pytest.org/)
 
 ## 🌐 Live Site
 
@@ -15,7 +18,16 @@
 
 Auto-Cart is a sophisticated web application that streamlines meal planning and grocery shopping. Built with modern software engineering principles, it features AI-powered recipe extraction, intelligent ingredient consolidation, multi-household support, and seamless Kroger API integration for one-click cart population.
 
-### Key Highlights for Employers
+## 📚 Documentation
+
+- **[Setup Guide](SETUP.md)** - Detailed installation and configuration instructions
+- **[Architecture](ARCHITECTURE.md)** - System design and architectural patterns
+- **[API Documentation](API_DOCUMENTATION.md)** - HTTP endpoints and request/response formats
+- **[Security Policy](SECURITY.md)** - Security features and vulnerability reporting
+- **[Changelog](CHANGELOG.md)** - Version history and release notes
+- **[Multi-Household Guide](MULTI_HOUSEHOLD_GUIDE.md)** - Guide to multi-household features
+
+### Key Highlights
 
 - **Clean Architecture**: Service layer pattern with clear separation of concerns
 - **Modern Python**: Type hints, comprehensive error handling, and professional logging
@@ -25,26 +37,89 @@ Auto-Cart is a sophisticated web application that streamlines meal planning and 
 - **Scalability**: Multi-household support with role-based access control
 - **AI Integration**: OpenAI API for intelligent recipe parsing and ingredient standardization
 - **Production Ready**: Deployed on Heroku with environment-based configuration
+- **Comprehensive Testing**: pytest suite with unit, integration, and service layer tests
 
 ## ✨ Features
 
 ### Core Functionality
 - 🔐 **Secure Authentication**: User registration, login, and profile management with bcrypt encryption
+  - Password reset via email with secure tokens
+  - Persistent login sessions
+  - Profile customization (username, email, password)
 - 📖 **Recipe Management**: Store, organize, and share recipes within households
-- 🛒 **Smart Grocery Lists**: AI-powered ingredient consolidation (e.g., "1 cup milk" + "2 cups milk" = "3 cups milk")
+  - AI-powered recipe extraction from any URL
+  - Manual recipe entry with ingredient parsing
+  - Recipe editing and deletion (household owners)
+  - Recipe notes and source URL tracking
+- 🛒 **Smart Grocery Lists**: AI-powered ingredient consolidation
+  - Automatic quantity consolidation (e.g., "1 cup milk" + "2 cups milk" = "3 cups milk")
+  - **Editable grocery items** - Edit quantity, measurement, and ingredient name inline
+  - Mobile-optimized editing with Enter key to save
+  - Real-time item checking/unchecking
+  - Email grocery lists to anyone
 - 🏪 **Kroger Integration**: One-click export to Kroger shopping cart via OAuth 2.0
-- 📅 **Meal Planning**: Weekly meal planner with cook assignments and notifications
-- 👥 **Multi-Household Support**: Manage multiple households (family, roommates, vacation homes)
-- 🤖 **AI Recipe Extraction**: Automatically parse recipes from any URL using OpenAI
-- 📧 **Email Integration**: Grocery list delivery and daily meal plan summaries
+  - Product search and matching
+  - Store location services
+  - Direct cart population
+  - Per-household Kroger account linking
+- 📅 **Meal Planning**: Weekly meal planner with advanced features
+  - **Multiple cook assignments** per meal
+  - **Custom meals** without recipes
+  - Daily email summaries with meal details
+  - Chef assignment notifications
+  - Meal plan change tracking
+  - Export meal plan to grocery list
+- 🤖 **Similar Recipes**: AI-powered recipe recommendations
+  - Analyzes current meal plan ingredients
+  - Suggests recipes with 25%+ ingredient overlap
+  - One-click add to meal plan
+  - Helps reduce grocery list size
+- 👥 **Multi-Household Support**: Manage multiple households
+  - Create unlimited households (family, roommates, vacation homes)
+  - Role-based access (owners and members)
+  - Switch between households seamlessly
+  - Household-scoped recipes and grocery lists
+  - Invite members via email
+- 📧 **Email Integration**: Comprehensive email features
+  - Grocery list delivery
+  - Daily meal plan summaries
+  - Chef assignment notifications
+  - Password reset emails
+  - Feature announcements (admin)
+  - Customizable email preferences
 - 🗣️ **Alexa Integration**: Voice-controlled grocery list management
+  - Add items via voice
+  - Check items off list
+  - Hear grocery list read aloud
 
 ### Technical Features
 - **Responsive Design**: Mobile-first CSS with custom design system
+  - Touch-friendly UI optimized for phones and tablets
+  - Compact mobile layouts for grocery editing
+  - Progressive Web App capabilities
 - **Real-time Updates**: AJAX-powered interactions without page reloads
-- **Shopping Mode**: Live collaborative shopping with item checking
+  - Instant item checking/unchecking
+  - Live grocery list updates
+  - Seamless recipe additions
+- **Shopping Mode**: Dedicated shopping interface
+  - Large, touch-friendly checkboxes
+  - Progress tracking
+  - Auto-remove checked items on completion
+  - Distraction-free shopping experience
+- **Admin Dashboard**: Comprehensive admin tools
+  - User management and statistics
+  - Household overview and analytics
+  - Feature announcement system
+  - Database migration tools
+  - User activity tracking
 - **Role-Based Access**: Household owners and members with different permissions
+  - Owners can delete recipes and manage household
+  - Members can add recipes and use features
+  - Secure permission checks on all operations
 - **Audit Trail**: Track who created/modified recipes and lists
+  - Created by user tracking
+  - Last modified timestamps
+  - Activity logging
 
 ## 🏗️ Architecture
 
@@ -79,19 +154,40 @@ Auto-Cart/
 ├── utils.py               # Utility functions and decorators
 ├── kroger.py              # Kroger API service layer
 ├── recipe_scraper.py      # Web scraping for recipes
-├── services/              # Service layer (NEW)
+├── alexa_api.py           # Alexa Skills Kit integration
+├── services/              # Service layer
 │   ├── recipe_service.py
 │   ├── grocery_list_service.py
 │   ├── meal_plan_service.py
 │   └── api_response.py
+├── tests/                 # Test suite
+│   ├── conftest.py        # Test fixtures and configuration
+│   ├── test_models.py     # Unit tests for models
+│   ├── test_services.py   # Service layer tests
+│   └── test_routes.py     # Integration tests for routes
+├── scripts/               # Database migrations and utilities
+│   ├── README.md          # Migration documentation
+│   ├── migrate_*.py       # Database migration scripts
+│   └── send_daily_summaries.py  # Scheduled email task
 ├── static/
-│   ├── js/
-│   │   └── main.js        # Organized frontend JavaScript
+│   ├── js/                # Frontend JavaScript
 │   └── stylesheets/
-│       ├── design-system.css
-│       └── style.css
+│       ├── design-system.css  # Design system and components
+│       └── style.css          # Application styles
 ├── templates/             # Jinja2 HTML templates
-└── requirements.txt       # Python dependencies
+│   ├── base.html          # Base template
+│   ├── index.html         # Homepage with recipe box
+│   ├── meal_plan.html     # Meal planning interface
+│   ├── shopping_mode.html # Shopping mode UI
+│   └── admin_dashboard.html  # Admin interface
+├── pytest.ini             # Pytest configuration
+├── requirements.txt       # Python dependencies
+├── .env.example           # Environment variable template
+├── LICENSE                # MIT License
+├── CONTRIBUTING.md        # Contribution guidelines
+├── CODE_OF_CONDUCT.md     # Code of conduct
+├── CHANGELOG.md           # Version history
+└── API_DOCUMENTATION.md   # API endpoint reference
 ```
 
 ### Database Schema
@@ -237,16 +333,41 @@ Auto-Cart/
 
 ### Testing
 
+The project includes a comprehensive test suite with unit tests, integration tests, and service layer tests.
+
 ```bash
-# Run tests (when implemented)
+# Install testing dependencies
+pip install -r requirements.txt
+
+# Run all tests
 pytest
+
+# Run tests with coverage report
+pytest --cov=. --cov-report=html --cov-report=term-missing
+
+# Run specific test categories
+pytest -m unit          # Unit tests only
+pytest -m integration   # Integration tests only
+pytest -m service       # Service layer tests only
+
+# Run tests in verbose mode
+pytest -v
 
 # Check code style
 flake8 .
 
+# Format code
+black .
+
 # Type checking
 mypy .
 ```
+
+**Test Structure:**
+- `tests/test_models.py` - Unit tests for database models
+- `tests/test_services.py` - Tests for service layer business logic
+- `tests/test_routes.py` - Integration tests for HTTP endpoints
+- `tests/conftest.py` - Shared fixtures and test configuration
 
 ### Contributing
 
@@ -280,14 +401,22 @@ mypy .
 
 ## 🎯 Future Enhancements
 
-- [ ] Unit and integration test suite
+- [x] ~~Unit and integration test suite~~ ✅ **COMPLETED**
+- [x] ~~Similar recipe recommendations~~ ✅ **COMPLETED**
+- [x] ~~Editable grocery list items~~ ✅ **COMPLETED**
+- [x] ~~Password reset functionality~~ ✅ **COMPLETED**
+- [x] ~~Admin dashboard~~ ✅ **COMPLETED**
 - [ ] Recipe sharing between households
 - [ ] Nutrition information integration
 - [ ] Recipe ratings and reviews
 - [ ] Barcode scanning for pantry management
-- [ ] Recipe recommendations based on available ingredients
-- [ ] Export to other grocery store APIs
+- [ ] Export to other grocery store APIs (Walmart, Target, etc.)
 - [ ] Mobile native apps (iOS/Android)
+- [ ] Recipe import from popular sites (AllRecipes, Food Network, etc.)
+- [ ] Meal plan templates (Keto, Vegan, etc.)
+- [ ] Grocery budget tracking
+- [ ] Recipe scaling (2x, 3x servings)
+- [ ] Print-friendly recipe cards
 
 ## 📄 License
 

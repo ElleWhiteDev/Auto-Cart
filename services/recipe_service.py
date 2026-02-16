@@ -4,10 +4,13 @@ Recipe service layer for business logic related to recipes.
 
 from typing import List, Dict, Any, Optional, Tuple
 from models import db, Recipe, RecipeIngredient, Household
+from utils import parse_quantity_string
 from logging_config import logger
+from services.base_service import BaseService
+from constants import ErrorMessages
 
 
-class RecipeService:
+class RecipeService(BaseService):
     """Service class for recipe-related business logic."""
 
     @staticmethod
@@ -34,12 +37,17 @@ class RecipeService:
             Tuple of (Recipe object, error message). Recipe is None if error occurred.
         """
         try:
+            if not name or not name.strip():
+                return None, "Recipe name is required."
+            if created_by_user_id is None:
+                return None, "A valid user is required to create a recipe."
+
             recipe = Recipe(
+                user_id=created_by_user_id,
                 household_id=household_id,
                 name=name.strip(),
                 url=url.strip() if url else None,
                 notes=notes.strip() if notes else None,
-                created_by_user_id=created_by_user_id,
             )
             db.session.add(recipe)
             db.session.flush()  # Get recipe ID without committing
@@ -76,16 +84,20 @@ class RecipeService:
         """
         try:
             ingredients = Recipe.parse_ingredients(ingredients_text)
-            
+
             for ingredient_data in ingredients:
+                quantity_value = parse_quantity_string(str(ingredient_data["quantity"]))
+                if quantity_value is None:
+                    quantity_value = 1.0
+
                 ingredient = RecipeIngredient(
                     recipe_id=recipe.id,
-                    ingredient_name=ingredient_data["name"],
-                    quantity=ingredient_data["quantity"],
+                    ingredient_name=ingredient_data["ingredient_name"],
+                    quantity=quantity_value,
                     measurement=ingredient_data["measurement"],
                 )
                 db.session.add(ingredient)
-            
+
             return True, None
 
         except Exception as e:
@@ -124,7 +136,7 @@ class RecipeService:
             if ingredients_text is not None:
                 # Remove old ingredients
                 RecipeIngredient.query.filter_by(recipe_id=recipe.id).delete()
-                
+
                 # Add new ingredients
                 success, error = RecipeService._add_ingredients_to_recipe(
                     recipe, ingredients_text
@@ -161,4 +173,3 @@ class RecipeService:
             db.session.rollback()
             logger.error(f"Error deleting recipe: {e}", exc_info=True)
             return False, "Failed to delete recipe. Please try again."
-

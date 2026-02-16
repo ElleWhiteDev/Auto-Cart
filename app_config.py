@@ -81,8 +81,18 @@ class ProductionConfig(Config):
     SESSION_COOKIE_SECURE = True  # Enable secure cookies in production (HTTPS only)
 
 
+class TestingConfig(Config):
+    """Testing configuration."""
+
+    TESTING = True
+    DEBUG = False
+    WTF_CSRF_ENABLED = False
+    SQLALCHEMY_DATABASE_URI = os.environ.get("TEST_DATABASE_CONN", "sqlite:///:memory:")
+
+
 config = {
     "development": DevelopmentConfig,
     "production": ProductionConfig,
+    "testing": TestingConfig,
     "default": DevelopmentConfig,
 }

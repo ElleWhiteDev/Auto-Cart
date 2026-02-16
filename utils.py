@@ -8,16 +8,17 @@ from typing import Optional, Dict, Any, List, Tuple
 from fractions import Fraction
 from datetime import datetime
 import pytz
+from constants import SessionKeys, ErrorMessages, FlashCategory, DEFAULT_TIMEZONE
 
-# Session keys
-CURR_USER_KEY = "curr_user"
-CURR_GROCERY_LIST_KEY = "curr_grocery_list"
+# Session keys - kept for backward compatibility, use SessionKeys enum in new code
+CURR_USER_KEY = SessionKeys.CURR_USER
+CURR_GROCERY_LIST_KEY = SessionKeys.CURR_GROCERY_LIST
 
 
 # Timezone utilities
 def get_est_now():
     """Get current time in EST timezone as a timezone-naive datetime"""
-    est = pytz.timezone("US/Eastern")
+    est = pytz.timezone(DEFAULT_TIMEZONE)
     # Get current time in EST and remove timezone info for database storage
     return datetime.now(est).replace(tzinfo=None)
 
@@ -33,7 +34,7 @@ def require_login(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         if CURR_USER_KEY not in session:
-            flash("You must be logged in to view this page", "danger")
+            flash(ErrorMessages.LOGIN_REQUIRED, FlashCategory.DANGER)
             return redirect(url_for("login"))
         return func(*args, **kwargs)
 
@@ -46,10 +47,10 @@ def require_admin(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         if CURR_USER_KEY not in session:
-            flash("You must be logged in to view this page", "danger")
+            flash(ErrorMessages.LOGIN_REQUIRED, FlashCategory.DANGER)
             return redirect(url_for("login"))
         if not g.user or not g.user.is_admin:
-            flash("Access denied. Admin privileges required.", "danger")
+            flash(ErrorMessages.ADMIN_REQUIRED, FlashCategory.DANGER)
             return redirect(url_for("homepage"))
         return func(*args, **kwargs)
 
@@ -73,9 +74,9 @@ def do_logout():
 def initialize_session_defaults():
     """Initialize default session values if they don't exist."""
     defaults = {
-        "show_modal": False,
-        "products_for_cart": [],
-        "items_to_choose_from": [],
+        SessionKeys.SHOW_MODAL: False,
+        SessionKeys.PRODUCTS_FOR_CART: [],
+        SessionKeys.ITEMS_TO_CHOOSE_FROM: [],
     }
 
     for key, default_value in defaults.items():

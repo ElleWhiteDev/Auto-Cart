@@ -594,14 +594,31 @@ class User(db.Model):
 
     @classmethod
     def authenticate(cls, username, password):
-        """Find user with `username` and `password`."""
+        """Find user with `username` and `password`.
 
-        user = cls.query.filter_by(username=username).first()
+        Username lookup is case-insensitive.
+        """
+        from logging_config import logger
+
+        # Case-insensitive username lookup
+        user = cls.query.filter(db.func.lower(cls.username) == username.lower()).first()
 
         if user:
+            logger.debug(
+                f"User.authenticate: Found user '{user.username}', checking password..."
+            )
             is_auth = bcrypt.check_password_hash(user.password, password)
             if is_auth:
+                logger.debug(
+                    f"User.authenticate: Password check PASSED for '{user.username}'"
+                )
                 return user
+            else:
+                logger.debug(
+                    f"User.authenticate: Password check FAILED for '{user.username}'"
+                )
+        else:
+            logger.debug(f"User.authenticate: No user found for username '{username}'")
 
         return False
 

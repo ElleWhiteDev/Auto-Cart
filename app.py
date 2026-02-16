@@ -354,7 +354,7 @@ def register():
 
     if form.validate_on_submit():
         user = User.signup(
-            username=form.username.data.strip().capitalize(),
+            username=form.username.data.strip(),
             password=form.password.data,
             email=form.email.data.strip(),
         )
@@ -610,16 +610,43 @@ def login():
     form = LoginForm()
 
     if form.validate_on_submit():
-        user = User.authenticate(
-            form.username.data.strip().capitalize(), form.password.data
-        )
+        username_input = form.username.data.strip()
+        password_input = form.password.data
+
+        logger.info(f"Login attempt for username: '{username_input}'")
+
+        # Check if user exists (case-insensitive)
+        user_check = User.query.filter(
+            db.func.lower(User.username) == username_input.lower()
+        ).first()
+
+        if not user_check:
+            logger.warning(
+                f"Login failed: User '{username_input}' not found in database"
+            )
+            flash("Invalid username or password.", "danger")
+            return render_template("login.html", form=form)
+
+        logger.info(f"User found: '{user_check.username}' (ID: {user_check.id})")
+
+        # Authenticate with password
+        user = User.authenticate(username_input, password_input)
 
         if user:
+            logger.info(f"Authentication successful for user: '{user.username}'")
             do_login(user)
             flash(f"Hello, {user.username}!", "success")
             return redirect(url_for("homepage"))
+        else:
+            logger.warning(
+                f"Login failed: Invalid password for user '{username_input}'"
+            )
+            flash("Invalid username or password.", "danger")
 
-        flash("Invalid credentials.", "danger")
+    else:
+        # Log form validation errors
+        if request.method == "POST":
+            logger.warning(f"Login form validation failed: {form.errors}")
 
     return render_template("login.html", form=form)
 
@@ -678,9 +705,7 @@ def alexa_authorize():
     form = LoginForm()
 
     if form.validate_on_submit():
-        user = User.authenticate(
-            form.username.data.strip().capitalize(), form.password.data
-        )
+        user = User.authenticate(form.username.data.strip(), form.password.data)
 
         if user:
             # Log the user in
@@ -729,7 +754,8 @@ def forgot_password():
 
     if form.validate_on_submit():
         email = form.email.data.strip()
-        user = User.query.filter_by(email=email).first()
+        # Case-insensitive email lookup
+        user = User.query.filter(db.func.lower(User.email) == email.lower()).first()
 
         # Always show success message to prevent email enumeration
         if user:
@@ -1985,8 +2011,10 @@ def household_setup():
                 flash("Please enter a household code or username", "danger")
                 return render_template("household_setup.html")
 
-            # Try to find household by owner username
-            owner = User.query.filter_by(username=join_code).first()
+            # Try to find household by owner username (case-insensitive)
+            owner = User.query.filter(
+                db.func.lower(User.username) == join_code.lower()
+            ).first()
             if owner:
                 # Find household where this user is owner
                 membership = HouseholdMember.query.filter_by(
@@ -3195,9 +3223,10 @@ def invite_household_member():
         flash("Please enter a username or email", "danger")
         return redirect(url_for("household_settings"))
 
-    # Try to find user by username or email
+    # Try to find user by username or email (case-insensitive)
     user = User.query.filter(
-        (User.username == identifier) | (User.email == identifier)
+        (db.func.lower(User.username) == identifier.lower())
+        | (db.func.lower(User.email) == identifier.lower())
     ).first()
 
     if not user:
@@ -4327,7 +4356,10 @@ def admin_login():
         username = request.form.get("username")
         password = request.form.get("password")
 
-        user = User.query.filter_by(username=username).first()
+        # Case-insensitive username lookup
+        user = User.query.filter(
+            db.func.lower(User.username) == username.lower()
+        ).first()
 
         if user and bcrypt.check_password_hash(user.password, password):
             if user.is_admin:
@@ -4487,6 +4519,49 @@ def admin_toggle_member_email():
     except Exception as e:
         db.session.rollback()
         logger.error(f"Error toggling member email preference: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/admin/update-user-email", methods=["POST"])
+@require_admin
+def admin_update_user_email():
+    """Update a user's email from the admin panel"""
+    try:
+        data = request.get_json()
+        user_id = data.get("user_id")
+        new_email = data.get("email", "").strip()
+
+        if not user_id or not new_email:
+            return jsonify({"success": False, "error": "Missing required fields"}), 400
+
+        # Validate email format
+        if "@" not in new_email or "." not in new_email:
+            return jsonify({"success": False, "error": "Invalid email format"}), 400
+
+        # Get the user
+        user = User.query.get(user_id)
+        if not user:
+            return jsonify({"success": False, "error": "User not found"}), 404
+
+        # Check if email is already in use by another user
+        existing_user = User.query.filter_by(email=new_email).first()
+        if existing_user and existing_user.id != user_id:
+            return jsonify({"success": False, "error": "Email already in use"}), 400
+
+        old_email = user.email
+        user.email = new_email
+        db.session.commit()
+
+        logger.info(
+            f"Admin {g.user.username} updated email for user {user.username} "
+            f"from {old_email} to {new_email}"
+        )
+
+        return jsonify({"success": True, "email": new_email})
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error updating user email: {e}", exc_info=True)
         return jsonify({"success": False, "error": str(e)}), 500
 
 
@@ -5118,7 +5193,8 @@ def setup_admin():
             return redirect(url_for("setup_admin"))
 
         logger.info(f"Looking for user with email: {email}")
-        user = User.query.filter_by(email=email).first()
+        # Case-insensitive email lookup
+        user = User.query.filter(db.func.lower(User.email) == email.lower()).first()
 
         if not user:
             flash(f"❌ No user found with email: {email}", "danger")

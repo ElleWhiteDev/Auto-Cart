@@ -285,6 +285,24 @@
 		font-size: 0.8rem;
 	}
 
+	.meal-plan-actions {
+		display: flex;
+		gap: 0.5rem;
+		align-items: center;
+	}
+
+	.meal-plan-actions form {
+		display: inline-flex;
+		margin: 0;
+	}
+
+	.meal-plan-action-btn {
+		display: inline-flex !important;
+		align-items: center;
+		justify-content: center;
+		gap: 0.35rem;
+	}
+
 	/* Mobile-specific styles */
 	@media (max-width: 768px) {
 		/* Hide table on mobile */
@@ -314,6 +332,49 @@
 		.meal-plan-header .btn {
 			font-size: 0.75rem !important;
 			padding: 0.25rem 0.5rem !important;
+		}
+
+		.meal-plan-header .meal-plan-actions {
+			width: 100%;
+			display: flex;
+			gap: 0.5rem;
+		}
+
+		.meal-plan-header .meal-plan-actions > * {
+			flex: 1 1 0;
+			min-width: 0;
+		}
+
+		.meal-plan-header .meal-plan-actions form {
+			display: block;
+			width: 100%;
+			min-width: 0;
+		}
+
+		.meal-plan-header .meal-plan-action-btn {
+			width: 100%;
+			min-width: 0;
+			padding: 0.35rem 0.35rem !important;
+			gap: 0.25rem;
+			justify-content: center;
+			white-space: nowrap;
+			overflow: hidden;
+		}
+
+		.meal-plan-header .meal-plan-action-btn i {
+			font-size: 0.8rem;
+			flex: 0 0 auto;
+		}
+
+		.meal-plan-header .meal-plan-action-btn span {
+			overflow: hidden;
+			text-overflow: ellipsis;
+		}
+
+		@media (max-width: 420px) {
+			.meal-plan-header .meal-plan-action-btn i {
+				display: none;
+			}
 		}
 
 		/* Navigation buttons */
@@ -378,19 +439,19 @@
 			<h4 class="mb-2 mb-md-0" style="color: white;">
 				{{ week_start.strftime('%B %d') }} - {{ week_end.strftime('%B %d, %Y') }}
 			</h4>
-			<div class="d-flex gap-2">
-				<form method="POST" action="{{ url_for('send_meal_plan_email') }}" id="email-meal-plan-form" style="display: inline;">
+			<div class="meal-plan-actions">
+				<form method="POST" action="{{ url_for('send_meal_plan_email') }}" id="email-meal-plan-form">
 					<input type="hidden" name="week_offset" value="{{ week_offset }}">
-					<button type="submit" id="email-meal-plan-btn" class="btn btn-light btn-sm">
+					<button type="submit" id="email-meal-plan-btn" class="btn btn-light btn-sm meal-plan-action-btn">
 						<i class="fas fa-envelope"></i> <span class="d-none d-md-inline">Email My Meals</span><span class="d-md-none">Email</span>
 					</button>
 				</form>
-				<button type="button" id="similar-recipes-btn" class="btn btn-light btn-sm" onclick="findSimilarRecipes()">
+				<button type="button" id="similar-recipes-btn" class="btn btn-light btn-sm meal-plan-action-btn" onclick="findSimilarRecipes()">
 					<i class="fas fa-lightbulb"></i> <span class="d-none d-md-inline">Similar Recipes</span><span class="d-md-none">Similar</span>
 				</button>
-				<form method="POST" action="{{ url_for('add_meal_plan_to_list') }}" id="add-to-list-form" style="display: inline;">
+				<form method="POST" action="{{ url_for('add_meal_plan_to_list') }}" id="add-to-list-form">
 					<input type="hidden" name="week_offset" value="{{ week_offset }}">
-					<button type="submit" id="add-to-list-btn" class="btn btn-light btn-sm">
+					<button type="submit" id="add-to-list-btn" class="btn btn-light btn-sm meal-plan-action-btn">
 						<i class="fas fa-shopping-cart"></i> <span class="d-none d-md-inline">Add All to Grocery List</span><span class="d-md-none">Add All</span>
 					</button>
 				</form>

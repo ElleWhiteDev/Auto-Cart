@@ -4,6 +4,39 @@
 
 {% block content %}
 <style>
+/* Admin Dashboard Custom Styles */
+.admin-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: var(--space-6);
+	flex-wrap: wrap;
+	gap: var(--space-4);
+}
+
+.admin-header h1 {
+	margin: 0;
+	color: var(--gray-900);
+	font-size: var(--text-3xl);
+	font-weight: var(--font-bold);
+}
+
+.admin-header-actions {
+	display: flex;
+	gap: var(--space-3);
+	align-items: center;
+	flex-wrap: wrap;
+}
+
+.admin-badge {
+	background-color: var(--gray-800);
+	color: var(--white);
+	padding: var(--space-2) var(--space-4);
+	border-radius: var(--radius-md);
+	font-size: var(--text-sm);
+	font-weight: var(--font-medium);
+}
+
 .spinner-border {
 	display: inline-block;
 	width: 1rem;
@@ -15,309 +48,388 @@
 	animation: spinner-border .75s linear infinite;
 }
 
-.spinner-border-sm {
-	width: 1rem;
-	height: 1rem;
-	border-width: 0.2em;
-}
-
 @keyframes spinner-border {
 	to { transform: rotate(360deg); }
 }
+
+/* Modal Overlay */
+.modal-overlay {
+	display: none;
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	background-color: rgba(0, 0, 0, 0.5);
+	z-index: 1000;
+	align-items: center;
+	justify-content: center;
+}
+
+.modal-overlay.show {
+	display: flex;
+}
+
+.modal-dialog {
+	background: var(--white);
+	border-radius: var(--radius-lg);
+	max-width: 800px;
+	width: 90%;
+	max-height: 90vh;
+	overflow: hidden;
+	box-shadow: var(--shadow-xl);
+}
+
+.modal-header {
+	padding: var(--space-6);
+	border-bottom: 1px solid var(--gray-200);
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+}
+
+.modal-title {
+	font-size: var(--text-xl);
+	font-weight: var(--font-semibold);
+	color: var(--gray-900);
+	margin: 0;
+}
+
+.modal-close {
+	background: none;
+	border: none;
+	font-size: var(--text-2xl);
+	color: var(--gray-500);
+	cursor: pointer;
+	padding: 0;
+	width: 32px;
+	height: 32px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: var(--radius-md);
+	transition: all var(--transition-fast);
+}
+
+.modal-close:hover {
+	background-color: var(--gray-100);
+	color: var(--gray-900);
+}
+
+.modal-body {
+	padding: var(--space-6);
+	max-height: calc(90vh - 200px);
+	overflow-y: auto;
+}
+
+.modal-footer {
+	padding: var(--space-6);
+	border-top: 1px solid var(--gray-200);
+	display: flex;
+	justify-content: flex-end;
+	gap: var(--space-3);
+}
 </style>
-<div class="container-fluid mt-4">
-	<div class="d-flex justify-content-between align-items-center mb-4">
-		<h1><i class="fas fa-shield-alt text-dark"></i> Admin Dashboard</h1>
-		<div>
-			<span class="badge bg-dark me-2">
-				<i class="fas fa-user-shield"></i> Logged in as: {{ g.user.username }}
-			</span>
-			<a href="{{ url_for('homepage') }}" class="btn btn-outline-primary">
-				<i class="fas fa-home"></i> Back to App
-			</a>
-			<a href="{{ url_for('logout') }}" class="btn btn-outline-danger">
-				<i class="fas fa-sign-out-alt"></i> Logout
-			</a>
-		</div>
-	</div>
 
-	<!-- Feature Announcement Section -->
-	<div class="card shadow mb-4" style="border-left: 4px solid #f97316;">
-		<div class="card-header" style="background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); color: white;">
-			<h3 class="mb-0">
-				<i class="fas fa-bullhorn"></i> Feature Announcements
-			</h3>
-		</div>
-		<div class="card-body">
-			<div class="d-flex justify-content-between align-items-center">
-				<div>
-					<h5 class="mb-2">Send Latest Feature Email</h5>
-					<p class="text-muted mb-0">
-						<i class="fas fa-info-circle"></i>
-						Sends the latest feature announcement email to all registered users.
-						Update <code>templates/feature_announcement_email.html</code> before sending.
-					</p>
-				</div>
-				<form method="POST" action="{{ url_for('send_feature_announcement') }}" style="display: inline;"
-				      onsubmit="return handleFeatureEmailSubmit(event, this, {{ users|length }});">
-					<button type="submit" class="btn btn-lg" id="send-feature-email-btn" style="background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); color: white; font-weight: bold;">
-						<i class="fas fa-paper-plane"></i> Send to All Users ({{ users|length }})
-					</button>
-				</form>
+<div class="admin-header">
+	<h1><i class="fas fa-shield-alt"></i> Admin Dashboard</h1>
+	<div class="admin-header-actions">
+		<span class="admin-badge">
+			<i class="fas fa-user-shield"></i> {{ g.user.username }}
+		</span>
+		<a href="{{ url_for('homepage') }}" class="btn btn-secondary">
+			<i class="fas fa-home"></i> Back to App
+		</a>
+		<a href="{{ url_for('logout') }}" class="btn btn-danger">
+			<i class="fas fa-sign-out-alt"></i> Logout
+		</a>
+	</div>
+</div>
+
+<!-- Feature Announcement Section -->
+<div class="card" style="margin-bottom: var(--space-6); border-left: 4px solid var(--accent-orange);">
+	<div class="card-header" style="background-color: var(--accent-orange); color: var(--white);">
+		<h3 style="margin: 0; font-size: var(--text-lg); font-weight: var(--font-semibold);">
+			<i class="fas fa-bullhorn"></i> Feature Announcements
+		</h3>
+	</div>
+	<div class="card-body">
+		<div style="display: flex; justify-content: space-between; align-items: center; gap: var(--space-4); flex-wrap: wrap;">
+			<div style="flex: 1; min-width: 300px;">
+				<h5 style="margin-bottom: var(--space-2); font-size: var(--text-base); font-weight: var(--font-semibold);">Send Latest Feature Email</h5>
+				<p style="color: var(--gray-600); margin: 0; font-size: var(--text-sm);">
+					<i class="fas fa-info-circle"></i>
+					Sends the latest feature announcement email to all registered users.
+					Update <code>templates/feature_announcement_email.html</code> before sending.
+				</p>
 			</div>
+			<form method="POST" action="{{ url_for('send_feature_announcement') }}" style="display: inline;"
+			      onsubmit="return handleFeatureEmailSubmit(event, this, {{ users|length }});">
+				<button type="submit" class="btn" id="send-feature-email-btn" style="background-color: var(--accent-orange); color: var(--white); font-weight: var(--font-semibold); padding: var(--space-3) var(--space-6);">
+					<i class="fas fa-paper-plane"></i> Send to All Users ({{ users|length }})
+				</button>
+			</form>
 		</div>
 	</div>
+</div>
 
-	<div class="card shadow">
-		<div class="card-header bg-dark text-white">
-			<h3 class="mb-0">
-				<i class="fas fa-users"></i> All Users ({{ users|length }})
-			</h3>
-		</div>
-		<div class="card-body p-0">
-			<div class="table-responsive">
-				<table class="table table-hover table-striped mb-0">
-					<thead class="table-dark">
-						<tr>
-							<th>ID</th>
-							<th>Username</th>
-							<th>Email</th>
-							<th>Admin</th>
-							<th>Last Activity</th>
-							<th>Kroger Connected</th>
-							<th>Actions</th>
-						</tr>
-					</thead>
-					<tbody>
-						{% for user in users %}
-						<tr>
-							<td>{{ user.id }}</td>
-							<td>
-								<strong>{{ user.username }}</strong>
-								{% if user.id == g.user.id %}
-								<span class="badge bg-primary ms-1">You</span>
-								{% endif %}
-							</td>
-							<td>{{ user.email }}</td>
-							<td>
-								{% if user.is_admin %}
-								<span class="badge bg-success">
-									<i class="fas fa-check"></i> Admin
-								</span>
-								{% else %}
-								<span class="badge bg-secondary">User</span>
-								{% endif %}
-							</td>
-							<td>
-								{% if user.last_activity %}
-								<span title="{{ user.last_activity }}">
-									{{ user.last_activity.strftime('%Y-%m-%d %H:%M UTC') }}
-								</span>
-								{% else %}
-								<span class="text-muted">Never</span>
-								{% endif %}
-							</td>
-							<td>
-								{% if user.oauth_token %}
-								<span class="badge bg-success">
-									<i class="fas fa-check"></i> Yes
-								</span>
-								{% else %}
-								<span class="badge bg-secondary">No</span>
-								{% endif %}
-							</td>
-							<td>
-								{% if user.id != g.user.id %}
-								<form method="POST" action="{{ url_for('admin_delete_user', user_id=user.id) }}" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete user {{ user.username }}? This action cannot be undone.');">
-									<button type="submit" class="btn btn-sm btn-danger">
-										<i class="fas fa-trash"></i> Delete
-									</button>
-								</form>
-								{% else %}
-								<span class="text-muted">—</span>
-								{% endif %}
-							</td>
-						</tr>
-						{% endfor %}
-
-						{% if not users %}
-						<tr>
-							<td colspan="7" class="text-center text-muted p-4">
-								<i class="fas fa-users-slash fa-3x mb-3"></i>
-								<p>No users found</p>
-							</td>
-						</tr>
-						{% endif %}
-					</tbody>
-				</table>
-			</div>
-		</div>
+<div class="card">
+	<div class="card-header" style="background-color: var(--gray-800); color: var(--white);">
+		<h3 style="margin: 0; font-size: var(--text-lg); font-weight: var(--font-semibold); color: var(--white);">
+			<i class="fas fa-users"></i> All Users ({{ users|length }})
+		</h3>
 	</div>
-
-	<!-- Households Section -->
-	<div class="card shadow mt-4">
-		<div class="card-header bg-primary text-white">
-			<h3 class="mb-0">
-				<i class="fas fa-home"></i> All Households ({{ household_stats|length }})
-			</h3>
-		</div>
-		<div class="card-body p-0">
-			<div class="table-responsive">
-				<table class="table table-hover table-striped mb-0">
-					<thead class="table-primary">
-						<tr>
-							<th>ID</th>
-							<th>Name</th>
-							<th>Owner</th>
-							<th>Members</th>
-							<th>Recipes</th>
-							<th>Lists</th>
-							<th>Meals</th>
-							<th>Created</th>
-							<th>Actions</th>
-						</tr>
-					</thead>
-					<tbody>
-						{% for stat in household_stats %}
-						<tr>
-							<td>{{ stat.household.id }}</td>
-							<td><strong>{{ stat.household.name }}</strong></td>
-							<td>
-								{% if stat.owner %}
-								{{ stat.owner.username }}
-								{% else %}
-								<span class="text-muted">No owner</span>
-								{% endif %}
-							</td>
-							<td>
-								<span class="badge bg-info">{{ stat.members_count }}</span>
-								{% if stat.email_enabled_count is defined %}
-								<br><small class="text-muted">{{ stat.email_enabled_count }} meal plan emails</small>
-								{% endif %}
-								{% if stat.chef_email_enabled_count is defined %}
-								<br><small class="text-muted">{{ stat.chef_email_enabled_count }} chef emails</small>
-								{% endif %}
-							</td>
-							<td>
-								<span class="badge bg-success">{{ stat.recipes_count }}</span>
-							</td>
-							<td>
-								<span class="badge bg-warning text-dark">{{ stat.lists_count }}</span>
-							</td>
-							<td>
-								<span class="badge bg-secondary">{{ stat.meals_count }}</span>
-							</td>
-							<td>
-								{% if stat.household.created_at %}
-								{{ stat.household.created_at.strftime('%Y-%m-%d') }}
-								{% else %}
-								<span class="text-muted">—</span>
-								{% endif %}
-							</td>
-							<td>
-								<button type="button" class="btn btn-sm btn-info me-1" onclick="showMembersModal({{ stat.household.id }}, '{{ stat.household.name }}')">
-									<i class="fas fa-users-cog"></i> Manage
+	<div class="card-body" style="padding: 0;">
+		<div class="table-responsive">
+			<table class="table table-hover" style="margin-bottom: 0; width: 100%;">
+				<thead style="background-color: var(--gray-800);">
+					<tr>
+						<th style="padding: var(--space-4); font-weight: var(--font-semibold); color: var(--white);">ID</th>
+						<th style="padding: var(--space-4); font-weight: var(--font-semibold); color: var(--white);">Username</th>
+						<th style="padding: var(--space-4); font-weight: var(--font-semibold); color: var(--white);">Email</th>
+						<th style="padding: var(--space-4); font-weight: var(--font-semibold); color: var(--white);">Admin</th>
+						<th style="padding: var(--space-4); font-weight: var(--font-semibold); color: var(--white);">Last Activity</th>
+						<th style="padding: var(--space-4); font-weight: var(--font-semibold); color: var(--white);">Kroger</th>
+						<th style="padding: var(--space-4); font-weight: var(--font-semibold); color: var(--white);">Actions</th>
+					</tr>
+				</thead>
+				<tbody>
+					{% for user in users %}
+					<tr>
+						<td style="padding: var(--space-4);">{{ user.id }}</td>
+						<td style="padding: var(--space-4);">
+							<strong>{{ user.username }}</strong>
+							{% if user.id == g.user.id %}
+							<span class="badge badge-primary" style="margin-left: var(--space-1);">You</span>
+							{% endif %}
+						</td>
+						<td style="padding: var(--space-4);">
+							<span id="email-display-{{ user.id }}">{{ user.email }}</span>
+							<input type="email" id="email-input-{{ user.id }}" value="{{ user.email }}" style="display: none; padding: var(--space-2); border: 1px solid var(--gray-300); border-radius: var(--radius-md);">
+							<button type="button" class="btn btn-sm" onclick="editEmail({{ user.id }})" id="edit-btn-{{ user.id }}" style="background-color: var(--info); color: var(--white); margin-left: var(--space-2);">
+								<i class="fas fa-edit"></i>
+							</button>
+							<button type="button" class="btn btn-sm btn-primary" onclick="saveEmail({{ user.id }})" id="save-btn-{{ user.id }}" style="display: none; margin-left: var(--space-2);">
+								<i class="fas fa-save"></i>
+							</button>
+							<button type="button" class="btn btn-sm btn-secondary" onclick="cancelEditEmail({{ user.id }})" id="cancel-btn-{{ user.id }}" style="display: none; margin-left: var(--space-1);">
+								<i class="fas fa-times"></i>
+							</button>
+						</td>
+						<td style="padding: var(--space-4);">
+							{% if user.is_admin %}
+							<span class="badge badge-success">
+								<i class="fas fa-check"></i> Admin
+							</span>
+							{% else %}
+							<span class="badge badge-secondary">User</span>
+							{% endif %}
+						</td>
+						<td style="padding: var(--space-4);">
+							{% if user.last_activity %}
+							<span title="{{ user.last_activity }}">
+								{{ user.last_activity.strftime('%Y-%m-%d %H:%M UTC') }}
+							</span>
+							{% else %}
+							<span style="color: var(--gray-500);">Never</span>
+							{% endif %}
+						</td>
+						<td style="padding: var(--space-4);">
+							{% if user.oauth_token %}
+							<span class="badge badge-success">
+								<i class="fas fa-check"></i> Yes
+							</span>
+							{% else %}
+							<span class="badge badge-secondary">No</span>
+							{% endif %}
+						</td>
+						<td style="padding: var(--space-4);">
+							{% if user.id != g.user.id %}
+							<form method="POST" action="{{ url_for('admin_delete_user', user_id=user.id) }}" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete user {{ user.username }}? This action cannot be undone.');">
+								<button type="submit" class="btn btn-sm btn-danger">
+									<i class="fas fa-trash"></i> Delete
 								</button>
-								<form method="POST" action="{{ url_for('admin_delete_household', household_id=stat.household.id) }}" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete household {{ stat.household.name }}? This will delete {{ stat.members_count }} memberships, {{ stat.recipes_count }} recipes, {{ stat.lists_count }} lists, and {{ stat.meals_count }} meals. This action cannot be undone.');">
-									<button type="submit" class="btn btn-sm btn-danger">
-										<i class="fas fa-trash"></i> Delete
-									</button>
-								</form>
-							</td>
-						</tr>
-						{% endfor %}
+							</form>
+							{% else %}
+							<span style="color: var(--gray-500);">—</span>
+							{% endif %}
+						</td>
+					</tr>
+					{% endfor %}
 
-						{% if not household_stats %}
-						<tr>
-							<td colspan="9" class="text-center text-muted p-4">
-								<i class="fas fa-home fa-3x mb-3"></i>
-								<p>No households found</p>
-							</td>
-						</tr>
-						{% endif %}
-					</tbody>
-				</table>
+					{% if not users %}
+					<tr>
+						<td colspan="7" style="text-align: center; padding: var(--space-8); color: var(--gray-500);">
+							<i class="fas fa-users-slash" style="font-size: 3rem; margin-bottom: var(--space-4);"></i>
+							<p>No users found</p>
+						</td>
+					</tr>
+					{% endif %}
+				</tbody>
+			</table>
+		</div>
+	</div>
+</div>
+
+<!-- Households Section -->
+<div class="card" style="margin-top: var(--space-6);">
+	<div class="card-header" style="background-color: var(--primary-blue); color: var(--white); text-align: center;">
+		<h3 style="margin: 0; font-size: var(--text-lg); font-weight: var(--font-semibold); color: var(--white);">
+			<i class="fas fa-home"></i> All Households ({{ household_stats|length }})
+		</h3>
+	</div>
+	<div class="card-body" style="padding: 0;">
+		<div class="table-responsive">
+			<table class="table table-hover" style="margin-bottom: 0; width: 100%;">
+				<thead style="background-color: var(--primary-blue); color: var(--white);">
+					<tr>
+						<th style="padding: var(--space-4); font-weight: var(--font-semibold); color: var(--white);">ID</th>
+						<th style="padding: var(--space-4); font-weight: var(--font-semibold); color: var(--white);">Name</th>
+						<th style="padding: var(--space-4); font-weight: var(--font-semibold); color: var(--white);">Owner</th>
+						<th style="padding: var(--space-4); font-weight: var(--font-semibold); color: var(--white);">Members</th>
+						<th style="padding: var(--space-4); font-weight: var(--font-semibold); color: var(--white);">Recipes</th>
+						<th style="padding: var(--space-4); font-weight: var(--font-semibold); color: var(--white);">Lists</th>
+						<th style="padding: var(--space-4); font-weight: var(--font-semibold); color: var(--white);">Meals</th>
+						<th style="padding: var(--space-4); font-weight: var(--font-semibold); color: var(--white);">Created</th>
+						<th style="padding: var(--space-4); font-weight: var(--font-semibold); color: var(--white);">Actions</th>
+					</tr>
+				</thead>
+				<tbody>
+					{% for stat in household_stats %}
+					<tr>
+						<td style="padding: var(--space-4);">{{ stat.household.id }}</td>
+						<td style="padding: var(--space-4);"><strong>{{ stat.household.name }}</strong></td>
+						<td style="padding: var(--space-4);">
+							{% if stat.owner %}
+							{{ stat.owner.username }}
+							{% else %}
+							<span style="color: var(--gray-500);">No owner</span>
+							{% endif %}
+						</td>
+						<td style="padding: var(--space-4);">
+							<span class="badge badge-info">{{ stat.members_count }}</span>
+							{% if stat.email_enabled_count is defined %}
+							<br><small style="color: var(--gray-600); font-size: var(--text-xs);">{{ stat.email_enabled_count }} meal plan emails</small>
+							{% endif %}
+							{% if stat.chef_email_enabled_count is defined %}
+							<br><small style="color: var(--gray-600); font-size: var(--text-xs);">{{ stat.chef_email_enabled_count }} chef emails</small>
+							{% endif %}
+						</td>
+						<td style="padding: var(--space-4);">
+							<span class="badge badge-success">{{ stat.recipes_count }}</span>
+						</td>
+						<td style="padding: var(--space-4);">
+							<span class="badge badge-warning">{{ stat.lists_count }}</span>
+						</td>
+						<td style="padding: var(--space-4);">
+							<span class="badge badge-secondary">{{ stat.meals_count }}</span>
+						</td>
+						<td style="padding: var(--space-4);">
+							{% if stat.household.created_at %}
+							{{ stat.household.created_at.strftime('%Y-%m-%d') }}
+							{% else %}
+							<span style="color: var(--gray-500);">—</span>
+							{% endif %}
+						</td>
+						<td style="padding: var(--space-4);">
+							<button type="button" class="btn btn-sm" onclick="showMembersModal({{ stat.household.id }}, '{{ stat.household.name }}')" style="background-color: var(--info); color: var(--white); margin-right: var(--space-2);">
+								<i class="fas fa-users-cog"></i> Manage
+							</button>
+							<form method="POST" action="{{ url_for('admin_delete_household', household_id=stat.household.id) }}" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete household {{ stat.household.name }}? This will delete {{ stat.members_count }} memberships, {{ stat.recipes_count }} recipes, {{ stat.lists_count }} lists, and {{ stat.meals_count }} meals. This action cannot be undone.');">
+								<button type="submit" class="btn btn-sm btn-danger">
+									<i class="fas fa-trash"></i> Delete
+								</button>
+							</form>
+						</td>
+					</tr>
+					{% endfor %}
+
+					{% if not household_stats %}
+					<tr>
+						<td colspan="9" style="text-align: center; padding: var(--space-8); color: var(--gray-500);">
+							<i class="fas fa-home" style="font-size: 3rem; margin-bottom: var(--space-4);"></i>
+							<p>No households found</p>
+						</td>
+					</tr>
+					{% endif %}
+				</tbody>
+			</table>
+		</div>
+	</div>
+</div>
+
+<!-- Stats Cards -->
+<div class="row" style="margin-top: var(--space-6);">
+	<div class="col-md-3">
+		<div class="card">
+			<div class="card-body" style="text-align: center; padding: var(--space-6);">
+				<h4 style="color: var(--primary-blue); font-size: var(--text-2xl); font-weight: var(--font-bold); margin-bottom: var(--space-2);">{{ users|length }}</h4>
+				<p style="color: var(--gray-600); margin: 0; font-size: var(--text-sm);">Total Users</p>
 			</div>
 		</div>
 	</div>
-
-	<!-- Stats Cards -->
-	<div class="row mt-4">
-		<div class="col-md-3">
-			<div class="card">
-				<div class="card-body text-center">
-					<h4 class="text-primary">{{ users|length }}</h4>
-					<p class="text-muted mb-0">Total Users</p>
-				</div>
+	<div class="col-md-3">
+		<div class="card">
+			<div class="card-body" style="text-align: center; padding: var(--space-6);">
+				<h4 style="color: var(--success); font-size: var(--text-2xl); font-weight: var(--font-bold); margin-bottom: var(--space-2);">{{ users|selectattr('is_admin')|list|length }}</h4>
+				<p style="color: var(--gray-600); margin: 0; font-size: var(--text-sm);">Admin Users</p>
 			</div>
 		</div>
-		<div class="col-md-3">
-			<div class="card">
-				<div class="card-body text-center">
-					<h4 class="text-success">{{ users|selectattr('is_admin')|list|length }}</h4>
-					<p class="text-muted mb-0">Admin Users</p>
-				</div>
+	</div>
+	<div class="col-md-3">
+		<div class="card">
+			<div class="card-body" style="text-align: center; padding: var(--space-6);">
+				<h4 style="color: var(--info); font-size: var(--text-2xl); font-weight: var(--font-bold); margin-bottom: var(--space-2);">{{ users|selectattr('oauth_token')|list|length }}</h4>
+				<p style="color: var(--gray-600); margin: 0; font-size: var(--text-sm);">Kroger Connected</p>
 			</div>
 		</div>
-		<div class="col-md-3">
-			<div class="card">
-				<div class="card-body text-center">
-					<h4 class="text-info">{{ users|selectattr('oauth_token')|list|length }}</h4>
-					<p class="text-muted mb-0">Kroger Connected</p>
-				</div>
-			</div>
-		</div>
-		<div class="col-md-3">
-			<div class="card">
-				<div class="card-body text-center">
-					<h4 class="text-warning">{{ household_stats|length }}</h4>
-					<p class="text-muted mb-0">Total Households</p>
-				</div>
+	</div>
+	<div class="col-md-3">
+		<div class="card">
+			<div class="card-body" style="text-align: center; padding: var(--space-6);">
+				<h4 style="color: var(--warning); font-size: var(--text-2xl); font-weight: var(--font-bold); margin-bottom: var(--space-2);">{{ household_stats|length }}</h4>
+				<p style="color: var(--gray-600); margin: 0; font-size: var(--text-sm);">Total Households</p>
 			</div>
 		</div>
 	</div>
 </div>
 
 <!-- Manage Members Modal -->
-<div class="modal fade" id="manageMembersModal" tabindex="-1" aria-labelledby="manageMembersModalLabel" aria-hidden="true">
-	<div class="modal-dialog modal-lg">
-		<div class="modal-content">
-			<div class="modal-header">
-				<h5 class="modal-title" id="manageMembersModalLabel">
-					<i class="fas fa-users-cog"></i> Manage Members - <span id="householdName"></span>
-				</h5>
-				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+<div class="modal-overlay" id="manageMembersModal">
+	<div class="modal-dialog">
+		<div class="modal-header">
+			<h5 class="modal-title">
+				<i class="fas fa-users-cog"></i> Manage Members - <span id="householdName"></span>
+			</h5>
+			<button type="button" class="modal-close" onclick="closeMembersModal()" aria-label="Close">&times;</button>
+		</div>
+		<div class="modal-body">
+			<div id="membersLoadingSpinner" style="text-align: center; padding: var(--space-8);">
+				<div class="spinner-border" style="color: var(--primary-blue);"></div>
+				<p style="margin-top: var(--space-3); color: var(--gray-600);">Loading members...</p>
 			</div>
-			<div class="modal-body">
-				<div id="membersLoadingSpinner" class="text-center py-4">
-					<div class="spinner-border text-primary" role="status">
-						<span class="visually-hidden">Loading...</span>
-					</div>
-					<p class="mt-2 text-muted">Loading members...</p>
+			<div id="membersContent" style="display: none;">
+				<div class="table-responsive">
+					<table class="table table-hover">
+						<thead style="background-color: var(--gray-100);">
+							<tr>
+								<th style="padding: var(--space-4); font-weight: var(--font-semibold); color: var(--gray-700);">Username</th>
+								<th style="padding: var(--space-4); font-weight: var(--font-semibold); color: var(--gray-700);">Email</th>
+								<th style="padding: var(--space-4); font-weight: var(--font-semibold); color: var(--gray-700);">Role</th>
+								<th style="padding: var(--space-4); font-weight: var(--font-semibold); color: var(--gray-700); text-align: center;">Meal Plan Emails</th>
+								<th style="padding: var(--space-4); font-weight: var(--font-semibold); color: var(--gray-700); text-align: center;">Chef Emails</th>
+							</tr>
+						</thead>
+						<tbody id="membersTableBody">
+							<!-- Members will be loaded here -->
+						</tbody>
+					</table>
 				</div>
-				<div id="membersContent" style="display: none;">
-					<div class="table-responsive">
-						<table class="table table-hover">
-							<thead>
-								<tr>
-									<th>Username</th>
-									<th>Email</th>
-									<th>Role</th>
-									<th class="text-center">Meal Plan Emails</th>
-									<th class="text-center">Chef Emails</th>
-								</tr>
-							</thead>
-							<tbody id="membersTableBody">
-								<!-- Members will be loaded here -->
-							</tbody>
-						</table>
-					</div>
-				</div>
-				<div id="membersError" class="alert alert-danger" style="display: none;"></div>
 			</div>
-			<div class="modal-footer">
-				<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-			</div>
+			<div id="membersError" style="display: none; background-color: #fee; border: 1px solid var(--error); color: var(--error); padding: var(--space-4); border-radius: var(--radius-md); margin-top: var(--space-4);"></div>
+		</div>
+		<div class="modal-footer">
+			<button type="button" class="btn btn-secondary" onclick="closeMembersModal()">Close</button>
 		</div>
 	</div>
 </div>
@@ -358,13 +470,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Show members modal and load members
 function showMembersModal(householdId, householdName) {
-	const modal = new bootstrap.Modal(document.getElementById('manageMembersModal'));
+	const modal = document.getElementById('manageMembersModal');
 	document.getElementById('householdName').textContent = householdName;
 	document.getElementById('membersLoadingSpinner').style.display = 'block';
 	document.getElementById('membersContent').style.display = 'none';
 	document.getElementById('membersError').style.display = 'none';
 
-	modal.show();
+	modal.classList.add('show');
 
 	// Load members
 	fetch(`/admin/household/${householdId}/members`)
@@ -384,6 +496,11 @@ function showMembersModal(householdId, householdName) {
 		});
 }
 
+function closeMembersModal() {
+	const modal = document.getElementById('manageMembersModal');
+	modal.classList.remove('show');
+}
+
 function displayMembers(members) {
 	const tbody = document.getElementById('membersTableBody');
 	tbody.innerHTML = '';
@@ -391,32 +508,34 @@ function displayMembers(members) {
 	members.forEach(member => {
 		const row = document.createElement('tr');
 		row.innerHTML = `
-			<td><strong>${escapeHtml(member.username)}</strong></td>
-			<td>${escapeHtml(member.email)}</td>
-			<td>
-				<span class="badge bg-${member.role === 'owner' ? 'primary' : 'secondary'}">
+			<td style="padding: var(--space-4);"><strong>${escapeHtml(member.username)}</strong></td>
+			<td style="padding: var(--space-4);">${escapeHtml(member.email)}</td>
+			<td style="padding: var(--space-4);">
+				<span class="badge badge-${member.role === 'owner' ? 'primary' : 'secondary'}">
 					${member.role === 'owner' ? 'Owner' : 'Member'}
 				</span>
 			</td>
-			<td class="text-center">
-				<div class="form-check form-switch d-inline-block">
+			<td style="padding: var(--space-4); text-align: center;">
+				<div class="form-check form-switch" style="display: inline-block;">
 					<input
 						class="form-check-input"
 						type="checkbox"
 						id="mealPlanEmail_${member.member_id}"
 						${member.receive_meal_plan_emails ? 'checked' : ''}
 						onchange="toggleMemberEmail(${member.member_id}, 'meal_plan', this.checked, '${escapeHtml(member.username)}')"
+						style="cursor: pointer;"
 					>
 				</div>
 			</td>
-			<td class="text-center">
-				<div class="form-check form-switch d-inline-block">
+			<td style="padding: var(--space-4); text-align: center;">
+				<div class="form-check form-switch" style="display: inline-block;">
 					<input
 						class="form-check-input"
 						type="checkbox"
 						id="chefEmail_${member.member_id}"
 						${member.receive_chef_assignment_emails ? 'checked' : ''}
 						onchange="toggleMemberEmail(${member.member_id}, 'chef', this.checked, '${escapeHtml(member.username)}')"
+						style="cursor: pointer;"
 					>
 				</div>
 			</td>
@@ -427,7 +546,6 @@ function displayMembers(members) {
 
 function toggleMemberEmail(memberId, emailType, enabled, username) {
 	const checkbox = document.getElementById(`${emailType === 'meal_plan' ? 'mealPlanEmail' : 'chefEmail'}_${memberId}`);
-	const originalState = checkbox.checked;
 
 	fetch('/admin/toggle-member-email', {
 		method: 'POST',
@@ -472,6 +590,99 @@ function escapeHtml(text) {
 	return div.innerHTML;
 }
 
+// Email editing functions
+function editEmail(userId) {
+	const display = document.getElementById(`email-display-${userId}`);
+	const input = document.getElementById(`email-input-${userId}`);
+	const editBtn = document.getElementById(`edit-btn-${userId}`);
+	const saveBtn = document.getElementById(`save-btn-${userId}`);
+	const cancelBtn = document.getElementById(`cancel-btn-${userId}`);
+
+	display.style.display = 'none';
+	input.style.display = 'inline-block';
+	editBtn.style.display = 'none';
+	saveBtn.style.display = 'inline-block';
+	cancelBtn.style.display = 'inline-block';
+	input.focus();
+}
+
+function cancelEditEmail(userId) {
+	const display = document.getElementById(`email-display-${userId}`);
+	const input = document.getElementById(`email-input-${userId}`);
+	const editBtn = document.getElementById(`edit-btn-${userId}`);
+	const saveBtn = document.getElementById(`save-btn-${userId}`);
+	const cancelBtn = document.getElementById(`cancel-btn-${userId}`);
+
+	// Reset input to original value
+	input.value = display.textContent;
+
+	display.style.display = 'inline';
+	input.style.display = 'none';
+	editBtn.style.display = 'inline-block';
+	saveBtn.style.display = 'none';
+	cancelBtn.style.display = 'none';
+}
+
+function saveEmail(userId) {
+	const display = document.getElementById(`email-display-${userId}`);
+	const input = document.getElementById(`email-input-${userId}`);
+	const editBtn = document.getElementById(`edit-btn-${userId}`);
+	const saveBtn = document.getElementById(`save-btn-${userId}`);
+	const cancelBtn = document.getElementById(`cancel-btn-${userId}`);
+
+	const newEmail = input.value.trim();
+
+	// Basic validation
+	if (!newEmail || !newEmail.includes('@') || !newEmail.includes('.')) {
+		alert('Please enter a valid email address');
+		return;
+	}
+
+	// Disable buttons during save
+	saveBtn.disabled = true;
+	cancelBtn.disabled = true;
+	saveBtn.innerHTML = '<span class="spinner-border" style="width: 0.8rem; height: 0.8rem;"></span>';
+
+	fetch('/admin/update-user-email', {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+		},
+		body: JSON.stringify({
+			user_id: userId,
+			email: newEmail
+		})
+	})
+	.then(response => response.json())
+	.then(data => {
+		if (data.success) {
+			// Update display with new email
+			display.textContent = data.email;
+
+			// Reset UI
+			display.style.display = 'inline';
+			input.style.display = 'none';
+			editBtn.style.display = 'inline-block';
+			saveBtn.style.display = 'none';
+			cancelBtn.style.display = 'none';
+
+			// Show success message
+			console.log('Email updated successfully');
+		} else {
+			alert('Error: ' + (data.error || 'Failed to update email'));
+		}
+	})
+	.catch(error => {
+		console.error('Error updating email:', error);
+		alert('Failed to update email. Please try again.');
+	})
+	.finally(() => {
+		saveBtn.disabled = false;
+		cancelBtn.disabled = false;
+		saveBtn.innerHTML = '<i class="fas fa-save"></i>';
+	});
+}
+
 function handleFeatureEmailSubmit(event, form, userCount) {
 	// Show confirmation dialog
 	if (!confirm(`Are you sure you want to send the feature announcement email to ALL ${userCount} registered users? This action cannot be undone.`)) {
@@ -482,12 +693,9 @@ function handleFeatureEmailSubmit(event, form, userCount) {
 	// Get the button
 	const btn = document.getElementById('send-feature-email-btn');
 
-	// Store original content
-	const originalContent = btn.innerHTML;
-
 	// Disable button and show processing state
 	btn.disabled = true;
-	btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Sending emails...';
+	btn.innerHTML = '<span class="spinner-border" style="width: 1rem; height: 1rem; margin-right: var(--space-2);" role="status" aria-hidden="true"></span>Sending emails...';
 
 	// Allow form to submit
 	return true;

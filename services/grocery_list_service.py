@@ -7,9 +7,11 @@ from collections import defaultdict
 from models import db, GroceryList, GroceryListItem, Recipe, RecipeIngredient
 from utils import parse_quantity_string
 from logging_config import logger
+from services.base_service import BaseService
+from constants import ErrorMessages
 
 
-class GroceryListService:
+class GroceryListService(BaseService):
     """Service class for grocery list-related business logic."""
 
     @staticmethod
@@ -29,21 +31,22 @@ class GroceryListService:
         Returns:
             Tuple of (GroceryList object, error message)
         """
-        try:
+
+        def create_operation():
             grocery_list = GroceryList(
                 household_id=household_id,
-                name=name.strip(),
+                name=BaseService.safe_strip(name),
                 created_by_user_id=created_by_user_id,
                 last_modified_by_user_id=created_by_user_id,
             )
             db.session.add(grocery_list)
-            db.session.commit()
-            return grocery_list, None
+            return grocery_list
 
-        except Exception as e:
-            db.session.rollback()
-            logger.error(f"Error creating grocery list: {e}", exc_info=True)
-            return None, "Failed to create grocery list. Please try again."
+        return BaseService.execute_with_transaction(
+            create_operation,
+            ErrorMessages.GROCERY_LIST_CREATE_ERROR,
+            "grocery list creation",
+        )
 
     @staticmethod
     def add_recipes_to_list(
@@ -62,13 +65,12 @@ class GroceryListService:
         Returns:
             Tuple of (success, error_message)
         """
-        try:
+
+        def add_operation():
             # Get all ingredients from selected recipes
-            ingredients = (
-                RecipeIngredient.query
-                .filter(RecipeIngredient.recipe_id.in_(recipe_ids))
-                .all()
-            )
+            ingredients = RecipeIngredient.query.filter(
+                RecipeIngredient.recipe_id.in_(recipe_ids)
+            ).all()
 
             # Consolidate ingredients by name and measurement
             consolidated = GroceryListService._consolidate_ingredients(ingredients)
@@ -85,13 +87,12 @@ class GroceryListService:
                 db.session.add(item)
 
             grocery_list.last_modified_by_user_id = user_id
-            db.session.commit()
-            return True, None
 
-        except Exception as e:
-            db.session.rollback()
-            logger.error(f"Error adding recipes to list: {e}", exc_info=True)
-            return False, "Failed to add recipes to list. Please try again."
+        return BaseService.execute_update_with_transaction(
+            add_operation,
+            "Failed to add recipes to list. Please try again.",
+            "adding recipes to grocery list",
+        )
 
     @staticmethod
     def _consolidate_ingredients(
@@ -113,11 +114,11 @@ class GroceryListService:
                 ingredient.ingredient_name.lower().strip(),
                 ingredient.measurement.lower().strip(),
             )
-            
+
             quantity = parse_quantity_string(ingredient.quantity)
             if quantity is not None:
                 consolidated[key]["quantity"] += quantity
-            
+
             # Store original casing for display
             if not consolidated[key]["name"]:
                 consolidated[key]["name"] = ingredient.ingredient_name
@@ -140,16 +141,16 @@ class GroceryListService:
         Returns:
             Tuple of (success, error_message)
         """
-        try:
+
+        def toggle_operation():
             item.is_checked = not item.is_checked
             item.grocery_list.last_modified_by_user_id = user_id
-            db.session.commit()
-            return True, None
 
-        except Exception as e:
-            db.session.rollback()
-            logger.error(f"Error toggling item: {e}", exc_info=True)
-            return False, "Failed to update item. Please try again."
+        return BaseService.execute_update_with_transaction(
+            toggle_operation,
+            "Failed to update item. Please try again.",
+            "toggling grocery list item",
+        )
 
     @staticmethod
     def clear_grocery_list(
@@ -166,14 +167,13 @@ class GroceryListService:
         Returns:
             Tuple of (success, error_message)
         """
-        try:
+
+        def clear_operation():
             GroceryListItem.query.filter_by(grocery_list_id=grocery_list.id).delete()
             grocery_list.last_modified_by_user_id = user_id
-            db.session.commit()
-            return True, None
 
-        except Exception as e:
-            db.session.rollback()
-            logger.error(f"Error clearing grocery list: {e}", exc_info=True)
-            return False, "Failed to clear grocery list. Please try again."
-
+        return BaseService.execute_update_with_transaction(
+            clear_operation,
+            "Failed to clear grocery list. Please try again.",
+            "clearing grocery list",
+        )
