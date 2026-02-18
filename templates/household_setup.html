@@ -24,7 +24,7 @@
 							Start a new household and invite family members or roommates to join.
 						</p>
 						
-						<form method="POST" action="{{ url_for('household_setup') }}">
+						<form method="POST" action="{{ url_for('main.household_setup') }}">
 							<input type="hidden" name="action" value="create">
 							<div class="form-group">
 								<label for="household_name">Household Name</label>
@@ -56,7 +56,7 @@
 							Join an existing household by entering the household owner's username.
 						</p>
 						
-						<form method="POST" action="{{ url_for('household_setup') }}">
+						<form method="POST" action="{{ url_for('main.household_setup') }}">
 							<input type="hidden" name="action" value="join">
 							<div class="form-group">
 								<label for="join_code">Owner's Username</label>

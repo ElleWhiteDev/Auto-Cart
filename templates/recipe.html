@@ -5,7 +5,7 @@ block content %}
 <p class="lead">Make changes to the saved recipes in your box</p>
 
 <div>
-	<form method="POST" class="col-md-4 mt-4">
+	<form method="POST" class="col-md-4 mt-4" id="update-recipe-form">
 		{{ form.hidden_tag() }}
 
 		<!-- Recipe Name -->
@@ -45,12 +45,12 @@ block content %}
 		</p>
 
 		<div class="recipe-actions">
-			<button class="button-56" type="submit">Update</button>
+			<button class="button-56" type="submit" id="update-recipe-btn">Update</button>
 		</div>
 	</form>
 
 	<!-- Separate delete form -->
-	<form method="POST" action="{{ url_for('delete_recipe', recipe_id=recipe.id) }}">
+	<form method="POST" action="{{ url_for('recipes.delete_recipe', recipe_id=recipe.id) }}">
 		<div class="recipe-actions">
 			<button type="submit" class="button-56-red">Delete Recipe</button>
 		</div>
@@ -181,6 +181,17 @@ block content %}
 </div>
 
 <script>
+	// Add processing state to update button
+	const updateForm = document.getElementById('update-recipe-form');
+	const updateBtn = document.getElementById('update-recipe-btn');
+
+	if (updateForm && updateBtn) {
+		updateForm.addEventListener('submit', function() {
+			updateBtn.disabled = true;
+			updateBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Updating...';
+		});
+	}
+
 	// Add processing state to export button
 	const exportForm = document.getElementById('export-recipe-form');
 	const exportBtn = document.getElementById('export-recipe-btn');

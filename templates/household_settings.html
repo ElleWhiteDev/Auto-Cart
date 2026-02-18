@@ -49,7 +49,7 @@
 								{% endfor %}
 							</div>
 							{% if hh.id != household.id %}
-							<a href="{{ url_for('switch_household', household_id=hh.id) }}" class="btn btn-sm btn-primary">
+							<a href="{{ url_for('main.switch_household', household_id=hh.id) }}" class="btn btn-sm btn-primary">
 								<i class="fas fa-exchange-alt"></i> Switch
 							</a>
 							{% endif %}
@@ -101,7 +101,7 @@
 
 				<!-- Always show Create New Household button -->
 				<div>
-					<a href="{{ url_for('create_household') }}" class="btn btn-success">
+					<a href="{{ url_for('main.create_household') }}" class="btn btn-success">
 						<i class="fas fa-plus"></i> Create New Household
 					</a>
 				</div>
@@ -313,7 +313,7 @@
 
 <div class="row mt-4">
 	<div class="col-12">
-		<a href="{{ url_for('homepage') }}" class="btn btn-secondary">
+		<a href="{{ url_for('main.homepage') }}" class="btn btn-secondary">
 			<i class="fas fa-arrow-left"></i> Back to Recipes
 		</a>
 	</div>

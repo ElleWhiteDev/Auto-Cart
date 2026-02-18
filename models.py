@@ -2,16 +2,15 @@ import re
 import os
 from collections import defaultdict
 from datetime import datetime
+from typing import List, Optional, Dict, Any, Tuple
 from flask import g
 from flask_mail import Message
-from flask_bcrypt import Bcrypt
-from flask_sqlalchemy import SQLAlchemy
 from openai import OpenAI
 from utils import parse_quantity_string, is_valid_float, get_est_now
 from logging_config import logger
 
-bcrypt = Bcrypt()
-db = SQLAlchemy()
+# Import db and bcrypt from extensions to avoid circular imports
+from extensions import db, bcrypt
 
 # Initialize OpenAI client using environment variable
 openai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
@@ -47,29 +46,29 @@ class Household(db.Model):
         "MealPlanEntry", backref="household", cascade="all, delete-orphan"
     )
 
-    def get_owners(self):
+    def get_owners(self) -> List["HouseholdMember"]:
         """Get all owner members of this household"""
         return [m for m in self.members if m.is_owner()]
 
-    def get_regular_members(self):
+    def get_regular_members(self) -> List["HouseholdMember"]:
         """Get all non-owner members of this household"""
         return [m for m in self.members if not m.is_owner()]
 
-    def is_user_owner(self, user_id):
+    def is_user_owner(self, user_id: int) -> bool:
         """Check if a user is an owner of this household"""
         membership = HouseholdMember.query.filter_by(
             household_id=self.id, user_id=user_id
         ).first()
         return membership and membership.is_owner()
 
-    def is_user_member(self, user_id):
+    def is_user_member(self, user_id: int) -> bool:
         """Check if a user is a member (owner or regular) of this household"""
         membership = HouseholdMember.query.filter_by(
             household_id=self.id, user_id=user_id
         ).first()
         return membership is not None
 
-    def get_connected_households(self):
+    def get_connected_households(self) -> List["Household"]:
         """Get all households that share at least one member with this household.
 
         Returns households that have overlapping membership - useful for finding
@@ -91,7 +90,7 @@ class Household(db.Model):
 
         return connected_households
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<Household #{self.id}: {self.name}>"
 
 
@@ -124,15 +123,15 @@ class HouseholdMember(db.Model):
 
     user = db.relationship("User", backref="household_memberships")
 
-    def is_owner(self):
+    def is_owner(self) -> bool:
         """Check if this membership has owner privileges"""
         return self.role == "owner"
 
-    def is_member(self):
+    def is_member(self) -> bool:
         """Check if this is a regular member (not owner)"""
         return self.role == "member"
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<HouseholdMember household_id={self.household_id} user_id={self.user_id} role={self.role}>"
 
 
@@ -554,22 +553,24 @@ class User(db.Model):
         "GroceryList", foreign_keys=[alexa_default_grocery_list_id]
     )
 
-    def get_households(self):
+    def get_households(self) -> List[Household]:
         """Get all households this user is a member of"""
         return [m.household for m in self.household_memberships]
 
-    def get_owned_households(self):
+    def get_owned_households(self) -> List[Household]:
         """Get all households this user owns"""
         return [m.household for m in self.household_memberships if m.is_owner()]
 
-    def get_member_households(self):
+    def get_member_households(self) -> List[Household]:
         """Get all households where this user is a regular member (not owner)"""
         return [m.household for m in self.household_memberships if m.is_member()]
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<User #{self.id}: {self.username}, {self.email}>"
 
-    def change_password(self, current_password, new_password, new_password_confirm):
+    def change_password(
+        self, current_password: str, new_password: str, new_password_confirm: str
+    ) -> None:
         """Change password"""
 
         if not bcrypt.check_password_hash(self.password, current_password):
@@ -579,7 +580,7 @@ class User(db.Model):
         self.password = bcrypt.generate_password_hash(new_password).decode("UTF-8")
 
     @classmethod
-    def signup(cls, username, email, password):
+    def signup(cls, username: str, email: str, password: str) -> "User":
         """Sign up user.
 
         Hashes password and adds user to system.
@@ -593,7 +594,7 @@ class User(db.Model):
         return user
 
     @classmethod
-    def authenticate(cls, username, password):
+    def authenticate(cls, username: str, password: str) -> Optional["User"]:
         """Find user with `username` and `password`.
 
         Username lookup is case-insensitive.
@@ -620,9 +621,9 @@ class User(db.Model):
         else:
             logger.debug(f"User.authenticate: No user found for username '{username}'")
 
-        return False
+        return None
 
-    def generate_reset_token(self):
+    def generate_reset_token(self) -> str:
         """Generate a password reset token that expires in 1 hour"""
         import secrets
         from datetime import timedelta
@@ -631,8 +632,12 @@ class User(db.Model):
         self.reset_token_expiry = get_est_now() + timedelta(hours=1)
         return self.reset_token
 
+    def generate_password_reset_token(self) -> str:
+        """Alias used by the auth routes."""
+        return self.generate_reset_token()
+
     @classmethod
-    def verify_reset_token(cls, token):
+    def verify_reset_token(cls, token: str) -> Optional["User"]:
         """Verify a reset token and return the user if valid"""
         user = cls.query.filter_by(reset_token=token).first()
 
@@ -645,11 +650,82 @@ class User(db.Model):
 
         return user
 
-    def reset_password(self, new_password):
+    def reset_password(self, new_password: str) -> None:
         """Reset password using a reset token"""
         self.password = bcrypt.generate_password_hash(new_password).decode("UTF-8")
         self.reset_token = None
         self.reset_token_expiry = None
+
+    def send_password_reset_email(self, mail) -> None:
+        """Send password reset instructions to the user."""
+        from flask import current_app, request
+        from flask_mail import Message
+
+        base_url = request.url_root.rstrip("/")
+        reset_url = f"{base_url}/reset-password/{self.reset_token}"
+        response_email = current_app.config.get("MAIL_DEFAULT_SENDER", "support@autocart.com")
+        subject = "Reset Your Auto-Cart Password"
+
+        html_body = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+        .header {{ background-color: #0d6efd; color: white; padding: 20px; text-align: center; border-radius: 5px 5px 0 0; }}
+        .content {{ background-color: #f9f9f9; padding: 30px; border-radius: 0 0 5px 5px; }}
+        .button {{ display: inline-block; padding: 12px 28px; background-color: #0d6efd; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }}
+        .footer {{ margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 12px; color: #666; }}
+        .warning {{ background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 10px; margin: 15px 0; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔐 Password Reset Request</h1>
+        </div>
+        <div class="content">
+            <p>Hello {self.username},</p>
+            <p>We received a request to reset your Auto-Cart password. Click the button below to create a new password:</p>
+            <div style="text-align: center;">
+                <a href="{reset_url}" class="button" style="color: white !important;">Reset My Password</a>
+            </div>
+            <p>Or paste this link directly into your browser:</p>
+            <div style="word-break: break-all; background-color: #fff; padding: 10px; border: 1px solid #ddd; border-radius: 3px;">
+                {reset_url}
+            </div>
+            <div class="warning">
+                <strong>This link expires in 1 hour.</strong>
+            </div>
+            <p>If you didn't request this, ignore this email and your password stays secure.</p>
+            <div class="footer">
+                <p>Auto-Cart — Need help? Reply to {response_email}</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+"""
+
+        text_body = f"""
+Password Reset Request
+
+Use the link below to reset your Auto-Cart password:
+{reset_url}
+
+This link expires in 1 hour.
+
+If you didn't request it, ignore this email.
+"""
+
+        msg = Message(
+            subject,
+            recipients=[self.email],
+            html=html_body,
+            body=text_body,
+        )
+        mail.send(msg)
 
 
 class RecipeIngredient(db.Model):
@@ -703,34 +779,40 @@ class Recipe(db.Model):
     def clean_ingredients_with_openai(cls, ingredients_text):
         """Clean and standardize scraped ingredients using OpenAI."""
         try:
-            system_prompt = """You are a recipe ingredient parser. Clean and standardize the following scraped ingredients text according to these rules:
+            system_prompt = """You clean noisy recipe ingredient text.
 
-1. Separate concatenated words (e.g., "1/4cuphoney" → "1/4 cup honey")
-2. Remove unwanted characters: checkboxes (▢☐□✓✔), bullet points, extra symbols
-3. Standardize measurements:
-   - "tb", "T", "tablespoon", "tablespoons" → "tbsp"
-   - "c", "C", "cup", "cups" → "cup"
-   - "t", "tsp", "teaspoon", "teaspoons" → "tsp"
-   - "oz", "ounce", "ounces" → "oz"
-   - "lb", "pound", "pounds" → "lb"
-   - "g", "gram", "grams" → "g"
-   - "kg", "kilogram", "kilograms" → "kg"
-4. Convert decimal quantities to fractions where appropriate:
-   - "0.25" → "1/4"
-   - "0.5" → "1/2"
-   - "0.75" → "3/4"
-   - "0.33" → "1/3"
-   - "0.67" → "2/3"
-5. PRESERVE preparation modifiers and descriptive terms:
-   - Keep: "diced", "chopped", "minced", "sliced", "fresh", "frozen", "dried", "ground", "whole", "crushed", "grated", etc.
-   - "4 tbsp melted butter" → "4 tbsp melted butter"
-   - "1 cup diced onions" → "1 cup diced onions"
-   - "2 lbs ground beef" → "2 lb ground beef"
-6. Format each ingredient as: "quantity measurement ingredient_name_with_modifiers"
-7. Put each ingredient on a separate line
-8. Remove empty lines
+Task:
+- Convert messy scraped ingredient lines into normalized ingredient lines.
 
-Return only the cleaned ingredients, one per line, with no additional text or explanations."""
+Input assumptions:
+- Input may include bullets, checkboxes, OCR artifacts, merged words, and inconsistent units.
+- Input may have one ingredient per line or broken formatting.
+
+Normalization rules:
+1) Split merged quantity/unit/word sequences when obvious:
+   - "1/4cuphoney" -> "1/4 cup honey"
+2) Remove non-ingredient symbols:
+   - checkboxes (▢☐□✓✔), bullets, repeated punctuation.
+3) Normalize units to canonical forms:
+   - tablespoon/tablespoons/tb/T -> tbsp
+   - teaspoon/teaspoons/t -> tsp
+   - cup/cups/c/C -> cup
+   - ounce/ounces -> oz
+   - pound/pounds/lbs -> lb
+   - gram/grams -> g
+   - kilogram/kilograms -> kg
+4) Normalize common decimal quantities to simple fractions when exact:
+   - 0.25 -> 1/4, 0.5 -> 1/2, 0.75 -> 3/4, 0.33 -> 1/3, 0.67 -> 2/3
+5) Preserve meaningful descriptors and prep terms:
+   - keep words like diced, minced, fresh, frozen, ground, crushed, grated.
+6) Keep one cleaned ingredient per line.
+7) Remove blank lines.
+
+Output contract:
+- Return plain text only.
+- No headings, numbering, commentary, or markdown.
+- Each output line format: "quantity measurement ingredient_name_with_descriptors".
+- If quantity or unit is missing, keep the line readable and minimally normalized rather than inventing extra context."""
 
             response = openai_client.chat.completions.create(
                 model="gpt-4o-mini",
@@ -758,21 +840,34 @@ Return only the cleaned ingredients, one per line, with no additional text or ex
         """Parse ingredient text into individual objects using OpenAI"""
 
         try:
-            system_prompt = """You are an ingredient parser. Parse each ingredient line into structured data with quantity, measurement, and ingredient name.
+            system_prompt = """You parse ingredient lines into structured objects.
 
-Return ONLY a JSON array where each ingredient is an object with these exact keys:
-- "quantity": the numeric amount as a string (convert ranges like "3-4" to the first number "3"). If no quantity is specified, use "1".
-- "measurement": the unit of measurement (cup, tbsp, tsp, lb, oz, etc.). If no measurement is specified, use "unit".
-- "ingredient_name": the ingredient name including any descriptors
+Return format:
+- Return ONLY a valid JSON array.
+- Each element must be an object with EXACTLY these keys:
+  - "quantity" (string)
+  - "measurement" (string)
+  - "ingredient_name" (string)
+- No markdown, no prose, no code fences, no extra keys.
+
+Parsing rules:
+1) Quantity:
+   - Keep numeric quantities as strings (examples: "2", "1/2", "2 1/2", "1.5").
+   - For ranges like "3-4", use the first value ("3").
+   - If missing, use "1".
+2) Measurement:
+   - Normalize to: cup, tbsp, tsp, lb, oz, g, kg, ml, l, unit (when unknown).
+   - Singular canonical forms only.
+3) Ingredient name:
+   - Preserve descriptors and variants (e.g., "yellow onion", "unsalted butter", "ground beef", "fresh basil").
+4) This step does NOT merge, deduplicate, filter, or reorder ingredients.
 
 Examples:
-"2 cups flour" → {"quantity": "2", "measurement": "cup", "ingredient_name": "flour"}
-"1/4 tsp salt" → {"quantity": "1/4", "measurement": "tsp", "ingredient_name": "salt"}
-"3-4 lb chicken" → {"quantity": "3", "measurement": "lb", "ingredient_name": "chicken"}
-"milk" → {"quantity": "1", "measurement": "unit", "ingredient_name": "milk"}
-"salt and pepper to taste" → {"quantity": "1", "measurement": "unit", "ingredient_name": "salt and pepper to taste"}
-
-Return only the JSON array, no explanations."""
+"2 cups flour" -> {"quantity":"2","measurement":"cup","ingredient_name":"flour"}
+"1/4 tsp salt" -> {"quantity":"1/4","measurement":"tsp","ingredient_name":"salt"}
+"3-4 lb chicken thighs" -> {"quantity":"3","measurement":"lb","ingredient_name":"chicken thighs"}
+"milk" -> {"quantity":"1","measurement":"unit","ingredient_name":"milk"}
+"salt and pepper to taste" -> {"quantity":"1","measurement":"unit","ingredient_name":"salt and pepper to taste"}"""
 
             response = openai_client.chat.completions.create(
                 model="gpt-4o-mini",
@@ -1360,34 +1455,33 @@ class GroceryList(db.Model):
                 ]
             )
 
-            system_prompt = """You are an intelligent grocery list consolidator. Your task is to combine similar ingredients while preserving accurate quantities and important variety distinctions.
+            system_prompt = """You consolidate grocery ingredients aggressively, while preserving purchase-critical distinctions.
 
-GROUPING RULES:
+Goal:
+- Merge near-duplicate ingredients to reduce list noise.
 
-**Group together (same base ingredient):**
-- Different preparation methods: "chopped onion", "diced onion", "sliced onion", "minced onion" → all become "onion"
-- Generic vs specific: "tomatoes", "diced tomatoes" → both become "tomatoes"
-- All butter types: "butter", "unsalted butter", "salted butter", "melted butter" → all become "butter"
+Hard constraints:
+1) ALWAYS remove water lines (all variants): water, warm water, cold water, boiling water, etc.
+2) Keep these distinct when present:
+   - onion color/variety (yellow/red/white)
+   - tomato variety (roma/cherry/grape)
+   - meat cut/type (chicken breast vs thighs vs ground chicken)
+   - milk fat/type (whole/2%/skim)
+   - cheese type (cheddar/mozzarella/etc.)
+   - butter type (salted vs unsalted)
+3) Merge aggressively when items are clearly the same shopping item:
+   - prep-only variants: chopped/diced/minced/sliced onion -> onion
+   - plural/singular and minor wording variants.
 
-**SKIP these ingredients (do not include in output):**
-- Water in any form: "water", "cold water", "warm water", "boiling water"
+Quantity rules:
+- Sum quantities for merged items.
+- Prefer canonical unit labels: cup, tbsp, tsp, lb, oz, g, kg, ml, l, unit.
+- If exact conversion is uncertain, keep a stable existing unit and still merge when reasonable.
 
-**Keep separate (different varieties that matter for shopping):**
-- Color/variety specifications: "yellow onion", "red onion", "white onion" → keep as separate items
-- Different types: "roma tomatoes", "cherry tomatoes", "grape tomatoes" → keep separate
-- Different cuts of meat: "chicken breast", "chicken thighs", "ground chicken" → keep separate
-- Different dairy types: "whole milk", "2% milk", "skim milk" → keep separate
-- Different cheese types: "cheddar cheese", "mozzarella cheese" → keep separate
-
-**Quantity consolidation:**
-- Add quantities together when combining ingredients
-- Convert to simplest fraction form when possible
-- Use the most common measurement unit when combining
-
-**Output format:**
-Return the consolidated list with one ingredient per line in format: "quantity measurement ingredient_name"
-Use the simplest, most grocery-store-friendly name for each ingredient.
-Only return the consolidated ingredients, no explanations."""
+Output contract:
+- Return plain text only.
+- One ingredient per line, exactly: "quantity measurement ingredient_name"
+- No commentary, bullets, or markdown."""
 
             response = openai_client.chat.completions.create(
                 model="gpt-4o-mini",

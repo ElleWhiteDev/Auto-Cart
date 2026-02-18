@@ -422,13 +422,13 @@
 	<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap">
 		<h1 class="mb-2 mb-md-0"><i class="fas fa-calendar-alt"></i> Meal Plan</h1>
 		<div class="week-nav-buttons d-flex gap-2">
-			<a href="{{ url_for('meal_plan', week=week_offset-1) }}" class="btn btn-outline-primary btn-sm">
+			<a href="{{ url_for('meal_plan.meal_plan', week=week_offset-1) }}" class="btn btn-outline-primary btn-sm">
 				<i class="fas fa-chevron-left"></i> <span class="d-none d-md-inline">Previous Week</span><span class="d-md-none">Prev</span>
 			</a>
-			<a href="{{ url_for('meal_plan', week=0) }}" class="btn btn-primary btn-sm">
+			<a href="{{ url_for('meal_plan.meal_plan', week=0) }}" class="btn btn-primary btn-sm">
 				<i class="fas fa-calendar-day"></i> <span class="d-none d-md-inline">This Week</span><span class="d-md-none">Today</span>
 			</a>
-			<a href="{{ url_for('meal_plan', week=week_offset+1) }}" class="btn btn-outline-primary btn-sm">
+			<a href="{{ url_for('meal_plan.meal_plan', week=week_offset+1) }}" class="btn btn-outline-primary btn-sm">
 				<span class="d-none d-md-inline">Next Week</span><span class="d-md-none">Next</span> <i class="fas fa-chevron-right"></i>
 			</a>
 		</div>
@@ -440,7 +440,7 @@
 				{{ week_start.strftime('%B %d') }} - {{ week_end.strftime('%B %d, %Y') }}
 			</h4>
 			<div class="meal-plan-actions">
-				<form method="POST" action="{{ url_for('send_meal_plan_email') }}" id="email-meal-plan-form">
+				<form method="POST" action="{{ url_for('meal_plan.send_meal_plan_email') }}" id="email-meal-plan-form">
 					<input type="hidden" name="week_offset" value="{{ week_offset }}">
 					<button type="submit" id="email-meal-plan-btn" class="btn btn-light btn-sm meal-plan-action-btn">
 						<i class="fas fa-envelope"></i> <span class="d-none d-md-inline">Email My Meals</span><span class="d-md-none">Email</span>
@@ -449,7 +449,7 @@
 				<button type="button" id="similar-recipes-btn" class="btn btn-light btn-sm meal-plan-action-btn" onclick="findSimilarRecipes()">
 					<i class="fas fa-lightbulb"></i> <span class="d-none d-md-inline">Similar Recipes</span><span class="d-md-none">Similar</span>
 				</button>
-				<form method="POST" action="{{ url_for('add_meal_plan_to_list') }}" id="add-to-list-form">
+				<form method="POST" action="{{ url_for('meal_plan.add_meal_plan_to_list') }}" id="add-to-list-form">
 					<input type="hidden" name="week_offset" value="{{ week_offset }}">
 					<button type="submit" id="add-to-list-btn" class="btn btn-light btn-sm meal-plan-action-btn">
 						<i class="fas fa-shopping-cart"></i> <span class="d-none d-md-inline">Add All to Grocery List</span><span class="d-md-none">Add All</span>
@@ -536,7 +536,7 @@
 															<i class="fas fa-edit"></i>
 														</button>
 														<!-- Delete Button -->
-														<form method="POST" action="{{ url_for('delete_meal_plan_entry', entry_id=entry.id) }}">
+														<form method="POST" action="{{ url_for('meal_plan.delete_meal_plan_entry', entry_id=entry.id) }}">
 															<input type="hidden" name="week_offset" value="{{ week_offset }}">
 															<button type="submit" class="desktop-action-btn desktop-action-btn-delete" onclick="return confirm('Remove this meal from the plan?');">
 																<i class="fas fa-times"></i>
@@ -548,7 +548,7 @@
 
 										<!-- Chef Edit Mode (hidden by default) -->
 										<div class="chef-edit">
-											<form method="POST" action="{{ url_for('update_meal_plan_entry', entry_id=entry.id) }}" class="edit-meal-form">
+											<form method="POST" action="{{ url_for('meal_plan.update_meal_plan_entry', entry_id=entry.id) }}" class="edit-meal-form">
 												<input type="hidden" name="week_offset" value="{{ week_offset }}">
 												<div class="mb-2">
 													<label style="font-size: 0.75rem; font-weight: 600; margin-bottom: 2px;">Assigned Cooks:</label>
@@ -641,7 +641,7 @@
 												<i class="fas fa-edit"></i>
 											</button>
 											<!-- Delete Button -->
-												<form method="POST" action="{{ url_for('delete_meal_plan_entry', entry_id=entry.id) }}">
+												<form method="POST" action="{{ url_for('meal_plan.delete_meal_plan_entry', entry_id=entry.id) }}">
 													<input type="hidden" name="week_offset" value="{{ week_offset }}">
 														<button type="submit" class="mobile-action-btn mobile-action-btn-delete" onclick="return confirm('Remove this meal from the plan?');">
 															<i class="fas fa-times"></i>
@@ -653,7 +653,7 @@
 
 								<!-- Chef Edit Mode (hidden by default) -->
 								<div class="chef-edit">
-									<form method="POST" action="{{ url_for('update_meal_plan_entry', entry_id=entry.id) }}" class="edit-meal-form">
+									<form method="POST" action="{{ url_for('meal_plan.update_meal_plan_entry', entry_id=entry.id) }}" class="edit-meal-form">
 										<input type="hidden" name="week_offset" value="{{ week_offset }}">
 										<div class="mb-2 d-md-none">
 											<label style="font-size: 0.75rem; font-weight: 600; margin-bottom: 2px;">Date:</label>
@@ -705,7 +705,7 @@
 			<h5 class="mb-0"><i class="fas fa-plus"></i> Add Meal to Plan</h5>
 		</div>
 		<div class="card-body">
-			<form method="POST" action="{{ url_for('add_meal_plan_entry') }}" id="addMealForm">
+			<form method="POST" action="{{ url_for('meal_plan.add_meal_plan_entry') }}" id="addMealForm">
 				<input type="hidden" name="week_offset" value="{{ week_offset }}">
 				<div class="row g-3">
 					<div class="col-md-6 col-lg-4">
@@ -1226,7 +1226,7 @@ async function findSimilarRecipes() {
 		const formData = new FormData();
 		formData.append('week_offset', weekOffset);
 
-		const response = await fetch('{{ url_for("find_similar_recipes") }}', {
+		const response = await fetch('{{ url_for('meal_plan.find_similar_recipes') }}', {
 			method: 'POST',
 			body: formData
 		});
@@ -1439,7 +1439,7 @@ async function applySimilarRecipes() {
 	applyBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Applying...';
 
 	try {
-		const response = await fetch('{{ url_for("apply_similar_recipes") }}', {
+		const response = await fetch('{{ url_for('meal_plan.apply_similar_recipes') }}', {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json',

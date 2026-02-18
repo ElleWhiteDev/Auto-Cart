@@ -76,13 +76,19 @@ class GroceryListService(BaseService):
             consolidated = GroceryListService._consolidate_ingredients(ingredients)
 
             # Add consolidated ingredients to grocery list
-            for key, data in consolidated.items():
-                item = GroceryListItem(
-                    grocery_list_id=grocery_list.id,
+            for _, data in consolidated.items():
+                recipe_ingredient = RecipeIngredient(
                     ingredient_name=data["name"],
                     quantity=data["quantity"],
                     measurement=data["measurement"],
-                    is_checked=False,
+                )
+                db.session.add(recipe_ingredient)
+                db.session.flush()
+
+                item = GroceryListItem(
+                    grocery_list_id=grocery_list.id,
+                    recipe_ingredient_id=recipe_ingredient.id,
+                    added_by_user_id=user_id,
                 )
                 db.session.add(item)
 
@@ -115,7 +121,7 @@ class GroceryListService(BaseService):
                 ingredient.measurement.lower().strip(),
             )
 
-            quantity = parse_quantity_string(ingredient.quantity)
+            quantity = parse_quantity_string(str(ingredient.quantity))
             if quantity is not None:
                 consolidated[key]["quantity"] += quantity
 

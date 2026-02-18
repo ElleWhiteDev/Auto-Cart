@@ -36,7 +36,7 @@ content %}
 					Register Below. Already have an account? <a href="/login">Login Here</a>
 				</p>
 
-				<form method="POST">
+				<form method="POST" id="register-form">
 					{{ form.hidden_tag() }} {% for field in form if field.widget.input_type !=
 					'hidden' %}
 					<div class="mb-3">
@@ -49,7 +49,7 @@ content %}
 					{% endfor %}
 
 					<div class="d-grid">
-						<button class="btn btn-primary btn-lg" type="submit">
+						<button class="btn btn-primary btn-lg" type="submit" id="register-btn">
 							<i class="fas fa-user-plus"></i> Sign Up
 						</button>
 					</div>
@@ -69,7 +69,7 @@ content %}
 				<p class="text-muted mb-4">
 					Know someone who would love Auto-Cart? Send them an invitation email with information about the app and a link to register!
 				</p>
-				<form method="POST" action="{{ url_for('send_invite_email') }}" id="invite-form">
+				<form method="POST" action="{{ url_for('auth.send_invite_email') }}" id="invite-form">
 					<div class="mb-3">
 						<label for="invite_email" class="form-label">
 							<i class="fas fa-at"></i> Their Email Address
@@ -119,10 +119,19 @@ content %}
 </div>
 
 <script>
-// Add processing state to invite button
-document.addEventListener('DOMContentLoaded', function() {
+// Add processing state to register and invite buttons
+	document.addEventListener('DOMContentLoaded', function() {
+		const registerForm = document.getElementById('register-form');
+	const registerBtn = document.getElementById('register-btn');
 	const inviteForm = document.getElementById('invite-form');
 	const inviteBtn = document.getElementById('invite-btn');
+
+	if (registerForm && registerBtn) {
+		registerForm.addEventListener('submit', function() {
+			registerBtn.disabled = true;
+			registerBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Signing Up...';
+		});
+	}
 
 	if (inviteForm && inviteBtn) {
 		inviteForm.addEventListener('submit', function() {

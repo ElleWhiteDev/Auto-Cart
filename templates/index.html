@@ -29,7 +29,7 @@
 		<div class="recipe-box-header" data-role="header">
 			<h3><i class="fas fa-book-open mr-2"></i>Recipe Box</h3>
 		</div>
-		<form method="POST" action="{{ url_for('update_grocery_list') }}" class="p-0" data-role="body">
+		<form method="POST" action="{{ url_for('grocery.update_grocery_list') }}" class="p-0" data-role="body">
 			<div class="recipe-list">
 				{% for recipe in recipes %}
 				<div class="recipe-item">
@@ -68,7 +68,7 @@
 			<h3><i class="fas fa-plus-circle mr-2"></i>Add New Recipe</h3>
 		</div>
 		<div class="form-body" data-role="body">
-			<form method="POST" action="{{ url_for('add_recipe') }}" id="user_form" class="modal-form">
+			<form method="POST" action="{{ url_for('recipes.add_recipe') }}" id="user_form" class="modal-form">
 				{{ form.hidden_tag() }}
 
 				<!-- Recipe Name -->
@@ -162,7 +162,7 @@
 
 				<!-- New List Form (collapsible) -->
 				<div id="newListForm" style="display: none;" class="mb-2 p-3 border rounded bg-light">
-					<form method="POST" action="{{ url_for('create_grocery_list') }}">
+					<form method="POST" action="{{ url_for('grocery.create_grocery_list') }}">
 						<div class="mb-2">
 							<label for="list_name" class="form-label small"><strong>New List Name:</strong></label>
 							<input type="text" class="form-control form-control-sm" id="list_name" name="list_name" placeholder="e.g., Costco Trip, Weekly Shopping" required>
@@ -181,7 +181,7 @@
 				<!-- Rename List Form (collapsible) -->
 				{% if g.grocery_list %}
 				<div id="renameListForm" style="display: none;" class="mb-2 p-3 border rounded bg-light">
-					<form method="POST" action="{{ url_for('rename_grocery_list', list_id=g.grocery_list.id) }}">
+					<form method="POST" action="{{ url_for('grocery.rename_grocery_list', list_id=g.grocery_list.id) }}">
 						<div class="mb-2">
 							<label for="rename_list_name" class="form-label small"><strong>Rename List:</strong></label>
 							<input type="text" class="form-control form-control-sm" id="rename_list_name" name="list_name" value="{{ g.grocery_list.name }}" required>
@@ -217,17 +217,17 @@
 
 					<!-- Hidden form for Clear button -->
 					{% if g.grocery_list %}
-					<form id="clear-list-form" method="POST" action="{{ url_for('clear_grocery_list') }}" style="display: none;"></form>
+					<form id="clear-list-form" method="POST" action="{{ url_for('grocery.clear_grocery_list') }}" style="display: none;"></form>
 					{% endif %}
 
 					<!-- Second row: Shop -->
 					{% if g.grocery_list %}
 					<div class="d-flex justify-content-center align-items-center gap-2">
-						<a href="{{ url_for('shopping_mode') }}" class="btn btn-sm btn-primary" style="min-width: 90px;">
+						<a href="{{ url_for('grocery.shopping_mode') }}" class="btn btn-sm btn-primary" style="min-width: 90px;">
 							<i class="fas fa-shopping-cart mr-1"></i> Shop
 						</a>
 						{% if all_grocery_lists and all_grocery_lists|length > 1 %}
-						<form method="POST" action="{{ url_for('delete_grocery_list', list_id=g.grocery_list.id) }}" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this list?');">
+						<form method="POST" action="{{ url_for('grocery.delete_grocery_list', list_id=g.grocery_list.id) }}" style="display: inline;" onsubmit="return confirm('Are you sure you want to delete this list?');">
 							<button type="submit" class="btn btn-sm btn-outline-danger" style="min-width: 90px;">
 								<i class="fas fa-trash mr-1"></i> Delete
 							</button>
@@ -326,7 +326,7 @@
 		<!-- Manual ingredient input -->
 		{% if g.grocery_list %}
 		<div class="p-4 border-top bg-gray-50">
-			<form method="POST" action="{{ url_for('add_manual_ingredient') }}" id="manual-ingredient-form" onsubmit="handleManualIngredientSubmit(event)">
+			<form method="POST" action="{{ url_for('recipes.add_manual_ingredient') }}" id="manual-ingredient-form" onsubmit="handleManualIngredientSubmit(event)">
 				<div class="d-flex gap-2">
 					<input type="text" name="ingredient_text" class="form-input flex-1"
 						   placeholder="e.g., 2 cups flour or just milk" id="manual-ingredient-input">
@@ -353,7 +353,7 @@
 			</p>
 		</div>
 		<div class="modal-body">
-			<form method="POST" action="{{ url_for('location_search') }}" class="modal-form">
+			<form method="POST" action="{{ url_for('kroger.location_search') }}" class="modal-form">
 				<div class="form-group">
 					<label for="zipcode" class="form-label">Zipcode:</label>
 					<input type="text" name="zipcode" id="zipcode" placeholder="Enter Zipcode" class="form-input" required />
@@ -382,7 +382,7 @@
 			<p class="modal-description">Please select the store you'd like to shop at</p>
 		</div>
 		<div class="modal-body">
-			<form method="POST" action="{{ url_for('select_store') }}" class="modal-form">
+			<form method="POST" action="{{ url_for('kroger.select_store') }}" class="modal-form">
 				<div class="selection-options">
 					{% for address, city, location_id in session['stores'] %}
 					<div class="selection-option">
@@ -437,7 +437,7 @@
 		<div class="modal-body">
 			<!-- Custom Search Input -->
 			<div class="custom-search-container">
-				<form method="POST" action="{{ url_for('kroger_product_search') }}" id="custom-search-form">
+				<form method="POST" action="{{ url_for('kroger.kroger_product_search') }}" id="custom-search-form">
 					<label for="custom-search" class="form-label">
 						<i class="fas fa-search mr-2"></i>Can't find what you're looking for?
 					</label>
@@ -452,7 +452,7 @@
 				</form>
 			</div>
 
-			<form method="POST" action="{{ url_for('item_choice') }}" id="ingredient-selection-form" onsubmit="return validateIngredientSelection()">
+			<form method="POST" action="{{ url_for('kroger.item_choice') }}" id="ingredient-selection-form" onsubmit="return validateIngredientSelection()">
 				<div class="selection-options">
 					{% for item in session['items_to_choose_from'] %}
 					<div class="selection-option">
@@ -516,7 +516,7 @@
 					</button>
 				</div>
 			</form>
-			<form method="POST" action="{{ url_for('skip_ingredient') }}" id="skip-form" style="display: none;">
+			<form method="POST" action="{{ url_for('kroger.skip_ingredient') }}" id="skip-form" style="display: none;">
 			</form>
 		</div>
 	</div>
@@ -552,7 +552,7 @@
 				<a href="#modal-closed" class="btn btn-outline">
 					<i class="fas fa-arrow-left mr-2"></i>Go Back
 				</a>
-				<a href="{{ url_for('kroger_send_to_cart', confirmed='true') }}" class="btn btn-primary">
+				<a href="{{ url_for('kroger.kroger_send_to_cart', confirmed='true') }}" class="btn btn-primary">
 					<i class="fas fa-check mr-2"></i>Continue to Kroger
 				</a>
 			</div>

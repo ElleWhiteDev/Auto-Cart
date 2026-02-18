@@ -18,7 +18,7 @@ from functools import wraps
 from flask import Blueprint, request, jsonify, current_app
 
 from models import db, User, GroceryList, Recipe, RecipeIngredient, GroceryListItem
-from utils import get_est_now, parse_quantity_string
+from utils import get_est_now, parse_quantity_string, parse_simple_ingredient
 from logging_config import logger
 
 
@@ -189,57 +189,6 @@ def get_target_grocery_list_for_user(
         logger.info("Created new personal grocery list for Alexa user %s", user.id)
 
     return selected_list
-
-
-def parse_simple_ingredient(ingredient_text: str):
-    """Simple ingredient parser for basic ingredients.
-
-    This mirrors the helper used by the ``add_manual_ingredient`` route so that
-    Alexa manual additions behave like manual text input in the UI.
-    """
-
-    import re
-
-    ingredient_text = ingredient_text.strip()
-    if not ingredient_text:
-        return []
-
-    # Try to match pattern: "number unit ingredient" (e.g., "2 cups flour")
-    pattern = r"^(\d+(?:/\d+)?(?:\.\d+)?)\s+(\w+)\s+(.*)"
-    match = re.match(pattern, ingredient_text)
-
-    if match:
-        quantity, measurement, ingredient_name = match.groups()
-        return [
-            {
-                "quantity": quantity.strip(),
-                "measurement": measurement.strip(),
-                "ingredient_name": ingredient_name.strip(),
-            }
-        ]
-
-    # Try to match pattern: "number ingredient" (e.g., "2 apples")
-    pattern = r"^(\d+(?:/\d+)?(?:\.\d+)?)\s+(.*)"
-    match = re.match(pattern, ingredient_text)
-
-    if match:
-        quantity, ingredient_name = match.groups()
-        return [
-            {
-                "quantity": quantity.strip(),
-                "measurement": "item",
-                "ingredient_name": ingredient_name.strip(),
-            }
-        ]
-
-    # Default: treat as single item without unit (e.g., "pickles")
-    return [
-        {
-            "quantity": "1",
-            "measurement": "unit",
-            "ingredient_name": ingredient_text,
-        }
-    ]
 
 
 def _link_account_response(text: str):

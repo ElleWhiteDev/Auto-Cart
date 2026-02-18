@@ -96,40 +96,42 @@
 <body>
     <div class="container">
         <div class="header">
-            <div class="icon">💡</div>
-            <h1>New Feature: Similar Recipes!</h1>
+            <div class="icon">⚡</div>
+            <h1>Upgrade: Smarter Ingredients + Real-Time Plans</h1>
         </div>
         
         <div class="content">
-            <h2>Hey there! 👋</h2>
+            <h2>Hey there!</h2>
             
-            <p>We're excited to share a brand new feature that's going to make meal planning even easier: <strong>Similar Recipes</strong>!</p>
+            <p>This week’s update focuses on making grocery editing and recipe collaboration faster, smoother, and more insightful.</p>
             
             <div class="feature-box">
-                <h3>🎯 What is it?</h3>
-                <p>Similar Recipes uses AI to suggest recipes from your household collection that share 25% or more ingredients with what's already in your meal plan. It's like having a smart cooking assistant that helps you:</p>
+                <h3>🤖 AI manual ingredients</h3>
+                <p>Paste or type a single ingredient line anywhere on the dashboard. Auto-Cart will:</p>
                 <ul>
-                    <li><strong>Save money</strong> by using ingredients you're already buying</li>
-                    <li><strong>Reduce waste</strong> by planning meals that share common ingredients</li>
-                    <li><strong>Simplify shopping</strong> by consolidating your grocery list</li>
-                    <li><strong>Discover recipes</strong> you might have forgotten about</li>
+                    <li>Parse it into quantity, measurement, and ingredient with the updated GPT flow</li>
+                    <li>Consolidate it intelligently against your current list</li>
+                    <li>Save it instantly without refreshing the page</li>
                 </ul>
             </div>
             
             <div class="feature-box">
-                <h3>✨ How it works:</h3>
+                <h3>🧪 Recipe scraping + prompt upgrades</h3>
+                <p>The recipe editor now shows an in-flight loading state and our improved AI prompt keeps parsed ingredients accurate before writing them, giving you fewer blank rows and a smoother edit/save experience.</p>
+            </div>
+            
+            <div class="feature-box">
+                <h3>🌐 Real-time collaboration</h3>
                 <ul>
-                    <li>Click the <strong>"Similar Recipes"</strong> button in your meal planner</li>
-                    <li>Our AI compares your current meal plan's shopping list with all your household recipes</li>
-                    <li>See recipes with matching ingredients highlighted in orange</li>
-                    <li>Select the ones you want, pick dates and meal types, and add them to your plan</li>
+                    <li>Household members see updates to grocery lists and recipes faster</li>
+                    <li>Edited recipes synchronize across users so everyone plans from the same data</li>
+                    <li>Real-time feedback keeps teams coordinated when one person is editing and another is shopping</li>
                 </ul>
             </div>
             
-            <p>We think you're going to love how this makes meal planning smarter and more efficient. Give it a try next time you're planning your week!</p>
-            
+            <p>We hope these upgrades help you edit faster and collaborate better. Dive in and see them in action!</p>
             <div style="text-align: center;">
-                <a href="{{ meal_plan_url }}" class="cta-button">Try Similar Recipes Now →</a>
+                <a href="{{ profile_url }}" class="cta-button">Open Recipe Editor</a>
             </div>
             
             <p style="margin-top: 30px;">Happy cooking! 🍳</p>
@@ -143,4 +145,3 @@
     </div>
 </body>
 </html>
-

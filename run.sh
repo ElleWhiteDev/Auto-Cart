@@ -44,8 +44,13 @@ echo "✅ Dependencies installed"
 # Check if database needs initialization
 echo "🗄️  Checking database..."
 if [ ! -f "autocart.db" ] && [[ $DATABASE_URL == *"sqlite"* ]]; then
-    echo "📊 Initializing database..."
-    python -c "from app import app, db; app.app_context().push(); db.create_all(); print('✅ Database initialized')"
+    echo "📊 Initializing database with migrations..."
+    flask db upgrade
+    echo "✅ Database initialized"
+else
+    echo "📊 Running database migrations..."
+    flask db upgrade
+    echo "✅ Database up to date"
 fi
 
 echo ""
@@ -58,4 +63,3 @@ echo ""
 
 # Run the app
 python app.py
-

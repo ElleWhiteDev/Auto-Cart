@@ -69,6 +69,9 @@ Auto-Cart is a sophisticated web application that streamlines meal planning and 
   - Chef assignment notifications
   - Meal plan change tracking
   - Export meal plan to grocery list
+- 🧾 **Manual Ingredients**: Paste or type a single ingredient line, have Auto-Cart parse and consolidate it via AI, and add it without leaving the page.
+- 🧠 **Recipe Editing Flow**: The recipe editor now shows instant loading feedback and redirects back to your profile when saved.
+- ⚡ **Real-Time Collaboration**: Household members now stay in sync as edits flow through instantly, especially in recipes and grocery lists.
 - 🤖 **Similar Recipes**: AI-powered recipe recommendations
   - Analyzes current meal plan ingredients
   - Suggests recipes with 25%+ ingredient overlap

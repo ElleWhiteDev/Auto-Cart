@@ -34,30 +34,30 @@
 		<nav class="navbar">
 			<div class="container">
 				<div class="flex justify-between items-center w-100">
-					<a href="{{url_for('homepage')}}" class="navbar-brand">
+					<a href="{{url_for('main.homepage')}}" class="navbar-brand">
 						<i class="fas fa-shopping-cart mr-2"></i>Auto Cart
 					</a>
 					<div class="nav-right">
 						{% if g.user is none %}
-						<a class="nav-link" href="{{url_for('login')}}">
+						<a class="nav-link" href="{{url_for('auth.login')}}">
 							<i class="fas fa-sign-in-alt"></i> Login
 						</a>
-						<a class="nav-link" href="{{url_for('register')}}">
+						<a class="nav-link" href="{{url_for('auth.register')}}">
 							<i class="fas fa-user-plus"></i> Register
 						</a>
 						{% else %}
 						{% if g.household %}
-						<a class="nav-link" href="{{url_for('household_settings')}}">
+						<a class="nav-link" href="{{url_for('main.household_setup')}}">
 							<i class="fas fa-home"></i> {{ g.household.name }}
 						</a>
-						<a class="nav-link" href="{{url_for('meal_plan')}}">
+						<a class="nav-link" href="{{url_for('meal_plan.meal_plan')}}">
 							<i class="fas fa-calendar-alt"></i> Meal Plan
 						</a>
 						{% endif %}
-						<a class="nav-link" href="{{url_for('user_view')}}">
+						<a class="nav-link" href="{{url_for('auth.profile')}}">
 							<i class="fas fa-user"></i> {{ g.user.username }}
 						</a>
-						<a class="nav-link" href="{{url_for('logout')}}">
+						<a class="nav-link" href="{{url_for('auth.logout')}}">
 							<i class="fas fa-sign-out-alt"></i> Logout
 						</a>
 						{% endif %}
