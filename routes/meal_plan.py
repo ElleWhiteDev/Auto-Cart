@@ -286,6 +286,7 @@ def move_meal_plan_entry(entry_id: int) -> Any:
     payload = request.get_json(silent=True) or {}
     date_str = (payload.get("date") or request.form.get("date", "")).strip()
     meal_type = (payload.get("meal_type") or request.form.get("meal_type", "")).strip().lower()
+    target_entry_id = payload.get("target_entry_id")  # ID of card being dropped onto
 
     if not date_str or not meal_type:
         return jsonify({"success": False, "error": "Missing required fields"}), 400
@@ -301,9 +302,49 @@ def move_meal_plan_entry(entry_id: int) -> Any:
     old_date = entry.date
     old_meal_type = entry.meal_type
 
-    if old_date == new_date and old_meal_type == meal_type:
+    if old_date == new_date and old_meal_type == meal_type and not target_entry_id:
         return jsonify({"success": True, "message": "No change"})
 
+    # Check if we're swapping with another card
+    if target_entry_id:
+        target_entry = MealPlanEntry.query.get(target_entry_id)
+        if target_entry and target_entry.household_id == g.household.id:
+            # Swap the positions
+            target_old_date = target_entry.date
+            target_old_meal_type = target_entry.meal_type
+
+            target_entry.date = old_date
+            target_entry.meal_type = old_meal_type
+
+            entry.date = new_date
+            entry.meal_type = meal_type
+
+            # Log both changes
+            change1 = MealPlanChange(
+                household_id=g.household.id,
+                change_type="updated",
+                meal_name=entry.meal_name,
+                meal_date=entry.date,
+                meal_type=entry.meal_type,
+                changed_by_user_id=g.user.id,
+                change_details=f"Swapped from {old_date} {old_meal_type} to {entry.date} {entry.meal_type}",
+            )
+            change2 = MealPlanChange(
+                household_id=g.household.id,
+                change_type="updated",
+                meal_name=target_entry.meal_name,
+                meal_date=target_entry.date,
+                meal_type=target_entry.meal_type,
+                changed_by_user_id=g.user.id,
+                change_details=f"Swapped from {target_old_date} {target_old_meal_type} to {target_entry.date} {target_entry.meal_type}",
+            )
+            db.session.add(change1)
+            db.session.add(change2)
+            db.session.commit()
+
+            return jsonify({"success": True, "message": "Meals swapped successfully"})
+
+    # Regular move (no swap)
     entry.date = new_date
     entry.meal_type = meal_type
 

@@ -285,6 +285,18 @@
 		font-size: 0.8rem;
 	}
 
+	/* Mobile hold-to-move visual feedback */
+	.mobile-view .meal-card {
+		transition: transform 0.1s ease, box-shadow 0.1s ease;
+		user-select: none;
+		-webkit-user-select: none;
+		-webkit-touch-callout: none;
+	}
+
+	.mobile-view .meal-card:active {
+		transform: scale(0.98);
+	}
+
 	.meal-plan-actions {
 		display: flex;
 		gap: 0.5rem;
@@ -606,8 +618,11 @@
 							{{ meal_type|capitalize }}
 						</div>
 						{% for entry in meals[meal_type] %}
-						<div class="card mb-2 border-0 shadow-sm meal-card" id="meal-card-mobile-{{ entry.id }}" style="border-left: 3px solid #0d6efd !important;">
-							<div class="card-body p-2">
+						<div class="card mb-2 border-0 shadow-sm meal-card" id="meal-card-mobile-{{ entry.id }}" data-entry-id="{{ entry.id }}" style="border-left: 3px solid #0d6efd !important; position: relative;">
+							<div style="position: absolute; top: 8px; left: 8px; color: #9ca3af; font-size: 0.7rem; opacity: 0.6;">
+								<i class="fas fa-grip-vertical"></i>
+							</div>
+							<div class="card-body p-2" style="padding-left: 28px !important;">
 								<!-- Recipe Title Row -->
 								{% if entry.recipe and entry.recipe.url %}
 								<div class="fw-bold mb-2" style="font-size: 0.95rem; overflow-x: auto; white-space: nowrap;">
@@ -1081,6 +1096,72 @@ document.addEventListener('DOMContentLoaded', function() {
 				draggingCard = null;
 				clearDropHighlights();
 			});
+
+			// Allow dropping on cards for swapping
+			card.addEventListener('dragover', function(e) {
+				if (!draggingCard || draggingCard === this) return;
+				e.preventDefault();
+				e.stopPropagation();
+				e.dataTransfer.dropEffect = 'move';
+				this.classList.add('drag-over');
+			});
+
+			card.addEventListener('dragleave', function() {
+				this.classList.remove('drag-over');
+			});
+
+			card.addEventListener('drop', async function(e) {
+				e.preventDefault();
+				e.stopPropagation();
+				this.classList.remove('drag-over');
+
+				if (!draggingCard || draggingCard === this) return;
+
+				const movedCard = draggingCard;
+				const targetCard = this;
+				const movedEntryId = movedCard.dataset.entryId;
+				const targetEntryId = targetCard.dataset.entryId;
+
+				const movedParent = movedCard.parentElement;
+				const targetParent = targetCard.parentElement;
+
+				if (!movedEntryId || !targetEntryId) return;
+
+				// Get target position info from parent zone
+				const targetDate = targetParent.dataset.date;
+				const targetMealType = targetParent.dataset.mealType;
+
+				try {
+					const response = await fetch(`/meal-plan/move/${movedEntryId}`, {
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json',
+							'X-Requested-With': 'XMLHttpRequest'
+						},
+						body: JSON.stringify({
+							date: targetDate,
+							meal_type: targetMealType,
+							target_entry_id: targetEntryId,
+							week_offset: weekOffset
+						})
+					});
+
+					const result = await response.json();
+					if (!response.ok || !result.success) {
+						throw new Error((result && result.error) || 'Failed to swap meals');
+					}
+
+					// Swap the cards in the DOM
+					movedParent.appendChild(targetCard);
+					targetParent.appendChild(movedCard);
+
+					movedCard.classList.remove('dragging');
+					draggingCard = null;
+					showPlannerSuccess('Meals swapped successfully.');
+				} catch (err) {
+					alert(err.message || 'Could not swap meals. Please try again.');
+				}
+			});
 		});
 
 		document.querySelectorAll('.desktop-view .meal-drop-zone').forEach(zone => {
@@ -1142,6 +1223,149 @@ document.addEventListener('DOMContentLoaded', function() {
 					showPlannerSuccess(`Meal moved to ${destinationLabel}.`);
 				} catch (err) {
 					alert(err.message || 'Could not move meal. Please try again.');
+				}
+			});
+		});
+	} else {
+		// Mobile: Hold-to-move functionality
+		let holdTimer = null;
+		let selectedCard = null;
+		let touchStartY = 0;
+		let touchStartX = 0;
+		const HOLD_DURATION = 500; // milliseconds
+
+		function showMoveModal(card) {
+			const entryId = card.dataset.entryId;
+			const cardTitle = card.querySelector('.fw-bold')?.textContent || 'Meal';
+
+			// Create modal
+			const modal = document.createElement('div');
+			modal.className = 'modal show';
+			modal.style.display = 'block';
+			modal.innerHTML = `
+				<div class="modal-dialog">
+					<div class="modal-content">
+						<div class="modal-header">
+							<h5 class="modal-title">Move "${cardTitle}"</h5>
+							<button type="button" class="btn-close" onclick="this.closest('.modal').remove(); document.querySelector('.modal-backdrop')?.remove();">&times;</button>
+						</div>
+						<div class="modal-body">
+							<div class="mb-3">
+								<label class="form-label"><strong>Move to Date:</strong></label>
+								<input type="date" class="form-control" id="mobile-move-date" required>
+							</div>
+							<div class="mb-3">
+								<label class="form-label"><strong>Move to Meal:</strong></label>
+								<select class="form-control" id="mobile-move-meal-type" required>
+									<option value="">Select meal type...</option>
+									<option value="breakfast">Breakfast</option>
+									<option value="lunch">Lunch</option>
+									<option value="dinner">Dinner</option>
+								</select>
+							</div>
+						</div>
+						<div class="modal-footer">
+							<button type="button" class="btn btn-secondary" onclick="this.closest('.modal').remove(); document.querySelector('.modal-backdrop')?.remove();">Cancel</button>
+							<button type="button" class="btn btn-primary" id="mobile-move-confirm">Move</button>
+						</div>
+					</div>
+				</div>
+			`;
+
+			document.body.appendChild(modal);
+			document.body.classList.add('modal-open');
+
+			// Add backdrop
+			const backdrop = document.createElement('div');
+			backdrop.className = 'modal-backdrop fade show';
+			document.body.appendChild(backdrop);
+
+			// Handle move confirmation
+			document.getElementById('mobile-move-confirm').addEventListener('click', async function() {
+				const newDate = document.getElementById('mobile-move-date').value;
+				const newMealType = document.getElementById('mobile-move-meal-type').value;
+
+				if (!newDate || !newMealType) {
+					alert('Please select both date and meal type');
+					return;
+				}
+
+				this.disabled = true;
+				this.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Moving...';
+
+				try {
+					const response = await fetch(`/meal-plan/move/${entryId}`, {
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json',
+							'X-Requested-With': 'XMLHttpRequest'
+						},
+						body: JSON.stringify({
+							date: newDate,
+							meal_type: newMealType,
+							week_offset: weekOffset
+						})
+					});
+
+					const result = await response.json();
+					if (!response.ok || !result.success) {
+						throw new Error((result && result.error) || 'Failed to move meal');
+					}
+
+					// Close modal and reload page
+					modal.remove();
+					backdrop.remove();
+					document.body.classList.remove('modal-open');
+					window.location.reload();
+				} catch (err) {
+					alert(err.message || 'Could not move meal. Please try again.');
+					this.disabled = false;
+					this.innerHTML = 'Move';
+				}
+			});
+		}
+
+		document.querySelectorAll('.mobile-view .meal-card').forEach(card => {
+			card.addEventListener('touchstart', function(e) {
+				if (this.classList.contains('editing')) return;
+
+				touchStartY = e.touches[0].clientY;
+				touchStartX = e.touches[0].clientX;
+				selectedCard = this;
+
+				holdTimer = setTimeout(() => {
+					// Vibrate if available
+					if (navigator.vibrate) {
+						navigator.vibrate(50);
+					}
+					showMoveModal(this);
+					holdTimer = null;
+				}, HOLD_DURATION);
+			});
+
+			card.addEventListener('touchmove', function(e) {
+				// Cancel hold if user moves finger too much
+				if (holdTimer) {
+					const moveY = Math.abs(e.touches[0].clientY - touchStartY);
+					const moveX = Math.abs(e.touches[0].clientX - touchStartX);
+					if (moveY > 10 || moveX > 10) {
+						clearTimeout(holdTimer);
+						holdTimer = null;
+					}
+				}
+			});
+
+			card.addEventListener('touchend', function() {
+				if (holdTimer) {
+					clearTimeout(holdTimer);
+					holdTimer = null;
+				}
+			});
+
+			card.addEventListener('touchcancel', function() {
+				if (holdTimer) {
+					clearTimeout(holdTimer);
+					holdTimer = null;
 				}
 			});
 		});
