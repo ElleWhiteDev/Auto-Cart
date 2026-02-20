@@ -285,16 +285,34 @@
 		font-size: 0.8rem;
 	}
 
-	/* Mobile hold-to-move visual feedback */
+	/* Mobile drag-and-drop visual feedback */
 	.mobile-view .meal-card {
-		transition: transform 0.1s ease, box-shadow 0.1s ease;
-		user-select: none;
-		-webkit-user-select: none;
-		-webkit-touch-callout: none;
+		transition: transform 0.15s ease, box-shadow 0.15s ease;
+		position: relative;
 	}
 
-	.mobile-view .meal-card:active {
+	.mobile-view .meal-card.dragging {
+		opacity: 0.55;
 		transform: scale(0.98);
+		box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+	}
+
+	.mobile-view .meal-card.drag-over {
+		background-color: #eff6ff !important;
+		outline: 2px dashed #60a5fa;
+		outline-offset: -2px;
+	}
+
+	.mobile-drag-handle {
+		cursor: grab;
+		touch-action: none;
+		padding: 8px;
+		margin: -8px;
+		margin-right: 4px;
+	}
+
+	.mobile-drag-handle:active {
+		cursor: grabbing;
 	}
 
 	.meal-plan-actions {
@@ -618,21 +636,31 @@
 							{{ meal_type|capitalize }}
 						</div>
 						{% for entry in meals[meal_type] %}
-						<div class="card mb-2 border-0 shadow-sm meal-card" id="meal-card-mobile-{{ entry.id }}" data-entry-id="{{ entry.id }}" style="border-left: 3px solid #0d6efd !important; position: relative;">
-							<div style="position: absolute; top: 8px; left: 8px; color: #9ca3af; font-size: 0.7rem; opacity: 0.6;">
-								<i class="fas fa-grip-vertical"></i>
-							</div>
-							<div class="card-body p-2" style="padding-left: 28px !important;">
-								<!-- Recipe Title Row -->
-								{% if entry.recipe and entry.recipe.url %}
-								<div class="fw-bold mb-2" style="font-size: 0.95rem; overflow-x: auto; white-space: nowrap;">
-									<a href="{{ entry.recipe.url }}" target="_blank" class="text-primary text-decoration-none meal-link" title="View recipe at {{ entry.recipe.url }}">
-										{{ entry.meal_name }} <i class="fas fa-external-link-alt" style="font-size: 0.7rem;"></i>
-									</a>
+						<div class="card mb-2 border-0 shadow-sm meal-card"
+							id="meal-card-mobile-{{ entry.id }}"
+							data-entry-id="{{ entry.id }}"
+							data-date="{{ date.strftime('%Y-%m-%d') }}"
+							data-meal-type="{{ meal_type }}"
+							draggable="false"
+							style="border-left: 3px solid #0d6efd !important;">
+							<div class="card-body p-2" style="display: flex; align-items: flex-start;">
+								<!-- Drag Handle -->
+								<div class="mobile-drag-handle" style="color: #9ca3af; font-size: 1rem; flex-shrink: 0; margin-right: 8px;">
+									<i class="fas fa-grip-vertical"></i>
 								</div>
-								{% else %}
-								<div class="fw-bold text-primary mb-2" style="font-size: 0.95rem; overflow-x: auto; white-space: nowrap;">{{ entry.meal_name }}</div>
-								{% endif %}
+
+								<!-- Card Content -->
+								<div style="flex-grow: 1; min-width: 0;">
+									<!-- Recipe Title Row -->
+									{% if entry.recipe and entry.recipe.url %}
+									<div class="fw-bold mb-2" style="font-size: 0.95rem; overflow-x: auto; white-space: nowrap;">
+										<a href="{{ entry.recipe.url }}" target="_blank" class="text-primary text-decoration-none meal-link" title="View recipe at {{ entry.recipe.url }}">
+											{{ entry.meal_name }} <i class="fas fa-external-link-alt" style="font-size: 0.7rem;"></i>
+										</a>
+									</div>
+									{% else %}
+									<div class="fw-bold text-primary mb-2" style="font-size: 0.95rem; overflow-x: auto; white-space: nowrap;">{{ entry.meal_name }}</div>
+									{% endif %}
 
 								<!-- Chef Display Mode (default) -->
 								<div class="chef-display">
@@ -695,8 +723,9 @@
 										</div>
 									</form>
 								</div>
-							</div>
-						</div>
+								</div><!-- Close content wrapper -->
+							</div><!-- Close card-body -->
+						</div><!-- Close meal-card -->
 						{% endfor %}
 					</div>
 					{% endif %}
@@ -1227,145 +1256,124 @@ document.addEventListener('DOMContentLoaded', function() {
 			});
 		});
 	} else {
-		// Mobile: Hold-to-move functionality
-		let holdTimer = null;
-		let selectedCard = null;
-		let touchStartY = 0;
-		let touchStartX = 0;
-		const HOLD_DURATION = 500; // milliseconds
+		// Mobile: Drag-and-drop functionality with handle
+		let draggingCard = null;
+		let draggedOverCard = null;
 
-		function showMoveModal(card) {
-			const entryId = card.dataset.entryId;
-			const cardTitle = card.querySelector('.fw-bold')?.textContent || 'Meal';
+		// Make cards draggable via handle
+		document.querySelectorAll('.mobile-view .mobile-drag-handle').forEach(handle => {
+			const card = handle.closest('.meal-card');
 
-			// Create modal
-			const modal = document.createElement('div');
-			modal.className = 'modal show';
-			modal.style.display = 'block';
-			modal.innerHTML = `
-				<div class="modal-dialog">
-					<div class="modal-content">
-						<div class="modal-header">
-							<h5 class="modal-title">Move "${cardTitle}"</h5>
-							<button type="button" class="btn-close" onclick="this.closest('.modal').remove(); document.querySelector('.modal-backdrop')?.remove();">&times;</button>
-						</div>
-						<div class="modal-body">
-							<div class="mb-3">
-								<label class="form-label"><strong>Move to Date:</strong></label>
-								<input type="date" class="form-control" id="mobile-move-date" required>
-							</div>
-							<div class="mb-3">
-								<label class="form-label"><strong>Move to Meal:</strong></label>
-								<select class="form-control" id="mobile-move-meal-type" required>
-									<option value="">Select meal type...</option>
-									<option value="breakfast">Breakfast</option>
-									<option value="lunch">Lunch</option>
-									<option value="dinner">Dinner</option>
-								</select>
-							</div>
-						</div>
-						<div class="modal-footer">
-							<button type="button" class="btn btn-secondary" onclick="this.closest('.modal').remove(); document.querySelector('.modal-backdrop')?.remove();">Cancel</button>
-							<button type="button" class="btn btn-primary" id="mobile-move-confirm">Move</button>
-						</div>
-					</div>
-				</div>
-			`;
-
-			document.body.appendChild(modal);
-			document.body.classList.add('modal-open');
-
-			// Add backdrop
-			const backdrop = document.createElement('div');
-			backdrop.className = 'modal-backdrop fade show';
-			document.body.appendChild(backdrop);
-
-			// Handle move confirmation
-			document.getElementById('mobile-move-confirm').addEventListener('click', async function() {
-				const newDate = document.getElementById('mobile-move-date').value;
-				const newMealType = document.getElementById('mobile-move-meal-type').value;
-
-				if (!newDate || !newMealType) {
-					alert('Please select both date and meal type');
+			handle.addEventListener('touchstart', function(e) {
+				if (card.classList.contains('editing')) {
 					return;
 				}
 
-				this.disabled = true;
-				this.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Moving...';
+				// Enable dragging on the card
+				card.setAttribute('draggable', 'true');
+				draggingCard = card;
+
+				// Vibrate if available
+				if (navigator.vibrate) {
+					navigator.vibrate(50);
+				}
+
+				// Add visual feedback
+				setTimeout(() => {
+					if (draggingCard === card) {
+						card.classList.add('dragging');
+					}
+				}, 50);
+			});
+
+			handle.addEventListener('touchend', function() {
+				// Disable dragging after touch ends
+				setTimeout(() => {
+					card.setAttribute('draggable', 'false');
+					card.classList.remove('dragging');
+					draggingCard = null;
+				}, 100);
+			});
+		});
+
+		// Handle drag events on mobile cards
+		document.querySelectorAll('.mobile-view .meal-card').forEach(card => {
+			card.addEventListener('dragstart', function(e) {
+				if (this.classList.contains('editing')) {
+					e.preventDefault();
+					return;
+				}
+				draggingCard = this;
+				this.classList.add('dragging');
+				e.dataTransfer.effectAllowed = 'move';
+				e.dataTransfer.setData('text/plain', this.dataset.entryId || '');
+			});
+
+			card.addEventListener('dragend', function() {
+				this.classList.remove('dragging');
+				draggingCard = null;
+				clearDropHighlights();
+			});
+
+			// Allow dropping on cards for swapping
+			card.addEventListener('dragover', function(e) {
+				if (!draggingCard || draggingCard === this) return;
+				e.preventDefault();
+				e.stopPropagation();
+				e.dataTransfer.dropEffect = 'move';
+				this.classList.add('drag-over');
+				draggedOverCard = this;
+			});
+
+			card.addEventListener('dragleave', function() {
+				this.classList.remove('drag-over');
+				if (draggedOverCard === this) {
+					draggedOverCard = null;
+				}
+			});
+
+			card.addEventListener('drop', async function(e) {
+				e.preventDefault();
+				e.stopPropagation();
+				this.classList.remove('drag-over');
+
+				if (!draggingCard || draggingCard === this) return;
+
+				const movedCard = draggingCard;
+				const targetCard = this;
+				const movedEntryId = movedCard.dataset.entryId;
+				const targetEntryId = targetCard.dataset.entryId;
+
+				if (!movedEntryId || !targetEntryId) return;
+
+				// Get target position info
+				const targetDate = targetCard.dataset.date;
+				const targetMealType = targetCard.dataset.mealType;
 
 				try {
-					const response = await fetch(`/meal-plan/move/${entryId}`, {
+					const response = await fetch(`/meal-plan/move/${movedEntryId}`, {
 						method: 'POST',
 						headers: {
 							'Content-Type': 'application/json',
 							'X-Requested-With': 'XMLHttpRequest'
 						},
 						body: JSON.stringify({
-							date: newDate,
-							meal_type: newMealType,
+							date: targetDate,
+							meal_type: targetMealType,
+							target_entry_id: targetEntryId,
 							week_offset: weekOffset
 						})
 					});
 
 					const result = await response.json();
 					if (!response.ok || !result.success) {
-						throw new Error((result && result.error) || 'Failed to move meal');
+						throw new Error((result && result.error) || 'Failed to swap meals');
 					}
 
-					// Close modal and reload page
-					modal.remove();
-					backdrop.remove();
-					document.body.classList.remove('modal-open');
+					// Reload page to show swapped positions
 					window.location.reload();
 				} catch (err) {
-					alert(err.message || 'Could not move meal. Please try again.');
-					this.disabled = false;
-					this.innerHTML = 'Move';
-				}
-			});
-		}
-
-		document.querySelectorAll('.mobile-view .meal-card').forEach(card => {
-			card.addEventListener('touchstart', function(e) {
-				if (this.classList.contains('editing')) return;
-
-				touchStartY = e.touches[0].clientY;
-				touchStartX = e.touches[0].clientX;
-				selectedCard = this;
-
-				holdTimer = setTimeout(() => {
-					// Vibrate if available
-					if (navigator.vibrate) {
-						navigator.vibrate(50);
-					}
-					showMoveModal(this);
-					holdTimer = null;
-				}, HOLD_DURATION);
-			});
-
-			card.addEventListener('touchmove', function(e) {
-				// Cancel hold if user moves finger too much
-				if (holdTimer) {
-					const moveY = Math.abs(e.touches[0].clientY - touchStartY);
-					const moveX = Math.abs(e.touches[0].clientX - touchStartX);
-					if (moveY > 10 || moveX > 10) {
-						clearTimeout(holdTimer);
-						holdTimer = null;
-					}
-				}
-			});
-
-			card.addEventListener('touchend', function() {
-				if (holdTimer) {
-					clearTimeout(holdTimer);
-					holdTimer = null;
-				}
-			});
-
-			card.addEventListener('touchcancel', function() {
-				if (holdTimer) {
-					clearTimeout(holdTimer);
-					holdTimer = null;
+					alert(err.message || 'Could not swap meals. Please try again.');
 				}
 			});
 		});
