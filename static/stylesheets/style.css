@@ -1045,6 +1045,13 @@ nav {
 	.scrollable-list {
 		max-height: 300px;
 	}
+
+	/* Make textareas bigger on mobile for better usability */
+	textarea,
+	.form-textarea,
+	.custom-form-control[type="textarea"] {
+		min-height: 200px !important;
+	}
 }
 
 /* ===================================

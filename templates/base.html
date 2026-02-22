@@ -57,6 +57,9 @@
 						<a class="nav-link" href="{{url_for('auth.profile')}}">
 							<i class="fas fa-user"></i> {{ g.user.username }}
 						</a>
+						<a class="nav-link" href="#feedback-modal" id="feedback-modal-trigger">
+							<i class="fas fa-comment-dots"></i> Feedback
+						</a>
 						<a class="nav-link" href="{{url_for('auth.logout')}}">
 							<i class="fas fa-sign-out-alt"></i> Logout
 						</a>
@@ -82,6 +85,69 @@
 			</div>
 		</main>
 
+		<!-- Feedback Modal -->
+		{% if g.user %}
+		<div id="feedback-modal" class="modal-container">
+			<div class="my-modal">
+				<div class="modal-header">
+					<h2 class="modal-title">
+						<i class="fas fa-comment-dots text-primary mr-2"></i>Submit Feedback
+					</h2>
+					<a href="#modal-closed" class="close-modal">&times;</a>
+				</div>
+				<div class="modal-body">
+					<p class="text-gray-600 mb-4">
+						We'd love to hear your thoughts! Share your feedback, suggestions, or report any issues you've encountered.
+					</p>
+					<form method="POST" action="{{ url_for('main.submit_feedback') }}" id="feedback-form">
+						<div class="form-group">
+							<label for="feedback-type" class="form-label">Feedback Type</label>
+							<select id="feedback-type" name="feedback_type" class="form-select" required>
+								<option value="">Select a type...</option>
+								<option value="bug">Bug Report</option>
+								<option value="feature">Feature Request</option>
+								<option value="improvement">Improvement Suggestion</option>
+								<option value="general">General Feedback</option>
+							</select>
+						</div>
+						<div class="form-group">
+							<label for="feedback-message" class="form-label">Your Feedback</label>
+							<textarea
+								id="feedback-message"
+								name="message"
+								class="form-textarea"
+								rows="6"
+								placeholder="Tell us what's on your mind..."
+								required
+							></textarea>
+						</div>
+						<div class="modal-footer">
+							<a href="#modal-closed" class="btn btn-secondary">Cancel</a>
+							<button type="submit" class="btn btn-primary" id="feedback-submit-btn">
+								<i class="fas fa-paper-plane mr-2"></i>Submit Feedback
+							</button>
+						</div>
+					</form>
+				</div>
+			</div>
+		</div>
+		{% endif %}
+
 		{% block scripts %}{% endblock %}
+
+		<script>
+		// Handle feedback form submission loading state
+		document.addEventListener('DOMContentLoaded', function() {
+			const feedbackForm = document.getElementById('feedback-form');
+			const feedbackSubmitBtn = document.getElementById('feedback-submit-btn');
+
+			if (feedbackForm && feedbackSubmitBtn) {
+				feedbackForm.addEventListener('submit', function() {
+					feedbackSubmitBtn.disabled = true;
+					feedbackSubmitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Submitting...';
+				});
+			}
+		});
+		</script>
 	</body>
 </html>
