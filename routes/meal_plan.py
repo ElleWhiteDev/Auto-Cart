@@ -38,6 +38,103 @@ meal_plan_bp = Blueprint("meal_plan", __name__)
 
 
 # Email notification helper functions
+def send_chef_assigned_to_meal_email(
+    recipient_email: str,
+    recipient_name: str,
+    meal_name: str,
+    meal_date,
+    meal_type: str,
+    household_name: str,
+    assigned_by_name: str,
+) -> None:
+    """Send email to chef when they're assigned to cook a meal"""
+    # Get admin email from config or use default sender
+    admin_email = mail.default_sender or "support@autocart.com"
+
+    # Build meal plan URL
+    base_url = request.url_root.rstrip("/")
+    meal_plan_url = f"{base_url}/meal-plan"
+
+    # Format the date nicely
+    if isinstance(meal_date, str):
+        meal_date = datetime.strptime(meal_date, "%Y-%m-%d").date()
+    formatted_date = meal_date.strftime("%A, %B %d, %Y")
+
+    subject = f"You've been assigned to cook {meal_name} on {formatted_date}"
+
+    html_body = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+        .header {{ background-color: #27AE60; color: white; padding: 20px; text-align: center; }}
+        .content {{ background-color: #f9f9f9; padding: 20px; }}
+        .meal-details {{ background-color: white; padding: 15px; margin: 15px 0; border-left: 4px solid #27AE60; }}
+        .button {{ display: inline-block; padding: 12px 24px; background-color: #4A90E2; color: white !important; text-decoration: none; border-radius: 4px; margin: 15px 0; }}
+        .footer {{ text-align: center; padding: 20px; color: #666; font-size: 12px; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>👨‍🍳 You're Cooking!</h1>
+        </div>
+        <div class="content">
+            <p>Hi {recipient_name},</p>
+
+            <p><strong>{assigned_by_name}</strong> has assigned you to cook the following meal in the <strong>{household_name}</strong> household:</p>
+
+            <div class="meal-details">
+                <p><strong>Meal:</strong> {meal_name}</p>
+                <p><strong>Date:</strong> {formatted_date}</p>
+                <p><strong>Type:</strong> {meal_type.capitalize()}</p>
+            </div>
+
+            <p>Check the meal plan to see the recipe details and start planning!</p>
+
+            <a href="{meal_plan_url}" class="button">View Meal Plan</a>
+        </div>
+        <div class="footer">
+            <p>Auto-Cart - Smart Household Grocery Management</p>
+            <p>For support: {admin_email}</p>
+        </div>
+    </div>
+</body>
+</html>
+    """
+
+    text_body = f"""
+You're Cooking!
+
+Hi {recipient_name},
+
+{assigned_by_name} has assigned you to cook the following meal in the {household_name} household:
+
+Meal: {meal_name}
+Date: {formatted_date}
+Type: {meal_type.capitalize()}
+
+Check the meal plan to see the recipe details and start planning!
+
+View your meal plan: {meal_plan_url}
+
+---
+Auto-Cart - Smart Household Grocery Management
+For support: {admin_email}
+    """
+
+    msg = Message(
+        subject=subject, recipients=[recipient_email], body=text_body, html=html_body
+    )
+
+    mail.send(msg)
+    logger.info(
+        f"Chef assigned email sent to {recipient_email} for meal {meal_name} on {meal_date}"
+    )
+
+
 def send_chef_removed_from_meal_email(
     recipient_email: str,
     recipient_name: str,
@@ -384,6 +481,37 @@ def add_meal_plan_entry() -> Response:
 
         db.session.commit()
 
+        # Send email notifications to assigned chefs
+        # Only notify if they were assigned by a different user
+        if assigned_cook_ids:
+            cooks = User.query.filter(User.id.in_(assigned_cook_ids)).all()
+            for cook in cooks:
+                # Skip if the cook assigned themselves
+                if cook.id == g.user.id:
+                    continue
+
+                if cook.email:
+                    # Check if the cook has chef assignment emails enabled for this household
+                    member = HouseholdMember.query.filter_by(
+                        household_id=g.household.id, user_id=cook.id
+                    ).first()
+
+                    if member and member.receive_chef_assignment_emails:
+                        try:
+                            send_chef_assigned_to_meal_email(
+                                recipient_email=cook.email,
+                                recipient_name=cook.username,
+                                meal_name=entry.meal_name,
+                                meal_date=entry.date,
+                                meal_type=entry.meal_type,
+                                household_name=g.household.name,
+                                assigned_by_name=g.user.username,
+                            )
+                        except Exception as e:
+                            logger.error(
+                                f"Failed to send chef assigned email to {cook.email}: {e}"
+                            )
+
         flash("Meal added to plan!", "success")
     except Exception as e:
         db.session.rollback()
@@ -416,8 +544,13 @@ def delete_meal_plan_entry(entry_id: int) -> Response:
     week_offset = request.form.get("week_offset", 0)
 
     # Send email notifications to assigned chefs before deleting
+    # Only notify if the change is made by a different user
     if entry.assigned_cooks:
         for cook in entry.assigned_cooks:
+            # Skip if the cook is the one making the change
+            if cook.id == g.user.id:
+                continue
+
             if cook.email:
                 # Check if the cook has chef assignment emails enabled for this household
                 member = HouseholdMember.query.filter_by(
@@ -656,7 +789,12 @@ def update_meal_plan_entry(entry_id: int) -> Response:
     removed_cooks = [cook for cook in current_cooks if cook.id in removed_cook_ids]
 
     # Send emails to removed chefs who have opted in
+    # Only notify if the change is made by a different user
     for cook in removed_cooks:
+        # Skip if the cook is the one making the change (removing themselves)
+        if cook.id == g.user.id:
+            continue
+
         if cook.email:
             # Check if the cook has chef assignment emails enabled for this household
             member = HouseholdMember.query.filter_by(
@@ -678,6 +816,9 @@ def update_meal_plan_entry(entry_id: int) -> Response:
                         f"Failed to send chef removed email to {cook.email}: {e}"
                     )
 
+    # Find newly added cooks (those who weren't assigned before)
+    added_cook_ids = set(new_cook_ids) - current_cook_ids
+
     # Update the assigned cooks
     cooks = User.query.filter(User.id.in_(new_cook_ids)).all() if new_cook_ids else []
 
@@ -689,6 +830,38 @@ def update_meal_plan_entry(entry_id: int) -> Response:
         entry.assigned_cooks.append(cook)
 
     db.session.commit()
+
+    # Send emails to newly added chefs who have opted in
+    # Only notify if they were assigned by a different user
+    if added_cook_ids:
+        added_cooks = User.query.filter(User.id.in_(added_cook_ids)).all()
+        for cook in added_cooks:
+            # Skip if the cook assigned themselves
+            if cook.id == g.user.id:
+                continue
+
+            if cook.email:
+                # Check if the cook has chef assignment emails enabled for this household
+                member = HouseholdMember.query.filter_by(
+                    household_id=g.household.id, user_id=cook.id
+                ).first()
+
+                if member and member.receive_chef_assignment_emails:
+                    try:
+                        send_chef_assigned_to_meal_email(
+                            recipient_email=cook.email,
+                            recipient_name=cook.username,
+                            meal_name=entry.meal_name,
+                            meal_date=entry.date,
+                            meal_type=entry.meal_type,
+                            household_name=g.household.name,
+                            assigned_by_name=g.user.username,
+                        )
+                    except Exception as e:
+                        logger.error(
+                            f"Failed to send chef assigned email to {cook.email}: {e}"
+                        )
+
     flash("Meal plan updated", "success")
     return redirect(url_for("meal_plan.meal_plan") + f"?week={week_offset}")
 
