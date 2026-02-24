@@ -4,6 +4,7 @@ Meal planning routes blueprint.
 Handles meal plan CRUD operations and email notifications.
 """
 
+import os
 from datetime import datetime, timedelta
 from flask import (
     Blueprint,
@@ -16,6 +17,7 @@ from flask import (
     session,
     jsonify,
 )
+from flask_mail import Message
 from werkzeug.wrappers import Response
 
 from extensions import db, mail
@@ -26,12 +28,206 @@ from models import (
     User,
     MealPlanChange,
     HouseholdMember,
+    Household,
 )
 from utils import require_login, CURR_GROCERY_LIST_KEY, get_est_date
 from logging_config import logger
-from typing import Union, Dict, Any
+from typing import Union, Dict, Any, Tuple
 
 meal_plan_bp = Blueprint("meal_plan", __name__)
+
+
+# Email notification helper functions
+def send_chef_removed_from_meal_email(
+    recipient_email: str,
+    recipient_name: str,
+    meal_name: str,
+    meal_date,
+    meal_type: str,
+    household_name: str,
+) -> None:
+    """Send email to chef when they're removed from a meal plan entry"""
+    # Get admin email from config or use default sender
+    admin_email = mail.default_sender or "support@autocart.com"
+
+    # Build meal plan URL
+    base_url = request.url_root.rstrip("/")
+    meal_plan_url = f"{base_url}/meal-plan"
+
+    # Format the date nicely
+    if isinstance(meal_date, str):
+        meal_date = datetime.strptime(meal_date, "%Y-%m-%d").date()
+    formatted_date = meal_date.strftime("%A, %B %d, %Y")
+
+    subject = f"You've been removed from cooking {meal_name} on {formatted_date}"
+
+    html_body = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+        .header {{ background-color: #4A90E2; color: white; padding: 20px; text-align: center; }}
+        .content {{ background-color: #f9f9f9; padding: 20px; }}
+        .meal-details {{ background-color: white; padding: 15px; margin: 15px 0; border-left: 4px solid #4A90E2; }}
+        .button {{ display: inline-block; padding: 12px 24px; background-color: #4A90E2; color: white !important; text-decoration: none; border-radius: 4px; margin: 15px 0; }}
+        .footer {{ text-align: center; padding: 20px; color: #666; font-size: 12px; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🍳 Chef Assignment Update</h1>
+        </div>
+        <div class="content">
+            <p>Hi {recipient_name},</p>
+
+            <p>You've been removed from cooking the following meal in the <strong>{household_name}</strong> household:</p>
+
+            <div class="meal-details">
+                <p><strong>Meal:</strong> {meal_name}</p>
+                <p><strong>Date:</strong> {formatted_date}</p>
+                <p><strong>Type:</strong> {meal_type.capitalize()}</p>
+            </div>
+
+            <p>This change was made by another household member. If you have questions, please check with your household.</p>
+
+            <a href="{meal_plan_url}" class="button">View Meal Plan</a>
+        </div>
+        <div class="footer">
+            <p>Auto-Cart - Smart Household Grocery Management</p>
+            <p>For support: {admin_email}</p>
+        </div>
+    </div>
+</body>
+</html>
+    """
+
+    text_body = f"""
+Chef Assignment Update
+
+Hi {recipient_name},
+
+You've been removed from cooking the following meal in the {household_name} household:
+
+Meal: {meal_name}
+Date: {formatted_date}
+Type: {meal_type.capitalize()}
+
+This change was made by another household member. If you have questions, please check with your household.
+
+View your meal plan: {meal_plan_url}
+
+---
+Auto-Cart - Smart Household Grocery Management
+For support: {admin_email}
+    """
+
+    msg = Message(
+        subject=subject, recipients=[recipient_email], body=text_body, html=html_body
+    )
+
+    mail.send(msg)
+    logger.info(
+        f"Chef removed email sent to {recipient_email} for meal {meal_name} on {meal_date}"
+    )
+
+
+def send_meal_deleted_email(
+    recipient_email: str,
+    recipient_name: str,
+    meal_name: str,
+    meal_date,
+    meal_type: str,
+    household_name: str,
+) -> None:
+    """Send email to chef when a meal they're assigned to is deleted from the plan"""
+    # Get admin email from config or use default sender
+    admin_email = mail.default_sender or "support@autocart.com"
+
+    # Build meal plan URL
+    base_url = request.url_root.rstrip("/")
+    meal_plan_url = f"{base_url}/meal-plan"
+
+    # Format the date nicely
+    if isinstance(meal_date, str):
+        meal_date = datetime.strptime(meal_date, "%Y-%m-%d").date()
+    formatted_date = meal_date.strftime("%A, %B %d, %Y")
+
+    subject = f"Meal removed from plan: {meal_name} on {formatted_date}"
+
+    html_body = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+        .header {{ background-color: #E74C3C; color: white; padding: 20px; text-align: center; }}
+        .content {{ background-color: #f9f9f9; padding: 20px; }}
+        .meal-details {{ background-color: white; padding: 15px; margin: 15px 0; border-left: 4px solid #E74C3C; }}
+        .button {{ display: inline-block; padding: 12px 24px; background-color: #4A90E2; color: white !important; text-decoration: none; border-radius: 4px; margin: 15px 0; }}
+        .footer {{ text-align: center; padding: 20px; color: #666; font-size: 12px; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🗑️ Meal Removed from Plan</h1>
+        </div>
+        <div class="content">
+            <p>Hi {recipient_name},</p>
+
+            <p>A meal you were assigned to cook has been removed from the <strong>{household_name}</strong> meal plan:</p>
+
+            <div class="meal-details">
+                <p><strong>Meal:</strong> {meal_name}</p>
+                <p><strong>Date:</strong> {formatted_date}</p>
+                <p><strong>Type:</strong> {meal_type.capitalize()}</p>
+            </div>
+
+            <p>This meal has been deleted from the plan by another household member.</p>
+
+            <a href="{meal_plan_url}" class="button">View Meal Plan</a>
+        </div>
+        <div class="footer">
+            <p>Auto-Cart - Smart Household Grocery Management</p>
+            <p>For support: {admin_email}</p>
+        </div>
+    </div>
+</body>
+</html>
+    """
+
+    text_body = f"""
+Meal Removed from Plan
+
+Hi {recipient_name},
+
+A meal you were assigned to cook has been removed from the {household_name} meal plan:
+
+Meal: {meal_name}
+Date: {formatted_date}
+Type: {meal_type.capitalize()}
+
+This meal has been deleted from the plan by another household member.
+
+View your meal plan: {meal_plan_url}
+
+---
+Auto-Cart - Smart Household Grocery Management
+For support: {admin_email}
+    """
+
+    msg = Message(
+        subject=subject, recipients=[recipient_email], body=text_body, html=html_body
+    )
+
+    mail.send(msg)
+    logger.info(
+        f"Meal deleted email sent to {recipient_email} for meal {meal_name} on {meal_date}"
+    )
 
 
 @meal_plan_bp.route("/meal-plan")
@@ -175,6 +371,17 @@ def add_meal_plan_entry() -> Response:
             for cook in cooks:
                 entry.assigned_cooks.append(cook)
 
+        # Track the change for daily summary
+        change = MealPlanChange(
+            household_id=g.household.id,
+            change_type="added",
+            meal_name=entry.meal_name,
+            meal_date=entry.date,
+            meal_type=entry.meal_type,
+            changed_by_user_id=g.user.id,
+        )
+        db.session.add(change)
+
         db.session.commit()
 
         flash("Meal added to plan!", "success")
@@ -207,6 +414,41 @@ def delete_meal_plan_entry(entry_id: int) -> Response:
         return redirect(url_for("meal_plan.meal_plan"))
 
     week_offset = request.form.get("week_offset", 0)
+
+    # Send email notifications to assigned chefs before deleting
+    if entry.assigned_cooks:
+        for cook in entry.assigned_cooks:
+            if cook.email:
+                # Check if the cook has chef assignment emails enabled for this household
+                member = HouseholdMember.query.filter_by(
+                    household_id=g.household.id, user_id=cook.id
+                ).first()
+
+                if member and member.receive_chef_assignment_emails:
+                    try:
+                        send_meal_deleted_email(
+                            recipient_email=cook.email,
+                            recipient_name=cook.username,
+                            meal_name=entry.meal_name,
+                            meal_date=entry.date,
+                            meal_type=entry.meal_type,
+                            household_name=g.household.name,
+                        )
+                    except Exception as e:
+                        logger.error(
+                            f"Failed to send meal deleted email to {cook.email}: {e}"
+                        )
+
+    # Track the change for daily summary
+    change = MealPlanChange(
+        household_id=g.household.id,
+        change_type="deleted",
+        meal_name=entry.meal_name,
+        meal_date=entry.date,
+        meal_type=entry.meal_type,
+        changed_by_user_id=g.user.id,
+    )
+    db.session.add(change)
 
     db.session.delete(entry)
     db.session.commit()
@@ -400,8 +642,44 @@ def update_meal_plan_entry(entry_id: int) -> Response:
             flash("Invalid date format", "danger")
             return redirect(url_for("meal_plan.meal_plan") + f"?week={week_offset}")
 
-    cook_ids = [int(cook_id) for cook_id in request.form.getlist("assigned_cook_ids") if cook_id]
-    cooks = User.query.filter(User.id.in_(cook_ids)).all() if cook_ids else []
+    # Get the new list of assigned cook IDs from the form
+    new_cook_ids = [
+        int(cook_id) for cook_id in request.form.getlist("assigned_cook_ids") if cook_id
+    ]
+
+    # Get current assigned cooks
+    current_cooks = set(entry.assigned_cooks)
+    current_cook_ids = {cook.id for cook in current_cooks}
+
+    # Find removed cooks (those who were assigned but are no longer)
+    removed_cook_ids = current_cook_ids - set(new_cook_ids)
+    removed_cooks = [cook for cook in current_cooks if cook.id in removed_cook_ids]
+
+    # Send emails to removed chefs who have opted in
+    for cook in removed_cooks:
+        if cook.email:
+            # Check if the cook has chef assignment emails enabled for this household
+            member = HouseholdMember.query.filter_by(
+                household_id=g.household.id, user_id=cook.id
+            ).first()
+
+            if member and member.receive_chef_assignment_emails:
+                try:
+                    send_chef_removed_from_meal_email(
+                        recipient_email=cook.email,
+                        recipient_name=cook.username,
+                        meal_name=entry.meal_name,
+                        meal_date=entry.date,
+                        meal_type=entry.meal_type,
+                        household_name=g.household.name,
+                    )
+                except Exception as e:
+                    logger.error(
+                        f"Failed to send chef removed email to {cook.email}: {e}"
+                    )
+
+    # Update the assigned cooks
+    cooks = User.query.filter(User.id.in_(new_cook_ids)).all() if new_cook_ids else []
 
     # Keep legacy single-cook field in sync for compatibility.
     entry.assigned_cook_user_id = cooks[0].id if cooks else None
@@ -623,3 +901,287 @@ def send_meal_plan_email() -> Response:
         flash("Email service is currently unavailable. Please try again later.", "danger")
 
     return redirect(url_for("meal_plan.meal_plan") + f"?week={week_offset}")
+
+
+@meal_plan_bp.route("/meal-plan/send-daily-summaries", methods=["POST"])
+def send_daily_meal_plan_summaries() -> Tuple[Dict[str, Any], int]:
+    """
+    Send daily meal plan summaries for all households with changes.
+
+    This endpoint should be called by a cron job once per day.
+    For security, it requires a secret token in the request.
+
+    Returns:
+        JSON response with results
+    """
+    # Check for authorization token
+    auth_token = request.headers.get("X-Cron-Token") or request.form.get("cron_token")
+    expected_token = os.environ.get("CRON_SECRET_TOKEN")
+
+    if not expected_token or auth_token != expected_token:
+        logger.warning("Unauthorized attempt to send daily meal plan summaries")
+        return jsonify({"error": "Unauthorized"}), 401
+
+    # Get all households with unemailed changes
+    households_with_changes = (
+        db.session.query(MealPlanChange.household_id)
+        .filter_by(emailed=False)
+        .distinct()
+        .all()
+    )
+
+    household_ids = [h[0] for h in households_with_changes]
+
+    if not household_ids:
+        logger.info("No households with unemailed meal plan changes")
+        return jsonify({"message": "No changes to email"}), 200
+
+    results = []
+    for household_id in household_ids:
+        try:
+            household = Household.query.get(household_id)
+            if not household:
+                logger.warning(f"Household {household_id} not found")
+                continue
+
+            # Get all unemailed changes for this household
+            changes = (
+                MealPlanChange.query.filter_by(household_id=household_id, emailed=False)
+                .order_by(MealPlanChange.created_at)
+                .all()
+            )
+
+            if not changes:
+                continue
+
+            # Group changes by type
+            added = [c for c in changes if c.change_type == "added"]
+            updated = [c for c in changes if c.change_type == "updated"]
+            deleted = [c for c in changes if c.change_type == "deleted"]
+
+            # Send email to household members who have opted in
+            members = HouseholdMember.query.filter_by(
+                household_id=household_id, receive_meal_plan_emails=True
+            ).all()
+
+            sent_count = 0
+            for member in members:
+                if member.user.email:
+                    try:
+                        _send_meal_plan_summary_email(
+                            recipient_email=member.user.email,
+                            recipient_name=member.user.username,
+                            household_name=household.name,
+                            added_changes=added,
+                            updated_changes=updated,
+                            deleted_changes=deleted,
+                        )
+                        sent_count += 1
+                        logger.info(
+                            f"Meal plan summary sent to {member.user.email} for household {household.name}"
+                        )
+                    except Exception as e:
+                        logger.error(
+                            f"Failed to send meal plan summary to {member.user.email}: {e}"
+                        )
+
+            # Mark all changes as emailed
+            for change in changes:
+                change.emailed = True
+
+            db.session.commit()
+
+            results.append(
+                {
+                    "household_id": household_id,
+                    "household_name": household.name,
+                    "status": "success",
+                    "emails_sent": sent_count,
+                    "changes_count": len(changes),
+                }
+            )
+
+        except Exception as e:
+            logger.error(
+                f"Error sending meal plan summary for household {household_id}: {e}",
+                exc_info=True,
+            )
+            results.append(
+                {
+                    "household_id": household_id,
+                    "status": "error",
+                    "error": str(e),
+                }
+            )
+
+    logger.info(f"Daily meal plan summaries sent for {len(results)} households")
+    return jsonify({"message": "Summaries sent", "results": results}), 200
+
+
+def _send_meal_plan_summary_email(
+    recipient_email: str,
+    recipient_name: str,
+    household_name: str,
+    added_changes: list,
+    updated_changes: list,
+    deleted_changes: list,
+) -> None:
+    """Send a daily summary email of meal plan changes"""
+    # Get admin email from config or use default sender
+    admin_email = mail.default_sender or "support@autocart.com"
+
+    # Build meal plan URL
+    base_url = request.url_root.rstrip("/")
+    meal_plan_url = f"{base_url}/meal-plan"
+
+    subject = f"Meal Plan Updates for {household_name}"
+
+    # Build HTML email body
+    html_body = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+        .header {{ background-color: #4A90E2; color: white; padding: 20px; text-align: center; }}
+        .content {{ background-color: #f9f9f9; padding: 20px; }}
+        .section {{ margin: 20px 0; }}
+        .section-title {{ font-size: 18px; font-weight: bold; color: #4A90E2; margin-bottom: 10px; }}
+        .change-item {{ background-color: white; padding: 12px; margin: 8px 0; border-left: 4px solid #4A90E2; }}
+        .change-added {{ border-left-color: #27AE60; }}
+        .change-updated {{ border-left-color: #F39C12; }}
+        .change-deleted {{ border-left-color: #E74C3C; }}
+        .button {{ display: inline-block; padding: 12px 24px; background-color: #4A90E2; color: white !important; text-decoration: none; border-radius: 4px; margin: 15px 0; }}
+        .footer {{ text-align: center; padding: 20px; color: #666; font-size: 12px; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📅 Meal Plan Updates</h1>
+        </div>
+        <div class="content">
+            <p>Hi {recipient_name},</p>
+
+            <p>Here's a summary of recent changes to the <strong>{household_name}</strong> meal plan:</p>
+    """
+
+    # Added meals
+    if added_changes:
+        html_body += f"""
+            <div class="section">
+                <div class="section-title">✅ Meals Added ({len(added_changes)})</div>
+        """
+        for change in added_changes:
+            changed_by = User.query.get(change.changed_by_user_id)
+            changed_by_name = changed_by.username if changed_by else "Unknown"
+            formatted_date = change.meal_date.strftime("%A, %B %d")
+            html_body += f"""
+                <div class="change-item change-added">
+                    <strong>{change.meal_name}</strong><br>
+                    {formatted_date} - {change.meal_type.capitalize()}<br>
+                    <small>Added by {changed_by_name}</small>
+                </div>
+            """
+        html_body += "</div>"
+
+    # Updated meals
+    if updated_changes:
+        html_body += f"""
+            <div class="section">
+                <div class="section-title">✏️ Meals Updated ({len(updated_changes)})</div>
+        """
+        for change in updated_changes:
+            changed_by = User.query.get(change.changed_by_user_id)
+            changed_by_name = changed_by.username if changed_by else "Unknown"
+            formatted_date = change.meal_date.strftime("%A, %B %d")
+            details = change.change_details or "Updated"
+            html_body += f"""
+                <div class="change-item change-updated">
+                    <strong>{change.meal_name}</strong><br>
+                    {formatted_date} - {change.meal_type.capitalize()}<br>
+                    <small>{details} by {changed_by_name}</small>
+                </div>
+            """
+        html_body += "</div>"
+
+    # Deleted meals
+    if deleted_changes:
+        html_body += f"""
+            <div class="section">
+                <div class="section-title">❌ Meals Removed ({len(deleted_changes)})</div>
+        """
+        for change in deleted_changes:
+            changed_by = User.query.get(change.changed_by_user_id)
+            changed_by_name = changed_by.username if changed_by else "Unknown"
+            formatted_date = change.meal_date.strftime("%A, %B %d")
+            html_body += f"""
+                <div class="change-item change-deleted">
+                    <strong>{change.meal_name}</strong><br>
+                    {formatted_date} - {change.meal_type.capitalize()}<br>
+                    <small>Removed by {changed_by_name}</small>
+                </div>
+            """
+        html_body += "</div>"
+
+    html_body += f"""
+            <a href="{meal_plan_url}" class="button">View Meal Plan</a>
+        </div>
+        <div class="footer">
+            <p>Auto-Cart - Smart Household Grocery Management</p>
+            <p>For support: {admin_email}</p>
+        </div>
+    </div>
+</body>
+</html>
+    """
+
+    # Build text email body
+    text_body = f"""
+Meal Plan Updates for {household_name}
+
+Hi {recipient_name},
+
+Here's a summary of recent changes to the {household_name} meal plan:
+"""
+
+    if added_changes:
+        text_body += f"\n✅ MEALS ADDED ({len(added_changes)}):\n"
+        for change in added_changes:
+            changed_by = User.query.get(change.changed_by_user_id)
+            changed_by_name = changed_by.username if changed_by else "Unknown"
+            formatted_date = change.meal_date.strftime("%A, %B %d")
+            text_body += f"  • {change.meal_name} - {formatted_date} ({change.meal_type.capitalize()}) - Added by {changed_by_name}\n"
+
+    if updated_changes:
+        text_body += f"\n✏️ MEALS UPDATED ({len(updated_changes)}):\n"
+        for change in updated_changes:
+            changed_by = User.query.get(change.changed_by_user_id)
+            changed_by_name = changed_by.username if changed_by else "Unknown"
+            formatted_date = change.meal_date.strftime("%A, %B %d")
+            details = change.change_details or "Updated"
+            text_body += f"  • {change.meal_name} - {formatted_date} ({change.meal_type.capitalize()}) - {details} by {changed_by_name}\n"
+
+    if deleted_changes:
+        text_body += f"\n❌ MEALS REMOVED ({len(deleted_changes)}):\n"
+        for change in deleted_changes:
+            changed_by = User.query.get(change.changed_by_user_id)
+            changed_by_name = changed_by.username if changed_by else "Unknown"
+            formatted_date = change.meal_date.strftime("%A, %B %d")
+            text_body += f"  • {change.meal_name} - {formatted_date} ({change.meal_type.capitalize()}) - Removed by {changed_by_name}\n"
+
+    text_body += f"""
+View your meal plan: {meal_plan_url}
+
+---
+Auto-Cart - Smart Household Grocery Management
+For support: {admin_email}
+    """
+
+    msg = Message(
+        subject=subject, recipients=[recipient_email], body=text_body, html=html_body
+    )
+
+    mail.send(msg)
+    logger.info(f"Meal plan summary email sent to {recipient_email}")

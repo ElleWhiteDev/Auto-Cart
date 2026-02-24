@@ -175,6 +175,46 @@ def admin_delete_household(household_id: int) -> Response:
     return redirect(url_for("admin.admin_dashboard"))
 
 
+@admin_bp.route("/household/<int:household_id>/members", methods=["GET"])
+@require_admin
+def admin_get_household_members(household_id: int) -> Tuple[Dict[str, Any], int]:
+    """
+    Get all members of a household with their email preferences.
+
+    Args:
+        household_id: Household ID
+
+    Returns:
+        JSON response with members data
+    """
+    try:
+        # Verify household exists (raises 404 if not found)
+        Household.query.get_or_404(household_id)
+        members = HouseholdMember.query.filter_by(household_id=household_id).all()
+
+        members_data = []
+        for member in members:
+            members_data.append(
+                {
+                    "member_id": member.id,
+                    "user_id": member.user_id,
+                    "username": member.user.username,
+                    "email": member.user.email,
+                    "role": member.role,
+                    "receive_meal_plan_emails": member.receive_meal_plan_emails,
+                    "receive_chef_assignment_emails": member.receive_chef_assignment_emails,
+                    "joined_at": member.joined_at.strftime("%Y-%m-%d")
+                    if member.joined_at
+                    else None,
+                }
+            )
+
+        return jsonify({"success": True, "members": members_data}), 200
+    except Exception as e:
+        logger.error(f"Error fetching household members: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @admin_bp.route("/toggle-member-email", methods=["POST"])
 @require_admin
 def admin_toggle_member_email() -> Tuple[Dict[str, Any], int]:
