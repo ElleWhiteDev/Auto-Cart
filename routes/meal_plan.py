@@ -134,6 +134,15 @@ def add_meal_plan_entry() -> Response:
             + f"?week={request.form.get('week_offset', 0)}"
         )
 
+    # Convert recipe_id to int or None (handle 'custom' value)
+    if recipe_id and recipe_id != "custom":
+        try:
+            recipe_id = int(recipe_id)
+        except ValueError:
+            recipe_id = None
+    else:
+        recipe_id = None
+
     # Must have either recipe_id or custom_meal_name
     if not recipe_id and not custom_meal_name:
         flash("Please select a recipe or enter a custom meal name", "danger")
@@ -149,7 +158,7 @@ def add_meal_plan_entry() -> Response:
         # Create meal plan entry
         entry = MealPlanEntry(
             household_id=g.household.id,
-            recipe_id=int(recipe_id) if recipe_id else None,
+            recipe_id=recipe_id,
             custom_meal_name=custom_meal_name if custom_meal_name else None,
             date=date,
             meal_type=meal_type,

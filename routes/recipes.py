@@ -186,13 +186,33 @@ def extract_recipe_form() -> tuple[dict, int]:
 
     recipe_data = scrape_recipe_data(url)
 
-    if recipe_data:
-        return jsonify({"success": True, "data": recipe_data})
+    if recipe_data.get("error"):
+        return jsonify(
+            {
+                "success": False,
+                "error": f"Could not extract recipe: {recipe_data['error']}",
+            }
+        ), 400
+    elif recipe_data.get("name") or recipe_data.get("ingredients"):
+        # Clean ingredients with OpenAI before populating form
+        raw_ingredients_text = "\n".join(recipe_data.get("ingredients", []))
+        cleaned_ingredients_text = Recipe.clean_ingredients_with_openai(
+            raw_ingredients_text
+        )
+
+        extracted_data = {
+            "name": recipe_data.get("name", ""),
+            "ingredients_text": cleaned_ingredients_text,
+            "notes": recipe_data.get("instructions", ""),
+            "url": url,
+        }
+
+        return jsonify({"success": True, "data": extracted_data})
     else:
         return jsonify(
             {
                 "success": False,
-                "error": "Failed to extract recipe. Please try entering manually.",
+                "error": "No recipe data found on this page. Please enter manually.",
             }
         ), 400
 

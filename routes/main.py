@@ -4,7 +4,7 @@ Main routes blueprint.
 Handles homepage, household management, and general application routes.
 """
 
-from typing import Optional, Union
+from typing import Optional, Union, Dict, Any, Tuple
 from flask import (
     Blueprint,
     render_template,
@@ -14,6 +14,7 @@ from flask import (
     url_for,
     g,
     session,
+    jsonify,
 )
 from werkzeug.wrappers import Response
 from flask_mail import Message
@@ -165,6 +166,331 @@ def create_household() -> Union[str, Response]:
         return redirect(url_for("main.homepage"))
 
     return render_template("create_household.html")
+
+
+@main_bp.route("/household/settings")
+@require_login
+def household_settings() -> Union[str, Response]:
+    """
+    View and manage household settings.
+
+    Returns:
+        Rendered household settings template or redirect
+    """
+    if not g.household:
+        return redirect(url_for("main.create_household"))
+
+    members = HouseholdMember.query.filter_by(household_id=g.household.id).all()
+
+    # Get Kroger account user if set
+    kroger_user = None
+    if g.household.kroger_user_id:
+        kroger_user = User.query.get(g.household.kroger_user_id)
+
+    # Get all households the user belongs to for switching
+    user_households = g.user.get_households()
+
+    return render_template(
+        "household_settings.html",
+        household=g.household,
+        members=members,
+        kroger_user=kroger_user,
+        is_owner=(g.household_member.role == "owner"),
+        user_households=user_households,
+    )
+
+
+@main_bp.route("/household/invite", methods=["POST"])
+@require_login
+def invite_household_member() -> Response:
+    """
+    Invite a user to the household by username.
+
+    Returns:
+        Redirect to household settings
+    """
+    if not g.household or g.household_member.role != "owner":
+        flash("Only household owners can invite members", "danger")
+        return redirect(url_for("main.household_settings"))
+
+    username = request.form.get("username", "").strip()
+
+    if not username:
+        flash("Please enter a username", "danger")
+        return redirect(url_for("main.household_settings"))
+
+    # Find user
+    user = User.query.filter_by(username=username).first()
+    if not user:
+        flash(f'User "{username}" not found', "danger")
+        return redirect(url_for("main.household_settings"))
+
+    # Check if already a member
+    existing = HouseholdMember.query.filter_by(
+        household_id=g.household.id, user_id=user.id
+    ).first()
+    if existing:
+        flash(f"{username} is already a member of this household", "warning")
+        return redirect(url_for("main.household_settings"))
+
+    # Add as member
+    member = HouseholdMember(
+        household_id=g.household.id, user_id=user.id, role="member"
+    )
+    db.session.add(member)
+    db.session.commit()
+
+    flash(f"{username} has been added to the household!", "success")
+    return redirect(url_for("main.household_settings"))
+
+
+@main_bp.route("/household/remove-member/<int:user_id>", methods=["POST"])
+@require_login
+def remove_household_member(user_id: int) -> Response:
+    """
+    Remove a member from the household.
+
+    Args:
+        user_id: User ID to remove
+
+    Returns:
+        Redirect to household settings
+    """
+    if not g.household or g.household_member.role != "owner":
+        flash("Only household owners can remove members", "danger")
+        return redirect(url_for("main.household_settings"))
+
+    if user_id == g.user.id:
+        flash("You cannot remove yourself from the household", "danger")
+        return redirect(url_for("main.household_settings"))
+
+    membership = HouseholdMember.query.filter_by(
+        household_id=g.household.id, user_id=user_id
+    ).first()
+
+    if not membership:
+        flash("Member not found", "danger")
+        return redirect(url_for("main.household_settings"))
+
+    db.session.delete(membership)
+    db.session.commit()
+
+    flash("Member removed successfully", "success")
+    return redirect(url_for("main.household_settings"))
+
+
+@main_bp.route("/household/set-kroger-user/<int:user_id>", methods=["POST"])
+@require_login
+def set_kroger_user(user_id: int) -> Response:
+    """
+    Set the household's Kroger account user.
+
+    Args:
+        user_id: User ID to set as Kroger account
+
+    Returns:
+        Redirect to household settings
+    """
+    if not g.household or g.household_member.role != "owner":
+        flash("Only household owners can set the Kroger account", "danger")
+        return redirect(url_for("main.household_settings"))
+
+    # Verify user is a member and has Kroger connected
+    membership = HouseholdMember.query.filter_by(
+        household_id=g.household.id, user_id=user_id
+    ).first()
+
+    if not membership:
+        flash("User is not a member of this household", "danger")
+        return redirect(url_for("main.household_settings"))
+
+    user = User.query.get(user_id)
+    if not user.oauth_token:
+        flash("This user has not connected their Kroger account yet", "warning")
+        return redirect(url_for("main.household_settings"))
+
+    g.household.kroger_user_id = user_id
+    db.session.commit()
+
+    flash(f"Kroger account set to {user.username}", "success")
+    return redirect(url_for("main.household_settings"))
+
+
+@main_bp.route("/household/switch/<int:household_id>")
+@require_login
+def switch_household(household_id: int) -> Response:
+    """
+    Switch to a different household.
+
+    Args:
+        household_id: Household ID to switch to
+
+    Returns:
+        Redirect to homepage
+    """
+    # Verify user is a member
+    membership = HouseholdMember.query.filter_by(
+        household_id=household_id, user_id=g.user.id
+    ).first()
+
+    if not membership:
+        flash("You are not a member of that household", "danger")
+        return redirect(url_for("main.homepage"))
+
+    session["household_id"] = household_id
+    flash("Switched household successfully", "success")
+    return redirect(url_for("main.homepage"))
+
+
+@main_bp.route("/household/edit-name", methods=["POST"])
+@require_login
+def edit_household_name() -> Response:
+    """
+    Edit household name.
+
+    Returns:
+        Redirect to household settings
+    """
+    if not g.household or g.household_member.role != "owner":
+        flash("Only household owners can edit the household name", "danger")
+        return redirect(url_for("main.household_settings"))
+
+    household_name = request.form.get("household_name", "").strip()
+
+    if not household_name:
+        flash("Please enter a household name", "danger")
+        return redirect(url_for("main.household_settings"))
+
+    g.household.name = household_name
+    db.session.commit()
+
+    flash("Household name updated successfully", "success")
+    return redirect(url_for("main.household_settings"))
+
+
+@main_bp.route("/household/delete", methods=["POST"])
+@require_login
+def delete_household() -> Response:
+    """
+    Delete household and all associated data.
+
+    Returns:
+        Redirect to household setup
+    """
+    if not g.household or g.household_member.role != "owner":
+        flash("Only household owners can delete the household", "danger")
+        return redirect(url_for("main.household_settings"))
+
+    household_id = g.household.id
+    household_name = g.household.name
+
+    # Delete household (cascade will handle related records)
+    db.session.delete(g.household)
+    db.session.commit()
+
+    # Clear session
+    session.pop("household_id", None)
+
+    flash(f'Household "{household_name}" has been deleted', "success")
+    return redirect(url_for("main.household_setup"))
+
+
+@main_bp.route("/household/toggle-meal-plan-emails", methods=["POST"])
+@require_login
+def toggle_meal_plan_emails() -> Tuple[Dict[str, Any], int]:
+    """
+    Toggle meal plan email notifications for a household member.
+
+    Returns:
+        JSON response with success status or error message
+    """
+    try:
+        data = request.get_json()
+        member_id = data.get("member_id")
+        enabled = data.get("enabled")
+
+        if member_id is None or enabled is None:
+            return jsonify({"success": False, "error": "Missing required fields"}), 400
+
+        # Get the household member record
+        member = HouseholdMember.query.get(member_id)
+
+        if not member:
+            return jsonify({"success": False, "error": "Member not found"}), 404
+
+        # Verify the current user is updating their own preference
+        if member.user_id != g.user.id:
+            return jsonify(
+                {
+                    "success": False,
+                    "error": "You can only update your own email preferences",
+                }
+            ), 403
+
+        # Update preference
+        member.receive_meal_plan_emails = enabled
+        db.session.commit()
+
+        logger.info(
+            f"User {g.user.username} {'enabled' if enabled else 'disabled'} meal plan emails"
+        )
+
+        return jsonify({"success": True}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error toggling meal plan email preference: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@main_bp.route("/household/toggle-chef-assignment-emails", methods=["POST"])
+@require_login
+def toggle_chef_assignment_emails() -> Tuple[Dict[str, Any], int]:
+    """
+    Toggle chef assignment email notifications for a household member.
+
+    Returns:
+        JSON response with success status or error message
+    """
+    try:
+        data = request.get_json()
+        member_id = data.get("member_id")
+        enabled = data.get("enabled")
+
+        if member_id is None or enabled is None:
+            return jsonify({"success": False, "error": "Missing required fields"}), 400
+
+        # Get the household member record
+        member = HouseholdMember.query.get(member_id)
+
+        if not member:
+            return jsonify({"success": False, "error": "Member not found"}), 404
+
+        # Verify the current user is updating their own preference
+        if member.user_id != g.user.id:
+            return jsonify(
+                {
+                    "success": False,
+                    "error": "You can only update your own email preferences",
+                }
+            ), 403
+
+        # Update preference
+        member.receive_chef_assignment_emails = enabled
+        db.session.commit()
+
+        logger.info(
+            f"User {g.user.username} {'enabled' if enabled else 'disabled'} chef assignment emails"
+        )
+
+        return jsonify({"success": True}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(
+            f"Error toggling chef assignment email preference: {e}", exc_info=True
+        )
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 @main_bp.route("/submit-feedback", methods=["POST"])
