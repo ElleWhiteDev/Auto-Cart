@@ -434,11 +434,15 @@ def send_invite_email() -> Response:
 
 
 @auth_bp.route("/alexa/authorize", methods=["GET", "POST"])
+@auth_bp.route("/api/alexa/authorize", methods=["GET", "POST"])
+@auth_bp.route("/api/alex/authorize", methods=["GET", "POST"])
 def alexa_authorize() -> Response:
     """
     OAuth 2.0 Implicit Grant endpoint for Alexa Account Linking.
 
     Handles the authorization flow for linking Alexa accounts to Auto-Cart users.
+    Supports legacy Alexa console paths so account linking keeps working even if
+    the saved Authorization URI still points at an older endpoint.
     On GET: Shows login form or generates token if already logged in
     On POST: Authenticates user and generates token
 

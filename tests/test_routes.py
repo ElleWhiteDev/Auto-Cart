@@ -1,19 +1,59 @@
-"""
-Integration tests for route handlers.
+"""Integration tests for route handlers.
 
 Tests HTTP endpoints including authentication, recipe management, and grocery lists.
 """
 
-from datetime import date
+from datetime import date, datetime, timezone
 
 import pytest
 
-from models import MealPlanEntry
+from models import MealPlanEntry, RecipeIngredient, GroceryListItem
+
+
+def _alexa_request_payload(request_body, access_token=None):
+    """Build a valid Alexa-style request payload for tests."""
+
+    session = {
+        "new": False,
+        "sessionId": "SessionId.test-session",
+        "application": {"applicationId": "amzn1.ask.skill.test-skill"},
+        "user": {},
+    }
+    if access_token:
+        session["user"]["accessToken"] = access_token
+
+    payload = {
+        "version": "1.0",
+        "session": session,
+        "request": {
+            **request_body,
+            "requestId": "EdwRequestId.test-request",
+            "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        },
+    }
+    return payload
 
 
 @pytest.mark.integration
 class TestAuthRoutes:
     """Tests for authentication routes."""
+
+    @pytest.mark.parametrize(
+        "path",
+        [
+            "/alexa/authorize",
+            "/api/alexa/authorize",
+            "/api/alex/authorize",
+        ],
+    )
+    def test_alexa_authorize_paths_load_login_page(self, client, path):
+        """Test Alexa account linking aliases all serve the login page."""
+        response = client.get(
+            f"{path}?redirect_uri=https://example.com/cb&state=test&client_id=autocart-alexa"
+        )
+
+        assert response.status_code == 200
+        assert b"login" in response.data.lower() or b"sign in" in response.data.lower()
 
     def test_login_page_loads(self, client):
         """Test that login page loads successfully."""
@@ -54,6 +94,141 @@ class TestAuthRoutes:
         """Test logging out."""
         response = authenticated_client.get("/logout", follow_redirects=True)
         assert response.status_code == 200
+
+
+@pytest.mark.integration
+class TestAlexaRoutes:
+    """Tests for Alexa webhook and fulfillment routing."""
+
+    def test_alexa_webhook_launch_request_returns_welcome(self, client):
+        response = client.post(
+            "/api/alexa/webhook",
+            json=_alexa_request_payload({"type": "LaunchRequest"}),
+        )
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert "Welcome to Auto-Cart" in data["response"]["outputSpeech"]["text"]
+        assert data["response"]["shouldEndSession"] is False
+
+    def test_alexa_webhook_add_item_intent_adds_item_to_list(
+        self,
+        client,
+        db_session,
+        monkeypatch,
+        sample_user,
+        sample_grocery_list,
+    ):
+        sample_user.alexa_access_token = "test-alexa-token"
+        sample_user.alexa_default_grocery_list_id = sample_grocery_list.id
+        db_session.commit()
+
+        monkeypatch.setattr(
+            "alexa_api.Recipe.parse_ingredients",
+            lambda ingredient_text: [
+                {
+                    "quantity": "1",
+                    "measurement": "unit",
+                    "ingredient_name": "bananas",
+                }
+            ],
+        )
+        monkeypatch.setattr(
+            "alexa_api.GroceryList.consolidate_ingredients_with_openai",
+            lambda ingredients: ingredients,
+        )
+
+        response = client.post(
+            "/api/alexa/webhook",
+            json=_alexa_request_payload(
+                {
+                    "type": "IntentRequest",
+                    "intent": {
+                        "name": "AddItemIntent",
+                        "slots": {
+                            "item": {"name": "item", "value": "bananas"},
+                        },
+                    },
+                },
+                access_token=sample_user.alexa_access_token,
+            ),
+        )
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert "I've added bananas" in data["response"]["outputSpeech"]["text"]
+
+        items = GroceryListItem.query.filter_by(
+            grocery_list_id=sample_grocery_list.id,
+            completed=False,
+        ).all()
+        assert len(items) == 1
+        assert items[0].recipe_ingredient.ingredient_name == "bananas"
+
+    def test_alexa_webhook_read_list_intent_reads_existing_items(
+        self,
+        client,
+        db_session,
+        sample_user,
+        sample_grocery_list,
+    ):
+        sample_user.alexa_access_token = "test-alexa-token"
+        sample_user.alexa_default_grocery_list_id = sample_grocery_list.id
+
+        ingredient = RecipeIngredient(
+            ingredient_name="milk",
+            quantity=2.0,
+            measurement="unit",
+        )
+        db_session.add(ingredient)
+        db_session.flush()
+
+        list_item = GroceryListItem(
+            grocery_list_id=sample_grocery_list.id,
+            recipe_ingredient_id=ingredient.id,
+            added_by_user_id=sample_user.id,
+            completed=False,
+        )
+        db_session.add(list_item)
+        db_session.commit()
+
+        response = client.post(
+            "/api/alexa/webhook",
+            json=_alexa_request_payload(
+                {
+                    "type": "IntentRequest",
+                    "intent": {"name": "ReadListIntent", "slots": {}},
+                },
+                access_token=sample_user.alexa_access_token,
+            ),
+        )
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert (
+            "You have 1 item on your list" in data["response"]["outputSpeech"]["text"]
+        )
+        assert "milk" in data["response"]["outputSpeech"]["text"]
+
+    def test_alexa_webhook_add_item_requires_linked_account(self, client):
+        response = client.post(
+            "/api/alexa/webhook",
+            json=_alexa_request_payload(
+                {
+                    "type": "IntentRequest",
+                    "intent": {
+                        "name": "AddItemIntent",
+                        "slots": {
+                            "item": {"name": "item", "value": "bananas"},
+                        },
+                    },
+                }
+            ),
+        )
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["response"]["card"]["type"] == "LinkAccount"
 
 
 @pytest.mark.integration
