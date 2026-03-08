@@ -16,6 +16,190 @@ from extensions import db, bcrypt
 openai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
 
+_MEASUREMENT_ALIASES = {
+    "cup": "cup",
+    "cups": "cup",
+    "tbsp": "tbsp",
+    "tablespoon": "tbsp",
+    "tablespoons": "tbsp",
+    "tbs": "tbsp",
+    "tsp": "tsp",
+    "teaspoon": "tsp",
+    "teaspoons": "tsp",
+    "lb": "lb",
+    "lbs": "lb",
+    "pound": "lb",
+    "pounds": "lb",
+    "oz": "oz",
+    "ounce": "oz",
+    "ounces": "oz",
+    "g": "g",
+    "gram": "g",
+    "grams": "g",
+    "kg": "kg",
+    "kgs": "kg",
+    "kilogram": "kg",
+    "kilograms": "kg",
+    "ml": "ml",
+    "milliliter": "ml",
+    "milliliters": "ml",
+    "l": "l",
+    "liter": "l",
+    "liters": "l",
+    "litre": "l",
+    "litres": "l",
+    "unit": "unit",
+    "units": "unit",
+    "can": "unit",
+    "cans": "unit",
+}
+_PREP_WORDS = {"chopped", "minced", "diced", "sliced", "cubed"}
+_WORD_NORMALIZATIONS = {
+    "onions": "onion",
+    "breasts": "breast",
+    "thighs": "thigh",
+}
+_TOMATO_PRODUCT_WORDS = {"sauce", "paste", "puree", "salsa", "juice", "soup"}
+_PACKAGE_SIZE_MEASUREMENTS = {"oz", "g", "kg", "ml", "l"}
+_WATER_DESCRIPTORS = {"water", "warm", "cold", "hot", "boiling", "ice", "iced"}
+
+
+def _format_quantity(quantity: float) -> str:
+    """Format numeric quantities into stable strings."""
+    if float(quantity).is_integer():
+        return str(int(quantity))
+    return f"{quantity:.4f}".rstrip("0").rstrip(".")
+
+
+def _normalize_measurement(measurement: Any) -> str:
+    """Normalize measurements to the grocery-list canonical set."""
+    normalized = str(measurement or "unit").strip().lower()
+    return _MEASUREMENT_ALIASES.get(normalized, normalized or "unit")
+
+
+def _normalize_ingredient_name(ingredient_name: Any) -> str:
+    """Normalize ingredient names while preserving purchase-critical distinctions."""
+    normalized = re.sub(r"\s+", " ", str(ingredient_name or "").strip().lower())
+    normalized = re.sub(r"[^a-z0-9\s-]", "", normalized)
+    tokens = [token for token in normalized.split() if token not in _PREP_WORDS]
+    tokens = [_WORD_NORMALIZATIONS.get(token, token) for token in tokens]
+
+    if not tokens:
+        return normalized or "ingredient"
+
+    has_tomato_product_word = any(token in _TOMATO_PRODUCT_WORDS for token in tokens)
+    if not has_tomato_product_word and any(
+        token in {"tomato", "tomatoes"} for token in tokens
+    ):
+        tokens = [
+            "tomatoes" if token in {"tomato", "tomatoes"} else token for token in tokens
+        ]
+
+    return " ".join(tokens)
+
+
+def _is_water_ingredient(ingredient_name: str) -> bool:
+    """Return True when the ingredient is effectively just a water line."""
+    tokens = ingredient_name.split()
+    return (
+        bool(tokens)
+        and tokens[-1] == "water"
+        and all(token in _WATER_DESCRIPTORS for token in tokens)
+    )
+
+
+def _normalize_ingredient_entry(ingredient: Dict[str, Any]) -> Dict[str, str]:
+    """Normalize a parsed ingredient entry."""
+    return {
+        "quantity": str(ingredient.get("quantity", "1")).strip() or "1",
+        "measurement": _normalize_measurement(ingredient.get("measurement", "unit")),
+        "ingredient_name": _normalize_ingredient_name(
+            ingredient.get("ingredient_name", "ingredient")
+        ),
+    }
+
+
+def _merge_ingredient_entries(
+    ingredients_list: List[Dict[str, Any]],
+) -> List[Dict[str, str]]:
+    """Deterministically normalize and merge grocery ingredients."""
+    normalized_rows = []
+    for ingredient in ingredients_list:
+        normalized = _normalize_ingredient_entry(ingredient)
+        if _is_water_ingredient(normalized["ingredient_name"]):
+            continue
+
+        quantity_value = parse_quantity_string(normalized["quantity"])
+        normalized_rows.append({**normalized, "_quantity_value": quantity_value})
+
+    rows_by_name = defaultdict(list)
+    for row in normalized_rows:
+        rows_by_name[row["ingredient_name"]].append(row)
+
+    for ingredient_name, rows in rows_by_name.items():
+        if "tomato" not in ingredient_name or any(
+            token in _TOMATO_PRODUCT_WORDS for token in ingredient_name.split()
+        ):
+            continue
+
+        explicit_measurements = {
+            row["measurement"]
+            for row in rows
+            if row["measurement"] in _PACKAGE_SIZE_MEASUREMENTS
+            and row["_quantity_value"] is not None
+        }
+        if len(explicit_measurements) != 1:
+            continue
+
+        explicit_measurement = next(iter(explicit_measurements))
+        package_sizes = {
+            row["_quantity_value"]
+            for row in rows
+            if row["measurement"] == explicit_measurement
+            and row["_quantity_value"] is not None
+        }
+        if len(package_sizes) != 1:
+            continue
+
+        package_size = next(iter(package_sizes))
+        for row in rows:
+            if row["measurement"] == "unit" and row["_quantity_value"] is not None:
+                row["measurement"] = explicit_measurement
+                row["_quantity_value"] *= package_size
+                row["quantity"] = _format_quantity(row["_quantity_value"])
+
+    merged = {}
+    ordered_keys = []
+    for row in normalized_rows:
+        key = (row["ingredient_name"], row["measurement"])
+        if key not in merged:
+            merged[key] = {
+                "quantity": row["quantity"],
+                "measurement": row["measurement"],
+                "ingredient_name": row["ingredient_name"],
+                "_quantity_value": row["_quantity_value"],
+            }
+            ordered_keys.append(key)
+            continue
+
+        existing = merged[key]
+        if (
+            existing["_quantity_value"] is not None
+            and row["_quantity_value"] is not None
+        ):
+            existing["_quantity_value"] += row["_quantity_value"]
+            existing["quantity"] = _format_quantity(existing["_quantity_value"])
+
+    return [
+        {
+            "quantity": merged[key]["quantity"],
+            "measurement": merged[key]["measurement"],
+            "ingredient_name": merged[key]["ingredient_name"],
+        }
+        for key in ordered_keys
+    ]
+
+
 class Household(db.Model):
     """Household/family group for collaboration.
 
@@ -859,13 +1043,16 @@ Parsing rules:
    - Normalize to: cup, tbsp, tsp, lb, oz, g, kg, ml, l, unit (when unknown).
    - Singular canonical forms only.
 3) Ingredient name:
-   - Preserve descriptors and variants (e.g., "yellow onion", "unsalted butter", "ground beef", "fresh basil").
+   - Strip prep-only descriptors like chopped/minced/diced/sliced.
+   - Preserve purchase-critical descriptors and variants (e.g., "yellow onion", "unsalted butter", "ground beef", "fresh basil", "chicken thigh").
+   - Treat "diced tomatoes" as "tomatoes", but keep products like "tomato sauce" distinct.
 4) This step does NOT merge, deduplicate, filter, or reorder ingredients.
 
 Examples:
 "2 cups flour" -> {"quantity":"2","measurement":"cup","ingredient_name":"flour"}
 "1/4 tsp salt" -> {"quantity":"1/4","measurement":"tsp","ingredient_name":"salt"}
 "3-4 lb chicken thighs" -> {"quantity":"3","measurement":"lb","ingredient_name":"chicken thighs"}
+"14.5 oz diced tomatoes" -> {"quantity":"14.5","measurement":"oz","ingredient_name":"tomatoes"}
 "milk" -> {"quantity":"1","measurement":"unit","ingredient_name":"milk"}
 "salt and pepper to taste" -> {"quantity":"1","measurement":"unit","ingredient_name":"salt and pepper to taste"}"""
 
@@ -885,7 +1072,10 @@ Examples:
             import json
 
             parsed_ingredients = json.loads(response.choices[0].message.content.strip())
-            return parsed_ingredients
+            return [
+                _normalize_ingredient_entry(ingredient)
+                for ingredient in parsed_ingredients
+            ]
 
         except Exception as e:
             logger.error(f"OpenAI ingredient parsing error: {e}", exc_info=True)
@@ -898,11 +1088,13 @@ Examples:
                 ingredient = ingredient.strip()
                 if ingredient:
                     parsed_ingredients.append(
-                        {
-                            "quantity": "1",
-                            "measurement": "unit",
-                            "ingredient_name": ingredient[:40],
-                        }
+                        _normalize_ingredient_entry(
+                            {
+                                "quantity": "1",
+                                "measurement": "unit",
+                                "ingredient_name": ingredient[:40],
+                            }
+                        )
                     )
             return parsed_ingredients
 
@@ -1447,11 +1639,13 @@ class GroceryList(db.Model):
     def consolidate_ingredients_with_openai(cls, ingredients_list):
         """Consolidate similar ingredients using OpenAI."""
         try:
+            normalized_inputs = _merge_ingredient_entries(ingredients_list)
+
             # Format ingredients for AI processing
             ingredients_text = "\n".join(
                 [
                     f"{ing['quantity']} {ing['measurement']} {ing['ingredient_name']}"
-                    for ing in ingredients_list
+                    for ing in normalized_inputs
                 ]
             )
 
@@ -1471,12 +1665,19 @@ Hard constraints:
    - butter type (salted vs unsalted)
 3) Merge aggressively when items are clearly the same shopping item:
    - prep-only variants: chopped/diced/minced/sliced onion -> onion
+   - tomatoes and diced tomatoes -> tomatoes
    - plural/singular and minor wording variants.
 
 Quantity rules:
 - Sum quantities for merged items.
 - Prefer canonical unit labels: cup, tbsp, tsp, lb, oz, g, kg, ml, l, unit.
 - If exact conversion is uncertain, keep a stable existing unit and still merge when reasonable.
+- For packaged tomatoes, if one line has an explicit can size like 14.5 oz and another is just a unit/can of the same tomatoes, treat them as the same item.
+
+Examples:
+- 1 unit chopped onion + 1 unit minced onion -> 2 unit onion
+- 14.5 oz diced tomatoes + 1 unit tomatoes -> 29 oz tomatoes
+- 1 lb chicken breast + 1 lb chicken thigh stays as two separate lines
 
 Output contract:
 - Return plain text only.
@@ -1530,12 +1731,12 @@ Output contract:
                         }
                     )
 
-            return consolidated_ingredients
+            return _merge_ingredient_entries(consolidated_ingredients)
 
         except Exception as e:
             logger.error(f"OpenAI ingredient consolidation error: {e}", exc_info=True)
-            logger.info("Falling back to original ingredients")
-            return ingredients_list
+            logger.info("Falling back to deterministic consolidation")
+            return _merge_ingredient_entries(ingredients_list)
 
 
 class MealPlanChange(db.Model):

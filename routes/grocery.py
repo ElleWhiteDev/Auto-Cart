@@ -17,7 +17,7 @@ from flask import (
 )
 from werkzeug.wrappers import Response
 
-from extensions import db
+from extensions import db, mail
 from models import GroceryList, GroceryListItem
 from utils import require_login, CURR_GROCERY_LIST_KEY
 from logging_config import logger
@@ -57,6 +57,60 @@ def update_grocery_list() -> Response:
     GroceryList.update_grocery_list(
         selected_recipe_ids, grocery_list=grocery_list, user_id=g.user.id
     )
+    return redirect(url_for("main.homepage"))
+
+
+@grocery_bp.route("/send-email", methods=["POST"])
+@require_login
+def send_grocery_list_email() -> Response:
+    """Send the grocery list and selected recipes to supplied email recipients."""
+    selected_user_emails = request.form.getlist("user_emails")
+    custom_email = request.form.get("custom_email", "").strip()
+
+    all_emails = list(selected_user_emails)
+    if custom_email:
+        all_emails.append(custom_email)
+
+    if not all_emails:
+        flash(
+            "Please select at least one recipient or enter an email address",
+            "danger",
+        )
+        return redirect(url_for("main.homepage") + "#email-modal")
+
+    email_type = request.form.get("email_type", "list_and_recipes")
+    selected_recipe_ids = request.form.getlist("recipe_ids")
+    grocery_list = g.grocery_list
+
+    try:
+        for email in all_emails:
+            if email_type == "recipes_only":
+                GroceryList.send_recipes_only_email(email, selected_recipe_ids, mail)
+                continue
+
+            if not grocery_list:
+                flash("No grocery list found", "error")
+                return redirect(url_for("main.homepage"))
+
+            GroceryList.send_email(email, grocery_list, selected_recipe_ids, mail)
+
+        recipient_count = len(all_emails)
+        if email_type == "recipes_only":
+            flash(
+                f"Recipes sent successfully to {recipient_count} recipient(s)!",
+                "success",
+            )
+        else:
+            flash(
+                f"List sent successfully to {recipient_count} recipient(s)!", "success"
+            )
+    except Exception as e:
+        logger.error(f"Email error: {e}", exc_info=True)
+        flash(
+            "Email service is currently unavailable. Please try again later.",
+            "danger",
+        )
+
     return redirect(url_for("main.homepage"))
 
 
