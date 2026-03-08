@@ -626,13 +626,16 @@ def add_meal_plan_to_list() -> Response:
         return redirect(url_for("meal_plan.meal_plan") + f"?week={week_offset}")
 
     # Get unique recipe IDs (filter out custom meals without recipes)
-    recipe_ids = list(
-        set([str(entry.recipe_id) for entry in meal_entries if entry.recipe_id])
+    recipe_ids = sorted(
+        {str(entry.recipe_id) for entry in meal_entries if entry.recipe_id},
+        key=int,
     )
 
     if not recipe_ids:
         flash("No recipes found in meal plan (only custom meals)", "warning")
         return redirect(url_for("meal_plan.meal_plan") + f"?week={week_offset}")
+
+    session["selected_recipe_ids"] = recipe_ids
 
     # Add to current grocery list
     grocery_list = g.grocery_list

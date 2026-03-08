@@ -4,7 +4,11 @@ Integration tests for route handlers.
 Tests HTTP endpoints including authentication, recipe management, and grocery lists.
 """
 
+from datetime import date
+
 import pytest
+
+from models import MealPlanEntry
 
 
 @pytest.mark.integration
@@ -119,6 +123,48 @@ class TestGroceryListRoutes:
 
         assert response.status_code == 302
         assert response.headers["Location"].endswith("/#email-modal")
+
+    def test_meal_plan_add_to_list_sets_selected_recipe_ids(
+        self,
+        authenticated_client,
+        db_session,
+        monkeypatch,
+        sample_household,
+        sample_grocery_list,
+        sample_recipe,
+        sample_user,
+    ):
+        """Meal-plan add-to-list should seed the same selected recipes used by the email modal."""
+        meal_entry = MealPlanEntry(
+            household_id=sample_household.id,
+            recipe_id=sample_recipe.id,
+            date=date.today(),
+            meal_type="dinner",
+        )
+        db_session.add(meal_entry)
+        db_session.commit()
+
+        monkeypatch.setattr(
+            "models.GroceryList.update_grocery_list",
+            lambda *args, **kwargs: None,
+        )
+
+        with authenticated_client.session_transaction() as sess:
+            sess["curr_household_id"] = sample_household.id
+            sess["curr_grocery_list_id"] = sample_grocery_list.id
+            sess["curr_user"] = sample_user.id
+
+        response = authenticated_client.post(
+            "/meal-plan/add-to-list",
+            data={"week_offset": "0"},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.headers["Location"].endswith("/")
+
+        with authenticated_client.session_transaction() as sess:
+            assert sess["selected_recipe_ids"] == [str(sample_recipe.id)]
 
 
 @pytest.mark.integration
