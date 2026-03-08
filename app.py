@@ -142,11 +142,11 @@ def add_user_to_g():
     """If we're logged in, add curr user to Flask global."""
     # Skip database queries for migration endpoints to avoid schema errors
     # Also skip for Alexa API endpoints (they use token-based auth, not session)
-    # alexa_authorize is the OAuth endpoint that handles its own login flow
+    # auth.alexa_authorize is the OAuth endpoint that handles its own login flow
     if request.endpoint in [
         "migrate_database",
         "migrate_multi_household_endpoint",
-        "alexa_authorize",
+        "auth.alexa_authorize",
     ] or (request.endpoint and request.endpoint.startswith("alexa.")):
         g.user = None
         return

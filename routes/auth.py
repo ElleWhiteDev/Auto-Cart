@@ -6,8 +6,18 @@ Handles user registration, login, logout, password management, and profile updat
 
 from typing import Tuple, Optional, Union
 from datetime import datetime
+import secrets
 import pytz
-from flask import Blueprint, render_template, request, flash, redirect, url_for, g
+from flask import (
+    Blueprint,
+    render_template,
+    request,
+    flash,
+    redirect,
+    url_for,
+    g,
+    session,
+)
 from sqlalchemy.exc import IntegrityError
 from werkzeug.wrappers import Response
 from flask_limiter.errors import RateLimitExceeded
@@ -23,7 +33,14 @@ from forms import (
     RequestPasswordResetForm,
     ResetPasswordForm,
 )
-from utils import require_login, do_login, do_logout, send_generic_invitation_email, get_est_now
+from utils import (
+    require_login,
+    do_login,
+    do_logout,
+    send_generic_invitation_email,
+    get_est_now,
+    CURR_USER_KEY,
+)
 from constants import FlashCategory, DEFAULT_TIMEZONE
 from logging_config import logger
 
@@ -414,3 +431,95 @@ def send_invite_email() -> Response:
         flash("❌ Failed to send invitation email. Please try again.", "danger")
 
     return redirect(url_for("auth.register"))
+
+
+@auth_bp.route("/alexa/authorize", methods=["GET", "POST"])
+def alexa_authorize() -> Response:
+    """
+    OAuth 2.0 Implicit Grant endpoint for Alexa Account Linking.
+
+    Handles the authorization flow for linking Alexa accounts to Auto-Cart users.
+    On GET: Shows login form or generates token if already logged in
+    On POST: Authenticates user and generates token
+
+    Returns:
+        Redirect to Alexa with access token in URL fragment
+    """
+    # Get OAuth parameters from Alexa
+    redirect_uri = request.args.get("redirect_uri")
+    state = request.args.get("state", "")
+    client_id = request.args.get("client_id", "")
+
+    if not redirect_uri:
+        flash("Invalid authorization request - missing redirect_uri", "danger")
+        return redirect(url_for("auth.login"))
+
+    # Handle GET request
+    if request.method == "GET":
+        # Store OAuth params in session for POST
+        session["alexa_oauth"] = {
+            "redirect_uri": redirect_uri,
+            "state": state,
+            "client_id": client_id,
+        }
+
+        # If user is already logged in, skip login form
+        if CURR_USER_KEY in session:
+            user = db.session.get(User, session[CURR_USER_KEY])
+            if user:
+                # Generate token if needed
+                if not user.alexa_access_token:
+                    user.alexa_access_token = secrets.token_urlsafe(32)
+                    db.session.commit()
+
+                token = user.alexa_access_token
+                return redirect(
+                    f"{redirect_uri}#access_token={token}&token_type=Bearer&state={state}"
+                )
+
+        # Show login form
+        form = LoginForm()
+        return render_template("login.html", form=form)
+
+    # Handle POST request (login form submission)
+    form = LoginForm()
+
+    if not form.validate_on_submit():
+        flash("Invalid credentials.", "danger")
+        return render_template("login.html", form=form)
+
+    # Authenticate user
+    user = User.authenticate(
+        form.username.data.strip().capitalize(), form.password.data
+    )
+
+    if not user:
+        flash("Invalid credentials.", "danger")
+        return render_template("login.html", form=form)
+
+    # Log the user in
+    do_login(user)
+
+    # Get OAuth params from session
+    oauth_params = session.get("alexa_oauth", {})
+    redirect_uri = oauth_params.get("redirect_uri")
+    state = oauth_params.get("state", "")
+
+    if not redirect_uri:
+        flash("Authorization session expired. Please try again.", "danger")
+        return redirect(url_for("auth.login"))
+
+    # Generate alexa_access_token if not present
+    if not user.alexa_access_token:
+        user.alexa_access_token = secrets.token_urlsafe(32)
+        db.session.commit()
+
+    token = user.alexa_access_token
+
+    # Clean up session
+    session.pop("alexa_oauth", None)
+
+    # Redirect back to Alexa with token in URL fragment (implicit grant)
+    return redirect(
+        f"{redirect_uri}#access_token={token}&token_type=Bearer&state={state}"
+    )
