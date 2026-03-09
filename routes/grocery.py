@@ -20,91 +20,12 @@ from flask_mail import Message
 from werkzeug.wrappers import Response
 
 from extensions import db, mail
-from models import GroceryList, GroceryListItem, Recipe, RecipeIngredient
-from utils import (
-    require_login,
-    CURR_GROCERY_LIST_KEY,
-    parse_quantity_string,
-    get_est_now,
-    parse_simple_ingredient,
-)
+from models import GroceryList, GroceryListItem
+from utils import require_login, CURR_GROCERY_LIST_KEY
 from logging_config import logger
 from typing import Union
 
 grocery_bp = Blueprint("grocery", __name__)
-
-
-def _build_ingredient_label(name: str, quantity=None, measurement=None) -> str:
-    """Build a user-facing ingredient label for emails and flashes."""
-    ingredient_name = str(name or "ingredient").strip()
-
-    quantity_text = ""
-    if quantity not in (None, ""):
-        if isinstance(quantity, float) and quantity.is_integer():
-            quantity = int(quantity)
-        quantity_text = str(quantity).strip()
-
-    measurement_text = str(measurement or "").strip()
-    if measurement_text.lower() == "unit":
-        measurement_text = ""
-
-    if not quantity_text and not measurement_text:
-        return ingredient_name
-    if not measurement_text:
-        if quantity_text in ("1", "1.0"):
-            return ingredient_name
-        return f"{quantity_text} {ingredient_name}".strip()
-    return f"{quantity_text} {measurement_text} {ingredient_name}".strip()
-
-
-def _add_last_minute_items_to_grocery_list(
-    grocery_list: GroceryList, last_minute_items_text: str
-) -> list[str]:
-    """Parse and append last-minute items to the active pantry list."""
-    added_item_labels = []
-
-    for ingredient_text in [
-        line.strip() for line in last_minute_items_text.splitlines() if line.strip()
-    ]:
-        parsed_ingredients = Recipe.parse_ingredients(ingredient_text)
-        if not parsed_ingredients:
-            parsed_ingredients = parse_simple_ingredient(ingredient_text)
-
-        for ingredient_data in parsed_ingredients:
-            quantity = parse_quantity_string(str(ingredient_data.get("quantity") or ""))
-            if quantity is None:
-                quantity = 1.0
-
-            measurement = ingredient_data.get("measurement") or "unit"
-            ingredient_name = (
-                ingredient_data.get("ingredient_name")
-                or ingredient_data.get("name")
-                or ingredient_text
-            )
-
-            recipe_ingredient = RecipeIngredient(
-                ingredient_name=ingredient_name,
-                quantity=quantity,
-                measurement=measurement,
-            )
-            db.session.add(recipe_ingredient)
-            db.session.flush()
-
-            grocery_list_item = GroceryListItem(
-                grocery_list_id=grocery_list.id,
-                recipe_ingredient_id=recipe_ingredient.id,
-                added_by_user_id=g.user.id,
-            )
-            db.session.add(grocery_list_item)
-            added_item_labels.append(
-                _build_ingredient_label(ingredient_name, quantity, measurement)
-            )
-
-    if added_item_labels:
-        grocery_list.last_modified_by_user_id = g.user.id
-        grocery_list.last_modified_at = get_est_now()
-
-    return added_item_labels
 
 
 def _get_household_notification_recipients(selected_user_ids) -> list:
@@ -133,9 +54,7 @@ def _get_household_notification_recipients(selected_user_ids) -> list:
     return recipients
 
 
-def _send_household_shopping_started_emails(
-    recipient_ids: list[str], last_minute_items: list[str]
-) -> int:
+def _send_household_shopping_started_emails(recipient_ids: list[str]) -> int:
     """Notify selected household members that shopping has started."""
     recipients = _get_household_notification_recipients(recipient_ids)
     if not recipients:
@@ -156,7 +75,6 @@ def _send_household_shopping_started_emails(
             shopper_name=g.user.username,
             household_name=household_name,
             grocery_list_name=grocery_list_name,
-            last_minute_items=last_minute_items,
             homepage_url=base_url,
             household_settings_url=f"{base_url}/household/settings",
         )
@@ -164,14 +82,10 @@ def _send_household_shopping_started_emails(
             f"Hi {recipient.username},\n\n"
             f"{g.user.username} just started shopping for the {household_name} household.\n"
             f"Pantry list: {grocery_list_name}\n\n"
+            f"Last chance to add items to the list! Reach out to {g.user.username} to add last minute items.\n\n"
             f"Open Auto-Cart: {base_url}\n"
             f"Household settings: {base_url}/household/settings\n\n"
         )
-        if last_minute_items:
-            text_body += "Last-Minute Items Added:\n"
-            text_body += "\n".join(f"• {item}" for item in last_minute_items)
-            text_body += "\n\n"
-
         text_body += (
             "---\n"
             "Auto-Cart - Smart Household Grocery Management\n"
@@ -499,12 +413,8 @@ def start_shopping() -> Response:
 
     grocery_list = g.grocery_list
     recipient_ids = request.form.getlist("email_recipient_ids")
-    last_minute_items_text = request.form.get("last_minute_items", "").strip()
 
     try:
-        added_last_minute_items = _add_last_minute_items_to_grocery_list(
-            grocery_list, last_minute_items_text
-        )
         grocery_list.status = "shopping"
         grocery_list.shopping_user_id = g.user.id
         grocery_list.last_modified_by_user_id = g.user.id
@@ -518,9 +428,7 @@ def start_shopping() -> Response:
     emails_sent = 0
     if recipient_ids:
         try:
-            emails_sent = _send_household_shopping_started_emails(
-                recipient_ids, added_last_minute_items
-            )
+            emails_sent = _send_household_shopping_started_emails(recipient_ids)
         except Exception as e:
             logger.error(
                 f"Error sending shopping-start notification emails: {e}",
@@ -532,10 +440,6 @@ def start_shopping() -> Response:
             )
 
     success_parts = ["Shopping session started!"]
-    if added_last_minute_items:
-        success_parts.append(
-            f"Added {len(added_last_minute_items)} last-minute item(s)."
-        )
     if recipient_ids and emails_sent:
         success_parts.append(f"Notified {emails_sent} household member(s) by email.")
 

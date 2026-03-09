@@ -130,15 +130,15 @@
 					<i class="fas fa-bell text-primary mr-2"></i>Start Shopping
 				</h2>
 				<p class="modal-description">
-					Let your household know you’re shopping and capture any last-minute items before you go.
+					Let your household know you’re shopping so they have one last chance to request anything before you head out.
 				</p>
 			</div>
 			<div class="modal-body">
 				<form method="POST" action="{{ url_for('grocery.start_shopping') }}" class="modal-form">
-					<div class="form-group">
-						<label class="form-label">
+					<fieldset class="form-group">
+						<legend class="form-label">
 							<i class="fas fa-users mr-1"></i>Notify household members
-						</label>
+						</legend>
 						{% if household_members %}
 						<div class="selection-options">
 							{% for member in household_members %}
@@ -162,20 +162,7 @@
 						{% else %}
 						<p class="text-muted mb-0">No other household members with email addresses are available to notify.</p>
 						{% endif %}
-					</div>
-
-					<div class="form-group">
-						<label for="last-minute-items" class="form-label">
-							<i class="fas fa-list-ul mr-1"></i>Last-minute items
-						</label>
-						<textarea
-							id="last-minute-items"
-							name="last_minute_items"
-							class="form-textarea"
-							rows="5"
-							placeholder="Add one item per line, like:&#10;2 cups rice&#10;milk"
-						></textarea>
-					</div>
+					</fieldset>
 
 					<div class="modal-actions">
 						<a href="#modal-closed" class="btn btn-outline">
@@ -251,7 +238,7 @@ document.querySelectorAll('.item-checkbox').forEach(checkbox => {
 	document.querySelectorAll('.modal-container').forEach(container => {
 		container.addEventListener('click', function(e) {
 			if (e.target === container) {
-				window.location.hash = 'modal-closed';
+					globalThis.location.hash = 'modal-closed';
 			}
 		});
 	});
