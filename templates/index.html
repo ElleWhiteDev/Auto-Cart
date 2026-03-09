@@ -607,9 +607,9 @@
 									Choose who should get the Kroger pickup order update.
 								</span>
 							</div>
-							<div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px;">
+							<div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px;">
 								{% for recipient in kroger_email_recipients %}
-								<label style="display: flex; align-items: flex-start; gap: 10px; color: #1f2937; cursor: pointer;">
+								<label style="display: flex; align-items: flex-start; gap: 10px; color: #1f2937; cursor: pointer; padding: 10px 12px; border: 1px solid #e5e7eb; border-radius: 8px; background-color: #f9fafb;">
 									<input type="checkbox" name="email_recipient_ids" value="{{ recipient.id }}" style="margin-top: 4px;" />
 									<span>
 										<strong>{{ recipient.username }}</strong><br />
@@ -618,15 +618,20 @@
 								</label>
 								{% endfor %}
 							</div>
-							<label style="display: flex; align-items: flex-start; gap: 10px; color: #1f2937; cursor: pointer; margin-bottom: 0;">
-								<input type="checkbox" name="include_grocery_list" value="true" style="margin-top: 4px;" />
-								<span>
-									<strong>Include the pantry list in the email</strong><br />
-									<span style="font-size: 14px; color: #666;">
-										Add the current pantry list items to the order update email.
+							<div style="background-color: #fff8e8; border: 1px solid #f3d19c; border-radius: 8px; padding: 12px 14px;">
+								<div style="font-size: 13px; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; color: #c75000; margin-bottom: 8px;">
+									Optional add-on
+								</div>
+								<label style="display: flex; align-items: flex-start; gap: 10px; color: #1f2937; cursor: pointer; margin-bottom: 0;">
+									<input type="checkbox" name="include_grocery_list" value="true" style="margin-top: 4px;" />
+									<span>
+										<strong>Include the pantry list in the email</strong><br />
+										<span style="font-size: 14px; color: #666;">
+											Add the current pantry list items to the order update email.
+										</span>
 									</span>
-								</span>
-							</label>
+								</label>
+							</div>
 						</div>
 						{% endif %}
 					</div>
