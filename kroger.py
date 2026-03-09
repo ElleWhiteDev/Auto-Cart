@@ -409,9 +409,17 @@ class KrogerWorkflow:
         self.session_manager = KrogerSessionManager()
 
     def handle_authentication(
-        self, user, oauth_base_url: str, redirect_url: str
+        self,
+        user,
+        oauth_base_url: str,
+        redirect_url: str,
+        success_redirect_url: Optional[str] = None,
     ) -> str:
         """Handle Kroger authentication workflow with persistent tokens."""
+        success_redirect_url = success_redirect_url or (
+            url_for("main.homepage") + "#modal-zipcode"
+        )
+
         # Check if we have existing tokens
         if user.oauth_token and user.refresh_token:
             logger.info("Found existing tokens - testing validity")
@@ -419,7 +427,7 @@ class KrogerWorkflow:
             # Test if current token is valid by making a simple API call
             if self._test_token_validity(user.oauth_token):
                 logger.info("Existing token is valid - skipping auth")
-                return url_for("homepage") + "#modal-zipcode"
+                return success_redirect_url
 
             logger.info("Existing token invalid - attempting refresh")
             # Try to refresh the token
@@ -435,7 +443,7 @@ class KrogerWorkflow:
                 from models import db
 
                 db.session.commit()
-                return url_for("homepage") + "#modal-zipcode"
+                return success_redirect_url
             else:
                 logger.warning("Token refresh failed - clearing tokens")
                 # Clear invalid tokens
@@ -492,14 +500,14 @@ class KrogerWorkflow:
         stores = self.kroger_service.get_stores(zipcode, token)
         if stores:
             self.session_manager.store_stores(stores)
-            return url_for("homepage") + "#modal-store"
+            return url_for("main.homepage") + "#modal-store"
         else:
-            return url_for("homepage") + "#modal-zipcode"
+            return url_for("main.homepage") + "#modal-zipcode"
 
     def handle_store_selection(self, store_id: str) -> str:
         """Handle store selection and return redirect URL."""
         self.session_manager.store_selected_store(store_id)
-        return url_for("kroger_product_search")
+        return url_for("kroger.kroger_product_search")
 
     def handle_product_search(self, token: str) -> str:
         """Handle product search workflow and return redirect URL."""
@@ -516,19 +524,19 @@ class KrogerWorkflow:
                     products, next_ingredient_detail
                 )
 
-        return url_for("homepage") + "#modal-ingredient"
+        return url_for("main.homepage") + "#modal-ingredient"
 
     def handle_item_choice(self, product_id: str) -> str:
         """Handle user's product choice and return redirect URL."""
         self.session_manager.add_product_to_cart(product_id)
 
         if self.session_manager.has_more_ingredients():
-            return url_for("kroger_product_search")
+            return url_for("kroger.kroger_product_search")
         else:
-            return url_for("kroger_send_to_cart")
+            return url_for("kroger.kroger_send_to_cart")
 
-    def handle_send_to_cart(self, token: str) -> str:
-        """Handle sending items to Kroger cart and return redirect URL."""
+    def handle_send_to_cart(self, token: str) -> bool:
+        """Handle sending items to Kroger cart and report whether it succeeded."""
         cart_products = self.session_manager.get_cart_products()
         location_id = session.get("location_id")
 
@@ -558,12 +566,10 @@ class KrogerWorkflow:
         success = self.kroger_service.add_items_to_cart(items, token, location_id)
         logger.info(f"Add to cart success: {success}")
 
-        self.session_manager.clear_kroger_session_data()
-
         if success:
-            return "https://www.kroger.com/cart"
-        else:
-            return url_for("homepage")
+            self.session_manager.clear_kroger_session_data()
+
+        return success
 
     def ensure_valid_token(self, user) -> Optional[str]:
         """Ensure user has a valid token, refreshing if necessary."""

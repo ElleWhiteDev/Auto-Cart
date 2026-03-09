@@ -15,6 +15,56 @@ from logging_config import logger
 kroger_bp = Blueprint("kroger", __name__)
 
 
+def _get_household_kroger_user() -> User:
+    """Return the Kroger-connected user for the current household."""
+    kroger_user = g.user
+    if g.household and g.household.kroger_user_id:
+        kroger_user = User.query.get(g.household.kroger_user_id)
+    return kroger_user
+
+
+def _build_send_to_cart_resume_url() -> str:
+    """Build the send-to-cart URL that should be resumed after auth."""
+    route_values = {}
+    if request.args.get("confirmed"):
+        route_values["confirmed"] = "true"
+    return url_for("kroger.kroger_send_to_cart", **route_values)
+
+
+def _store_kroger_recovery_prompt(
+    title: str,
+    message: str,
+    primary_label: str,
+    primary_url: str,
+    secondary_label: str = None,
+    secondary_url: str = None,
+) -> None:
+    """Store a persistent homepage recovery prompt for Kroger actions."""
+    prompt = {
+        "title": title,
+        "message": message,
+        "primary_label": primary_label,
+        "primary_url": primary_url,
+    }
+    if secondary_label and secondary_url:
+        prompt["secondary_label"] = secondary_label
+        prompt["secondary_url"] = secondary_url
+    session["kroger_recovery_prompt"] = prompt
+
+
+def _queue_send_to_cart_reconnect_prompt(message: str) -> None:
+    """Queue a reconnect prompt while preserving current cart selections."""
+    session["kroger_post_auth_redirect"] = _build_send_to_cart_resume_url()
+    _store_kroger_recovery_prompt(
+        "Reconnect Kroger to finish sending your cart",
+        message,
+        "Reconnect Kroger",
+        url_for("kroger.kroger_authenticate", resume="send-to-cart"),
+        "Household Settings",
+        url_for("main.household_settings"),
+    )
+
+
 @kroger_bp.route("/authenticate")
 @require_login
 def kroger_authenticate() -> Response:
@@ -33,11 +83,20 @@ def kroger_authenticate() -> Response:
             flash("Kroger integration not configured", "danger")
             return redirect(url_for("main.homepage"))
 
-        kroger_session_manager.clear_kroger_session_data()
+        success_redirect_url = None
+        if request.args.get("resume") == "send-to-cart":
+            success_redirect_url = session.get(
+                "kroger_post_auth_redirect",
+                url_for("kroger.kroger_send_to_cart", confirmed="true"),
+            )
+        else:
+            kroger_session_manager.clear_kroger_session_data()
+
         result = kroger_workflow.handle_authentication(
             g.user,
             current_app.config["OAUTH2_BASE_URL"],
             current_app.config["REDIRECT_URL"],
+            success_redirect_url=success_redirect_url,
         )
         return redirect(result)
     except Exception as e:
@@ -77,6 +136,14 @@ def callback() -> Response:
 
     if success:
         db.session.commit()
+        post_auth_redirect = session.pop("kroger_post_auth_redirect", None)
+        session.pop("kroger_recovery_prompt", None)
+        if post_auth_redirect:
+            flash(
+                "Successfully reconnected to Kroger! Finishing your cart now.",
+                "success",
+            )
+            return redirect(post_auth_redirect)
         flash("Successfully connected to Kroger!", "success")
     else:
         flash("Failed to connect to Kroger. Please try again.", "danger")
@@ -97,9 +164,7 @@ def location_search() -> Response:
     zipcode = request.form.get("zipcode")
 
     # Use household's Kroger user if set, otherwise current user
-    kroger_user = g.user
-    if g.household and g.household.kroger_user_id:
-        kroger_user = User.query.get(g.household.kroger_user_id)
+    kroger_user = _get_household_kroger_user()
 
     if not kroger_user or not kroger_user.oauth_token:
         flash("Please connect a Kroger account first", "danger")
@@ -146,9 +211,7 @@ def kroger_product_search() -> Response:
         Redirect to homepage with product selection modal
     """
     # Get household's Kroger user
-    kroger_user = g.user
-    if g.household and g.household.kroger_user_id:
-        kroger_user = User.query.get(g.household.kroger_user_id)
+    kroger_user = _get_household_kroger_user()
 
     if not kroger_user or not kroger_user.oauth_token:
         flash("Please connect a Kroger account first", "danger")
@@ -241,12 +304,16 @@ def kroger_send_to_cart() -> Response:
         Redirect to homepage or skipped ingredients modal
     """
     # Get household's Kroger user
-    kroger_user = g.user
-    if g.household and g.household.kroger_user_id:
-        kroger_user = User.query.get(g.household.kroger_user_id)
+    kroger_user = _get_household_kroger_user()
 
     if not kroger_user or not kroger_user.oauth_token:
-        flash("Please connect a Kroger account first", "danger")
+        _queue_send_to_cart_reconnect_prompt(
+            "Your Kroger connection needs to be updated before we can send this cart. "
+            "Your selections are still saved."
+        )
+        flash(
+            "Please reconnect a Kroger account to finish sending your cart.", "warning"
+        )
         return redirect(url_for("main.homepage"))
 
     kroger_session_manager = current_app.config.get("kroger_session_manager")
@@ -263,10 +330,38 @@ def kroger_send_to_cart() -> Response:
     if skipped and not request.args.get("confirmed"):
         return redirect(url_for("main.homepage") + "#modal-skipped")
 
-    # Clear skipped ingredients and proceed to cart
-    kroger_session_manager.clear_skipped_ingredients()
-    redirect_url = kroger_workflow.handle_send_to_cart(kroger_user.oauth_token)
-    return redirect(redirect_url)
+    valid_token = kroger_workflow.ensure_valid_token(kroger_user)
+    if not valid_token:
+        _queue_send_to_cart_reconnect_prompt(
+            "Your Kroger connection expired before we could send your cart. "
+            "Reconnect to continue, and we’ll keep your current selections ready."
+        )
+        flash(
+            "Your Kroger connection expired before we could send your cart. "
+            "Reconnect to continue.",
+            "warning",
+        )
+        return redirect(url_for("main.homepage"))
+
+    success = kroger_workflow.handle_send_to_cart(valid_token)
+    if success:
+        kroger_session_manager.clear_skipped_ingredients()
+        session.pop("kroger_recovery_prompt", None)
+        session.pop("kroger_post_auth_redirect", None)
+        return redirect("https://www.kroger.com/cart")
+
+    session.pop("kroger_post_auth_redirect", None)
+    _store_kroger_recovery_prompt(
+        "We couldn't send your cart to Kroger",
+        "Your selections are still saved, so you can try again without starting over.",
+        "Try Again",
+        _build_send_to_cart_resume_url(),
+    )
+    flash(
+        "We couldn't send your items to Kroger. Your selections are still saved, so please try again.",
+        "warning",
+    )
+    return redirect(url_for("main.homepage"))
 
 
 @kroger_bp.route("/skip-ingredient", methods=["POST"])

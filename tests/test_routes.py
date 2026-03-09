@@ -343,6 +343,117 @@ class TestGroceryListRoutes:
 
 
 @pytest.mark.integration
+class TestKrogerRoutes:
+    """Tests for Kroger auth recovery routes."""
+
+    def test_send_to_cart_with_expired_token_shows_reconnect_prompt(
+        self,
+        authenticated_client,
+        db_session,
+        monkeypatch,
+        sample_household,
+        sample_user,
+    ):
+        """Expired auth should preserve cart selections and guide the user to reconnect."""
+        sample_user.oauth_token = "expired-token"
+        sample_user.refresh_token = "refresh-token"
+        sample_household.kroger_user_id = sample_user.id
+        db_session.commit()
+
+        workflow = authenticated_client.application.config["kroger_workflow"]
+        monkeypatch.setattr(workflow, "ensure_valid_token", lambda user: None)
+
+        with authenticated_client.session_transaction() as sess:
+            sess["household_id"] = sample_household.id
+            sess["products_for_cart"] = [{"upc": "000111222333", "quantity": 1}]
+            sess["skipped_ingredients"] = ["1 unit milk"]
+            sess["location_id"] = "store-123"
+
+        response = authenticated_client.get(
+            "/send-to-cart?confirmed=true", follow_redirects=True
+        )
+
+        assert response.status_code == 200
+        assert b"Reconnect Kroger to finish sending your cart" in response.data
+        assert b"Reconnect Kroger" in response.data
+        assert (
+            b"Your Kroger connection expired before we could send your cart"
+            in response.data
+        )
+
+        with authenticated_client.session_transaction() as sess:
+            assert sess["products_for_cart"] == [{"upc": "000111222333", "quantity": 1}]
+            assert sess["skipped_ingredients"] == ["1 unit milk"]
+            assert sess["kroger_post_auth_redirect"].endswith(
+                "/send-to-cart?confirmed=true"
+            )
+            assert sess["kroger_recovery_prompt"]["primary_url"].endswith(
+                "/authenticate?resume=send-to-cart"
+            )
+
+    def test_authenticate_resume_keeps_cart_progress(
+        self, authenticated_client, monkeypatch
+    ):
+        """Reconnect auth should not clear the in-progress Kroger cart state."""
+        workflow = authenticated_client.application.config["kroger_workflow"]
+        captured = {}
+
+        def fake_handle_authentication(
+            user, oauth_base_url, redirect_url, success_redirect_url=None
+        ):
+            captured["success_redirect_url"] = success_redirect_url
+            return success_redirect_url
+
+        monkeypatch.setattr(
+            workflow, "handle_authentication", fake_handle_authentication
+        )
+
+        with authenticated_client.session_transaction() as sess:
+            sess["products_for_cart"] = [{"upc": "000111222333", "quantity": 1}]
+            sess["kroger_post_auth_redirect"] = "/send-to-cart?confirmed=true"
+
+        response = authenticated_client.get(
+            "/authenticate?resume=send-to-cart", follow_redirects=False
+        )
+
+        assert response.status_code == 302
+        assert response.headers["Location"].endswith("/send-to-cart?confirmed=true")
+        assert captured["success_redirect_url"] == "/send-to-cart?confirmed=true"
+
+        with authenticated_client.session_transaction() as sess:
+            assert sess["products_for_cart"] == [{"upc": "000111222333", "quantity": 1}]
+
+    def test_callback_resumes_saved_send_to_cart_after_success(
+        self, authenticated_client, monkeypatch
+    ):
+        """Successful Kroger callback should resume the saved cart flow."""
+        workflow = authenticated_client.application.config["kroger_workflow"]
+        monkeypatch.setattr(
+            workflow,
+            "handle_callback",
+            lambda authorization_code, user, redirect_url: True,
+        )
+
+        with authenticated_client.session_transaction() as sess:
+            sess["kroger_post_auth_redirect"] = "/send-to-cart?confirmed=true"
+            sess["kroger_recovery_prompt"] = {
+                "title": "Reconnect Kroger to finish sending your cart",
+                "message": "Reconnect to continue.",
+                "primary_label": "Reconnect Kroger",
+                "primary_url": "/authenticate?resume=send-to-cart",
+            }
+
+        response = authenticated_client.get("/callback?code=test-code")
+
+        assert response.status_code == 302
+        assert response.headers["Location"].endswith("/send-to-cart?confirmed=true")
+
+        with authenticated_client.session_transaction() as sess:
+            assert "kroger_post_auth_redirect" not in sess
+            assert "kroger_recovery_prompt" not in sess
+
+
+@pytest.mark.integration
 class TestUtilityRoutes:
     """Tests for utility routes and error handlers."""
 
