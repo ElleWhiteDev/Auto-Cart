@@ -404,6 +404,68 @@ class TestGroceryListRoutes:
         assert b"last chance to request anything" in response.data.lower()
         assert b"Last-minute items" not in response.data
         assert b"shopmate@example.com" in response.data
+        assert b"/shopping-mode/state" in response.data
+        assert b"This list was updated. Refreshing" in response.data
+
+    def test_shopping_mode_state_signature_changes_when_list_changes(
+        self,
+        authenticated_client,
+        db_session,
+        sample_household,
+        sample_grocery_list,
+        sample_user,
+    ):
+        """Shopping mode polling state should change when the list contents change."""
+        ingredient = RecipeIngredient(
+            ingredient_name="milk",
+            quantity=1,
+            measurement="unit",
+        )
+        db_session.add(ingredient)
+        db_session.flush()
+        db_session.add(
+            GroceryListItem(
+                grocery_list_id=sample_grocery_list.id,
+                recipe_ingredient_id=ingredient.id,
+                added_by_user_id=sample_user.id,
+            )
+        )
+        db_session.commit()
+
+        with authenticated_client.session_transaction() as sess:
+            sess["curr_household_id"] = sample_household.id
+            sess["curr_grocery_list_id"] = sample_grocery_list.id
+            sess["curr_user"] = sample_user.id
+
+        initial_response = authenticated_client.get("/shopping-mode/state")
+        initial_payload = initial_response.get_json()
+
+        extra_ingredient = RecipeIngredient(
+            ingredient_name="bread",
+            quantity=2,
+            measurement="loaf",
+        )
+        db_session.add(extra_ingredient)
+        db_session.flush()
+        db_session.add(
+            GroceryListItem(
+                grocery_list_id=sample_grocery_list.id,
+                recipe_ingredient_id=extra_ingredient.id,
+                added_by_user_id=sample_user.id,
+            )
+        )
+        db_session.commit()
+
+        updated_response = authenticated_client.get("/shopping-mode/state")
+        updated_payload = updated_response.get_json()
+
+        assert initial_response.status_code == 200
+        assert updated_response.status_code == 200
+        assert initial_payload["list_available"] is True
+        assert updated_payload["list_available"] is True
+        assert initial_payload["total_items"] == 1
+        assert updated_payload["total_items"] == 2
+        assert initial_payload["signature"] != updated_payload["signature"]
 
     def test_start_shopping_sends_notifications_without_adding_items(
         self,

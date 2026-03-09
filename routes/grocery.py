@@ -4,6 +4,9 @@ Pantry list management routes blueprint.
 Handles pantry list CRUD operations and item management.
 """
 
+import hashlib
+import json
+
 from flask import (
     Blueprint,
     current_app,
@@ -17,15 +20,66 @@ from flask import (
     jsonify,
 )
 from flask_mail import Message
+from sqlalchemy.orm import joinedload
 from werkzeug.wrappers import Response
 
 from extensions import db, mail
 from models import GroceryList, GroceryListItem
 from utils import require_login, CURR_GROCERY_LIST_KEY
 from logging_config import logger
-from typing import Union
+from typing import Any, Union
 
 grocery_bp = Blueprint("grocery", __name__)
+
+
+def _load_grocery_list_items(grocery_list_id: int) -> list[GroceryListItem]:
+    """Load pantry list items with their ingredient details."""
+
+    return (
+        GroceryListItem.query.options(joinedload(GroceryListItem.recipe_ingredient))
+        .filter_by(grocery_list_id=grocery_list_id)
+        .order_by(GroceryListItem.id.asc())
+        .all()
+    )
+
+
+def _build_grocery_list_sync_state(grocery_list: GroceryList) -> dict[str, Any]:
+    """Build a stable shopping-mode snapshot used for polling-based refreshes."""
+
+    items = _load_grocery_list_items(grocery_list.id)
+    item_rows = []
+    checked_items = 0
+
+    for item in items:
+        ingredient = item.recipe_ingredient
+        item_rows.append(
+            {
+                "id": item.id,
+                "completed": bool(item.completed),
+                "ingredient_name": ingredient.ingredient_name if ingredient else None,
+                "quantity": ingredient.quantity if ingredient else None,
+                "measurement": ingredient.measurement if ingredient else None,
+            }
+        )
+        if item.is_checked:
+            checked_items += 1
+
+    payload = {
+        "grocery_list_id": grocery_list.id,
+        "status": grocery_list.status,
+        "shopping_user_id": grocery_list.shopping_user_id,
+        "items": item_rows,
+    }
+    signature = hashlib.sha1(
+        json.dumps(payload, sort_keys=True, default=str).encode("utf-8")
+    ).hexdigest()
+
+    return {
+        "items": items,
+        "checked_items": checked_items,
+        "signature": signature,
+        "total_items": len(items),
+    }
 
 
 def _get_household_notification_recipients(selected_user_ids) -> list:
@@ -370,13 +424,7 @@ def shopping_mode() -> Union[str, Response]:
         return redirect(url_for("main.homepage"))
 
     grocery_list = g.grocery_list
-
-    # Get all items with their ingredients
-    items = GroceryListItem.query.filter_by(grocery_list_id=grocery_list.id).all()
-
-    # Calculate progress
-    total_items = len(items)
-    checked_items = sum(1 for item in items if item.is_checked)
+    sync_state = _build_grocery_list_sync_state(grocery_list)
     household_members = []
     if g.household:
         household_members = sorted(
@@ -391,10 +439,34 @@ def shopping_mode() -> Union[str, Response]:
     return render_template(
         "shopping_mode.html",
         grocery_list=grocery_list,
-        items=items,
-        total_items=total_items,
-        checked_items=checked_items,
+        grocery_list_state_signature=sync_state["signature"],
+        items=sync_state["items"],
+        total_items=sync_state["total_items"],
+        checked_items=sync_state["checked_items"],
         household_members=household_members,
+    )
+
+
+@grocery_bp.route("/shopping-mode/state", methods=["GET"])
+@require_login
+def shopping_mode_state() -> tuple[dict[str, Any], int]:
+    """Return a lightweight snapshot the shopping UI can poll for changes."""
+
+    if not g.grocery_list:
+        return jsonify({"list_available": False, "signature": None}), 200
+
+    sync_state = _build_grocery_list_sync_state(g.grocery_list)
+    return (
+        jsonify(
+            {
+                "checked_items": sync_state["checked_items"],
+                "list_available": True,
+                "signature": sync_state["signature"],
+                "status": g.grocery_list.status,
+                "total_items": sync_state["total_items"],
+            }
+        ),
+        200,
     )
 
 

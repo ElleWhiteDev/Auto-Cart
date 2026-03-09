@@ -12,6 +12,11 @@
 		</a>
 	</div>
 
+		<div id="shopping-refresh-notice" class="alert alert-info" hidden>
+			<i class="fas fa-sync-alt"></i>
+			This list was updated. Refreshing...
+		</div>
+
 	<!-- List Name -->
 	<div class="card shadow mb-3">
 		<div class="card-body">
@@ -199,46 +204,98 @@
 </style>
 
 <script>
-// Handle checkbox clicks
-document.querySelectorAll('.item-checkbox').forEach(checkbox => {
-	checkbox.addEventListener('change', function() {
-		const itemId = this.closest('.shopping-item').dataset.itemId;
-		const isChecked = this.checked;
+	const refreshNotice = document.getElementById('shopping-refresh-notice');
+	const pollingUrl = '{{ url_for("grocery.shopping_mode_state") }}';
+	let currentListSignature = {{ grocery_list_state_signature|tojson }};
+	let pollInFlight = false;
+	let isReloading = false;
 
-		// Toggle the item via AJAX
-		fetch(`/shopping-mode/toggle/${itemId}`, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
+	function triggerShoppingRefresh() {
+		if (isReloading) {
+			return;
+		}
+
+		isReloading = true;
+		if (refreshNotice) {
+			refreshNotice.hidden = false;
+		}
+
+		window.setTimeout(() => {
+			window.location.reload();
+		}, 800);
+	}
+
+	async function pollForShoppingUpdates() {
+		if (pollInFlight || isReloading || document.hidden) {
+			return;
+		}
+
+		pollInFlight = true;
+
+		try {
+			const response = await fetch(pollingUrl, {
+				headers: { 'Accept': 'application/json' },
+				cache: 'no-store'
+			});
+
+			if (!response.ok) {
+				return;
 			}
-		})
-		.then(response => response.json())
-		.then(data => {
-			if (data.success) {
-				// Update UI
-				const item = this.closest('.shopping-item');
-				if (data.is_checked) {
-					item.classList.add('checked');
-				} else {
-					item.classList.remove('checked');
+
+			const data = await response.json();
+			if (!data.list_available || data.signature !== currentListSignature) {
+				triggerShoppingRefresh();
+			}
+		} catch (error) {
+			console.error('Error polling shopping mode state:', error);
+		} finally {
+			pollInFlight = false;
+		}
+	}
+
+	window.setInterval(pollForShoppingUpdates, 5000);
+
+	// Handle checkbox clicks
+	document.querySelectorAll('.item-checkbox').forEach(checkbox => {
+		checkbox.addEventListener('change', function() {
+			const itemId = this.closest('.shopping-item').dataset.itemId;
+			const isChecked = this.checked;
+
+			// Toggle the item via AJAX
+			fetch(`/shopping-mode/toggle/${itemId}`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
 				}
+			})
+			.then(response => response.json())
+			.then(data => {
+				if (data.success) {
+					// Update UI
+					const item = this.closest('.shopping-item');
+					if (data.is_checked) {
+						item.classList.add('checked');
+					} else {
+						item.classList.remove('checked');
+					}
 
-				// Reload to update progress
-				location.reload();
-			}
-		})
-		.catch(error => {
-			console.error('Error:', error);
-			// Revert checkbox on error
-			this.checked = !isChecked;
+					// Reload to update progress
+					isReloading = true;
+					location.reload();
+				}
+			})
+			.catch(error => {
+				console.error('Error:', error);
+				// Revert checkbox on error
+				this.checked = !isChecked;
+			});
 		});
 	});
-});
 
 	document.querySelectorAll('.modal-container').forEach(container => {
 		container.addEventListener('click', function(e) {
 			if (e.target === container) {
-					globalThis.location.hash = 'modal-closed';
+				globalThis.location.hash = 'modal-closed';
 			}
 		});
 	});
