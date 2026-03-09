@@ -4,6 +4,8 @@ Kroger API integration routes blueprint.
 Handles Kroger authentication, product search, and cart management.
 """
 
+from collections import Counter
+
 from flask import Blueprint, request, flash, redirect, url_for, g, session, current_app
 from werkzeug.wrappers import Response
 
@@ -28,7 +30,71 @@ def _build_send_to_cart_resume_url() -> str:
     route_values = {}
     if request.args.get("confirmed"):
         route_values["confirmed"] = "true"
+    if request.args.get("remove_added"):
+        route_values["remove_added"] = "true"
     return url_for("kroger.kroger_send_to_cart", **route_values)
+
+
+def _normalize_ingredient_value(value) -> str:
+    """Normalize ingredient fields for display and matching."""
+    if value in (None, ""):
+        return ""
+    if isinstance(value, float) and value.is_integer():
+        value = int(value)
+    return str(value).strip()
+
+
+def _build_ingredient_label(name: str, quantity=None, measurement=None) -> str:
+    """Build a user-facing ingredient label."""
+    parts = [
+        _normalize_ingredient_value(quantity),
+        _normalize_ingredient_value(measurement),
+        _normalize_ingredient_value(name),
+    ]
+    return " ".join(part for part in parts if part)
+
+
+def _remove_exported_items_from_grocery_list(
+    skipped_item_ids: list[int], skipped_ingredients: list[str]
+) -> None:
+    """Remove exported items from the grocery list, keeping skipped items when possible."""
+    if not g.grocery_list:
+        return
+
+    kept_item_ids = {
+        int(item_id) for item_id in skipped_item_ids if item_id is not None
+    }
+    remaining_skipped_labels = Counter(
+        ingredient.strip()
+        for ingredient in skipped_ingredients
+        if ingredient and ingredient.strip()
+    )
+
+    removed_any = False
+    for item in list(g.grocery_list.items):
+        ingredient = item.recipe_ingredient
+        item_label = _build_ingredient_label(
+            ingredient.ingredient_name,
+            ingredient.quantity,
+            ingredient.measurement,
+        )
+
+        if item.id in kept_item_ids:
+            if remaining_skipped_labels[item_label] > 0:
+                remaining_skipped_labels[item_label] -= 1
+            continue
+
+        if remaining_skipped_labels[item_label] > 0:
+            remaining_skipped_labels[item_label] -= 1
+            continue
+
+        db.session.delete(item)
+        removed_any = True
+
+    if removed_any:
+        g.grocery_list.last_modified_by_user_id = g.user.id
+        session.pop("selected_recipe_ids", None)
+        db.session.commit()
 
 
 def _store_kroger_recovery_prompt(
@@ -306,16 +372,6 @@ def kroger_send_to_cart() -> Response:
     # Get household's Kroger user
     kroger_user = _get_household_kroger_user()
 
-    if not kroger_user or not kroger_user.oauth_token:
-        _queue_send_to_cart_reconnect_prompt(
-            "Your Kroger connection needs to be updated before we can send this cart. "
-            "Your selections are still saved."
-        )
-        flash(
-            "Please reconnect a Kroger account to finish sending your cart.", "warning"
-        )
-        return redirect(url_for("main.homepage"))
-
     kroger_session_manager = current_app.config.get("kroger_session_manager")
     kroger_workflow = current_app.config.get("kroger_workflow")
 
@@ -326,9 +382,19 @@ def kroger_send_to_cart() -> Response:
     # Check if there are skipped ingredients
     skipped = kroger_session_manager.get_skipped_ingredients()
 
-    # If there are skipped ingredients and we haven't confirmed yet, show modal
-    if skipped and not request.args.get("confirmed"):
+    # Always show the export summary before the final send.
+    if not request.args.get("confirmed"):
         return redirect(url_for("main.homepage") + "#modal-skipped")
+
+    if not kroger_user or not kroger_user.oauth_token:
+        _queue_send_to_cart_reconnect_prompt(
+            "Your Kroger connection needs to be updated before we can send this cart. "
+            "Your selections are still saved."
+        )
+        flash(
+            "Please reconnect a Kroger account to finish sending your cart.", "warning"
+        )
+        return redirect(url_for("main.homepage"))
 
     valid_token = kroger_workflow.ensure_valid_token(kroger_user)
     if not valid_token:
@@ -345,6 +411,10 @@ def kroger_send_to_cart() -> Response:
 
     success = kroger_workflow.handle_send_to_cart(valid_token)
     if success:
+        if request.args.get("remove_added"):
+            _remove_exported_items_from_grocery_list(
+                kroger_session_manager.get_skipped_grocery_list_item_ids(), skipped
+            )
         kroger_session_manager.clear_skipped_ingredients()
         session.pop("kroger_recovery_prompt", None)
         session.pop("kroger_post_auth_redirect", None)
@@ -381,8 +451,14 @@ def skip_ingredient() -> Response:
     # Track the skipped ingredient
     current_ingredient = session.get("current_ingredient_detail", {})
     if current_ingredient:
-        ingredient_name = f"{current_ingredient.get('quantity', '')} {current_ingredient.get('measurement', '')} {current_ingredient.get('name', 'Unknown')}".strip()
-        kroger_session_manager.track_skipped_ingredient(ingredient_name)
+        ingredient_name = _build_ingredient_label(
+            current_ingredient.get("name", "Unknown"),
+            current_ingredient.get("quantity", ""),
+            current_ingredient.get("measurement", ""),
+        )
+        kroger_session_manager.track_skipped_ingredient(
+            ingredient_name, current_ingredient.get("grocery_list_item_id")
+        )
 
     if kroger_session_manager.has_more_ingredients():
         return redirect(url_for("kroger.kroger_product_search"))

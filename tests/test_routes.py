@@ -344,7 +344,32 @@ class TestGroceryListRoutes:
 
 @pytest.mark.integration
 class TestKrogerRoutes:
-    """Tests for Kroger auth recovery routes."""
+    """Tests for Kroger auth recovery and export summary routes."""
+
+    def _add_grocery_list_item(
+        self,
+        db_session,
+        grocery_list,
+        ingredient_name,
+        quantity=1,
+        measurement="unit",
+    ):
+        """Create a grocery-list item for Kroger route tests."""
+        ingredient = RecipeIngredient(
+            ingredient_name=ingredient_name,
+            quantity=quantity,
+            measurement=measurement,
+        )
+        db_session.add(ingredient)
+        db_session.flush()
+
+        grocery_list_item = GroceryListItem(
+            grocery_list_id=grocery_list.id,
+            recipe_ingredient_id=ingredient.id,
+        )
+        db_session.add(grocery_list_item)
+        db_session.commit()
+        return grocery_list_item
 
     def test_send_to_cart_with_expired_token_shows_reconnect_prompt(
         self,
@@ -451,6 +476,154 @@ class TestKrogerRoutes:
         with authenticated_client.session_transaction() as sess:
             assert "kroger_post_auth_redirect" not in sess
             assert "kroger_recovery_prompt" not in sess
+
+    def test_send_to_cart_shows_summary_even_without_skipped_items(
+        self,
+        authenticated_client,
+        sample_household,
+        sample_grocery_list,
+    ):
+        """The export summary should still appear when nothing was skipped."""
+        with authenticated_client.session_transaction() as sess:
+            sess["household_id"] = sample_household.id
+
+        response = authenticated_client.get("/send-to-cart", follow_redirects=True)
+
+        assert response.status_code == 200
+        assert b"Kroger Export Summary" in response.data
+        assert b"Continue to Kroger" in response.data
+        assert b"Continue + Clear Grocery List" in response.data
+
+    def test_send_to_cart_remove_added_keeps_skipped_items(
+        self,
+        authenticated_client,
+        db_session,
+        monkeypatch,
+        sample_household,
+        sample_user,
+        sample_grocery_list,
+    ):
+        """Removing exported items should leave skipped grocery-list items in place."""
+        milk_item = self._add_grocery_list_item(db_session, sample_grocery_list, "milk")
+        self._add_grocery_list_item(db_session, sample_grocery_list, "bread")
+
+        sample_user.oauth_token = "valid-token"
+        sample_user.refresh_token = "refresh-token"
+        sample_household.kroger_user_id = sample_user.id
+        db_session.commit()
+
+        workflow = authenticated_client.application.config["kroger_workflow"]
+        monkeypatch.setattr(workflow, "ensure_valid_token", lambda user: "valid-token")
+        monkeypatch.setattr(workflow, "handle_send_to_cart", lambda token: True)
+
+        with authenticated_client.session_transaction() as sess:
+            sess["household_id"] = sample_household.id
+            sess["selected_recipe_ids"] = ["recipe-1"]
+            sess["skipped_ingredients"] = ["1 unit milk"]
+            sess["skipped_grocery_list_item_ids"] = [milk_item.id]
+
+        response = authenticated_client.get(
+            "/send-to-cart?confirmed=true&remove_added=true", follow_redirects=False
+        )
+
+        assert response.status_code == 302
+        assert response.headers["Location"] == "https://www.kroger.com/cart"
+
+        remaining_items = GroceryListItem.query.filter_by(
+            grocery_list_id=sample_grocery_list.id
+        ).all()
+        assert [item.recipe_ingredient.ingredient_name for item in remaining_items] == [
+            "milk"
+        ]
+
+        with authenticated_client.session_transaction() as sess:
+            assert "selected_recipe_ids" not in sess
+            assert "skipped_ingredients" not in sess
+            assert "skipped_grocery_list_item_ids" not in sess
+
+    def test_send_to_cart_remove_added_clears_list_when_nothing_skipped(
+        self,
+        authenticated_client,
+        db_session,
+        monkeypatch,
+        sample_household,
+        sample_user,
+        sample_grocery_list,
+    ):
+        """Removing exported items with no skipped items should clear the grocery list."""
+        self._add_grocery_list_item(db_session, sample_grocery_list, "milk")
+        self._add_grocery_list_item(db_session, sample_grocery_list, "bread")
+
+        sample_user.oauth_token = "valid-token"
+        sample_user.refresh_token = "refresh-token"
+        sample_household.kroger_user_id = sample_user.id
+        db_session.commit()
+
+        workflow = authenticated_client.application.config["kroger_workflow"]
+        monkeypatch.setattr(workflow, "ensure_valid_token", lambda user: "valid-token")
+        monkeypatch.setattr(workflow, "handle_send_to_cart", lambda token: True)
+
+        with authenticated_client.session_transaction() as sess:
+            sess["household_id"] = sample_household.id
+            sess["selected_recipe_ids"] = ["recipe-1"]
+
+        response = authenticated_client.get(
+            "/send-to-cart?confirmed=true&remove_added=true", follow_redirects=False
+        )
+
+        assert response.status_code == 302
+        assert response.headers["Location"] == "https://www.kroger.com/cart"
+        assert (
+            GroceryListItem.query.filter_by(
+                grocery_list_id=sample_grocery_list.id
+            ).count()
+            == 0
+        )
+
+        with authenticated_client.session_transaction() as sess:
+            assert "selected_recipe_ids" not in sess
+
+    def test_send_to_cart_continue_keeps_grocery_list_intact(
+        self,
+        authenticated_client,
+        db_session,
+        monkeypatch,
+        sample_household,
+        sample_user,
+        sample_grocery_list,
+    ):
+        """The standard continue path should not change the grocery list."""
+        milk_item = self._add_grocery_list_item(db_session, sample_grocery_list, "milk")
+        self._add_grocery_list_item(db_session, sample_grocery_list, "bread")
+
+        sample_user.oauth_token = "valid-token"
+        sample_user.refresh_token = "refresh-token"
+        sample_household.kroger_user_id = sample_user.id
+        db_session.commit()
+
+        workflow = authenticated_client.application.config["kroger_workflow"]
+        monkeypatch.setattr(workflow, "ensure_valid_token", lambda user: "valid-token")
+        monkeypatch.setattr(workflow, "handle_send_to_cart", lambda token: True)
+
+        with authenticated_client.session_transaction() as sess:
+            sess["household_id"] = sample_household.id
+            sess["skipped_ingredients"] = ["1 unit milk"]
+            sess["skipped_grocery_list_item_ids"] = [milk_item.id]
+
+        response = authenticated_client.get(
+            "/send-to-cart?confirmed=true", follow_redirects=False
+        )
+
+        assert response.status_code == 302
+        assert response.headers["Location"] == "https://www.kroger.com/cart"
+
+        remaining_items = GroceryListItem.query.filter_by(
+            grocery_list_id=sample_grocery_list.id
+        ).all()
+        assert [item.recipe_ingredient.ingredient_name for item in remaining_items] == [
+            "milk",
+            "bread",
+        ]
 
 
 @pytest.mark.integration

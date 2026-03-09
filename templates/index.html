@@ -542,20 +542,23 @@
 	</div>
 </div>
 
-<!-- Skipped Ingredients Modal -->
+<!-- Kroger Export Summary Modal -->
 <div class="modal-container" id="modal-skipped">
 	<div class="my-modal">
 		<div class="modal-header">
 			<h2 class="modal-title">
 				<i class="fas fa-exclamation-triangle text-warning mr-2"></i>
-				Skipped Ingredients
+				Kroger Export Summary
 			</h2>
 			<p class="modal-description">
-				The following ingredients were skipped and won't be added to your cart:
+				You're ready to send your selected items to Kroger.
 			</p>
 		</div>
 		<div class="modal-body">
 			{% if session.get('skipped_ingredients') %}
+			<p style="color: #666; margin-bottom: 12px;">
+				These skipped ingredients won't be sent to Kroger. You can keep your grocery list as-is or remove the exported items and leave only these skipped items behind.
+			</p>
 			<div style="background-color: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 15px; margin-bottom: 20px;">
 				<ul style="margin: 0; padding-left: 20px;">
 					{% for ingredient in session.get('skipped_ingredients', []) %}
@@ -567,13 +570,25 @@
 				<i class="fas fa-info-circle mr-2"></i>
 				You can manually add these items to your cart later if needed.
 			</p>
+			{% else %}
+			<div style="background-color: #eef6ff; border: 1px solid #90caf9; border-radius: 8px; padding: 15px; margin-bottom: 20px; color: #0d47a1;">
+				<i class="fas fa-info-circle mr-2"></i>
+				No items were skipped. If you choose to remove exported items after this send, the current grocery list will be cleared.
+			</div>
 			{% endif %}
 			<div class="modal-actions">
 				<a href="#modal-closed" class="btn btn-outline">
 					<i class="fas fa-arrow-left mr-2"></i>Go Back
 				</a>
-				<a href="{{ url_for('kroger.kroger_send_to_cart', confirmed='true') }}" class="btn btn-primary">
+				<a href="{{ url_for('kroger.kroger_send_to_cart', confirmed='true') }}" class="btn btn-outline">
 					<i class="fas fa-check mr-2"></i>Continue to Kroger
+				</a>
+				<a href="{{ url_for('kroger.kroger_send_to_cart', confirmed='true', remove_added='true') }}" class="btn btn-primary">
+					{% if session.get('skipped_ingredients') %}
+					<i class="fas fa-list-check mr-2"></i>Continue + Keep Only Skipped Items
+					{% else %}
+					<i class="fas fa-broom-ball mr-2"></i>Continue + Clear Grocery List
+					{% endif %}
 				</a>
 			</div>
 		</div>

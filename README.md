@@ -281,8 +281,7 @@ Auto-Cart/
 
 6. **Run the application**
    ```bash
-   flask run
-   # Or use the provided script:
+U   # Use the provided script:
    ./run.sh
    ```
 

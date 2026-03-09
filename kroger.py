@@ -284,12 +284,14 @@ class KrogerSessionManager:
         """Get ingredient details from current grocery list and store in session."""
         if not session.get("ingredient_details"):
             ingredient_details = []
-            for ingredient in g.grocery_list.recipe_ingredients:
+            for item in g.grocery_list.items:
+                ingredient = item.recipe_ingredient
                 ingredient_details.append(
                     {
                         "name": ingredient.ingredient_name,
                         "quantity": ingredient.quantity,
                         "measurement": ingredient.measurement,
+                        "grocery_list_item_id": item.id,
                     }
                 )
             session["ingredient_details"] = ingredient_details
@@ -383,11 +385,19 @@ class KrogerSessionManager:
         return cart_products
 
     @staticmethod
-    def track_skipped_ingredient(ingredient_name: str):
+    def track_skipped_ingredient(
+        ingredient_name: str, grocery_list_item_id: Optional[int] = None
+    ):
         """Track ingredients that were skipped."""
         if "skipped_ingredients" not in session:
             session["skipped_ingredients"] = []
         session["skipped_ingredients"].append(ingredient_name)
+
+        if grocery_list_item_id is not None:
+            if "skipped_grocery_list_item_ids" not in session:
+                session["skipped_grocery_list_item_ids"] = []
+            session["skipped_grocery_list_item_ids"].append(grocery_list_item_id)
+
         logger.info(f"Skipped ingredient: {ingredient_name}")
 
     @staticmethod
@@ -396,9 +406,15 @@ class KrogerSessionManager:
         return session.get("skipped_ingredients", [])
 
     @staticmethod
+    def get_skipped_grocery_list_item_ids() -> List[int]:
+        """Get grocery-list item IDs corresponding to skipped ingredients."""
+        return session.get("skipped_grocery_list_item_ids", [])
+
+    @staticmethod
     def clear_skipped_ingredients():
         """Clear the skipped ingredients list."""
         session.pop("skipped_ingredients", None)
+        session.pop("skipped_grocery_list_item_ids", None)
 
 
 class KrogerWorkflow:
