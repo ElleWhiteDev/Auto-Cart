@@ -128,15 +128,59 @@ def household_setup() -> Union[str, Response]:
             return redirect(url_for("main.homepage"))
 
         elif action == "join":
-            invite_code = request.form.get("invite_code", "").strip()
+            owner_email = (
+                request.form.get("owner_email", "").strip()
+                or request.form.get("join_code", "").strip()
+            )
 
-            if not invite_code:
-                flash("Please enter an invite code", "danger")
+            if not owner_email:
+                flash("Please enter the household owner's email", "danger")
                 return render_template("household_setup.html")
 
-            # Find household by invite code (implementation needed)
-            flash("Invite code feature coming soon!", "info")
-            return render_template("household_setup.html")
+            owner = User.query.filter(
+                db.func.lower(User.email) == owner_email.lower()
+            ).first()
+            if not owner:
+                flash(
+                    "No user found with that email. Please check it and try again.",
+                    "danger",
+                )
+                return render_template("household_setup.html")
+
+            membership = HouseholdMember.query.filter_by(
+                user_id=owner.id, role="owner"
+            ).first()
+
+            if not membership:
+                flash(
+                    "That user doesn't own a household yet. Please ask them to create one first.",
+                    "danger",
+                )
+                return render_template("household_setup.html")
+
+            existing_membership = HouseholdMember.query.filter_by(
+                household_id=membership.household_id, user_id=g.user.id
+            ).first()
+
+            if existing_membership:
+                session["household_id"] = membership.household_id
+                flash(
+                    f"You are already a member of {membership.household.name}",
+                    "warning",
+                )
+                return redirect(url_for("main.homepage"))
+
+            new_membership = HouseholdMember(
+                household_id=membership.household_id,
+                user_id=g.user.id,
+                role="member",
+            )
+            db.session.add(new_membership)
+            db.session.commit()
+
+            session["household_id"] = membership.household_id
+            flash(f"Successfully joined {membership.household.name}!", "success")
+            return redirect(url_for("main.homepage"))
 
     return render_template("household_setup.html")
 

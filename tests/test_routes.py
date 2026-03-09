@@ -8,6 +8,7 @@ from datetime import date, datetime, timezone
 import pytest
 
 from models import (
+    Household,
     MealPlanEntry,
     MealPlanChange,
     RecipeIngredient,
@@ -101,6 +102,66 @@ class TestAuthRoutes:
         """Test logging out."""
         response = authenticated_client.get("/logout", follow_redirects=True)
         assert response.status_code == 200
+
+
+@pytest.mark.integration
+class TestHouseholdRoutes:
+    """Tests for household setup and membership routes."""
+
+    def test_household_setup_join_requires_owner_email(self, authenticated_client):
+        """Joining a household should require the owner's email."""
+        response = authenticated_client.post(
+            "/household/setup",
+            data={"action": "join", "owner_email": ""},
+            follow_redirects=True,
+        )
+
+        assert response.status_code == 200
+        assert b"Please enter the household owner&#39;s email" in response.data
+
+    def test_household_setup_join_by_owner_email(
+        self, authenticated_client, db_session, sample_user
+    ):
+        """Joining by owner email should add the current user to that household."""
+        owner = User(
+            username="owneruser",
+            email="owner@example.com",
+            password=sample_user.password,
+        )
+        db_session.add(owner)
+        db_session.flush()
+
+        household = Household(name="Owner Household")
+        db_session.add(household)
+        db_session.flush()
+
+        db_session.add(
+            HouseholdMember(
+                household_id=household.id,
+                user_id=owner.id,
+                role="owner",
+            )
+        )
+        db_session.commit()
+
+        response = authenticated_client.post(
+            "/household/setup",
+            data={"action": "join", "owner_email": "OWNER@EXAMPLE.COM"},
+            follow_redirects=False,
+        )
+
+        membership = HouseholdMember.query.filter_by(
+            household_id=household.id,
+            user_id=sample_user.id,
+        ).first()
+
+        assert response.status_code == 302
+        assert response.headers["Location"].endswith("/")
+        assert membership is not None
+        assert membership.role == "member"
+
+        with authenticated_client.session_transaction() as session:
+            assert session["household_id"] == household.id
 
 
 @pytest.mark.integration
