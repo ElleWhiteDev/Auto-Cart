@@ -592,16 +592,35 @@
 								</span>
 							</span>
 						</label>
-						{% if kroger_email_recipient_count %}
-						<label style="display: flex; align-items: flex-start; gap: 10px; color: #1f2937; cursor: pointer;">
-							<input type="checkbox" name="email_household" value="true" style="margin-top: 4px;" />
-							<span>
-								<strong>Email household members</strong><br />
+						{% if kroger_email_recipients %}
+						<div style="background-color: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 14px;">
+							<div style="margin-bottom: 10px;">
+								<strong style="color: #1f2937;">Email selected household members</strong><br />
 								<span style="font-size: 14px; color: #666;">
-									Send a Kroger pickup order update to {{ kroger_email_recipient_count }} other household member{% if kroger_email_recipient_count != 1 %}s{% endif %}.
+									Choose who should get the Kroger pickup order update.
 								</span>
-							</span>
-						</label>
+							</div>
+							<div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px;">
+								{% for recipient in kroger_email_recipients %}
+								<label style="display: flex; align-items: flex-start; gap: 10px; color: #1f2937; cursor: pointer;">
+									<input type="checkbox" name="email_recipient_ids" value="{{ recipient.id }}" style="margin-top: 4px;" />
+									<span>
+										<strong>{{ recipient.username }}</strong><br />
+										<span style="font-size: 14px; color: #666;">{{ recipient.email }}</span>
+									</span>
+								</label>
+								{% endfor %}
+							</div>
+							<label style="display: flex; align-items: flex-start; gap: 10px; color: #1f2937; cursor: pointer; margin-bottom: 0;">
+								<input type="checkbox" name="include_grocery_list" value="true" style="margin-top: 4px;" />
+								<span>
+									<strong>Include the grocery list in the email</strong><br />
+									<span style="font-size: 14px; color: #666;">
+										Add the current grocery list items to the order update email.
+									</span>
+								</span>
+							</label>
+						</div>
 						{% endif %}
 					</div>
 					<div class="modal-actions">

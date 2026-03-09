@@ -43,29 +43,74 @@ def _build_send_to_cart_resume_url() -> str:
         route_values["confirmed"] = "true"
     if request.args.get("remove_added"):
         route_values["remove_added"] = "true"
-    if request.args.get("email_household"):
-        route_values["email_household"] = "true"
+    recipient_ids = [
+        recipient_id
+        for recipient_id in request.args.getlist("email_recipient_ids")
+        if recipient_id
+    ]
+    if recipient_ids:
+        route_values["email_recipient_ids"] = recipient_ids
+    if request.args.get("include_grocery_list"):
+        route_values["include_grocery_list"] = "true"
     return url_for("kroger.kroger_send_to_cart", **route_values)
 
 
-def _get_household_notification_recipients() -> list[User]:
-    """Return household members who should receive a Kroger order notification."""
+def _get_household_notification_recipients(selected_user_ids) -> list[User]:
+    """Return the selected household members who should receive a Kroger order notification."""
     if not g.household:
+        return []
+
+    selected_id_set = {
+        int(user_id) for user_id in selected_user_ids if str(user_id).strip().isdigit()
+    }
+    if not selected_id_set:
         return []
 
     recipients = []
     for member in g.household.members:
         user = member.user
-        if not user or not user.email or user.id == g.user.id:
+        if (
+            not user
+            or not user.email
+            or user.id == g.user.id
+            or user.id not in selected_id_set
+        ):
             continue
         recipients.append(user)
 
     return recipients
 
 
-def _send_household_kroger_order_created_emails(removed_exported_items: bool) -> int:
-    """Notify other household members that a Kroger pickup order was created."""
-    recipients = _get_household_notification_recipients()
+def _build_grocery_list_email_items() -> list[str]:
+    """Return the current grocery list items as user-facing labels."""
+    if not g.grocery_list:
+        return []
+
+    grocery_items = []
+    for item in g.grocery_list.items:
+        ingredient = item.recipe_ingredient
+        if not ingredient:
+            continue
+        grocery_items.append(
+            _build_ingredient_label(
+                ingredient.ingredient_name,
+                ingredient.quantity,
+                ingredient.measurement,
+            )
+        )
+
+    return grocery_items
+
+
+def _send_household_kroger_order_created_emails(
+    recipient_ids: list[int],
+    removed_exported_items: bool,
+    include_grocery_list: bool,
+    grocery_list_items: list[str],
+    skipped_items: list[str],
+) -> int:
+    """Notify selected household members that a Kroger pickup order was created."""
+    recipients = _get_household_notification_recipients(recipient_ids)
     if not recipients:
         return 0
 
@@ -80,6 +125,7 @@ def _send_household_kroger_order_created_emails(removed_exported_items: bool) ->
         if removed_exported_items
         else "The household grocery list was left unchanged after the send."
     )
+    include_grocery_list_in_email = include_grocery_list and bool(grocery_list_items)
     subject = f"Kroger pickup order created for {household_name}"
 
     for recipient in recipients:
@@ -90,6 +136,9 @@ def _send_household_kroger_order_created_emails(removed_exported_items: bool) ->
             household_name=household_name,
             grocery_list_name=grocery_list_name,
             grocery_list_status=grocery_list_status,
+            include_grocery_list=include_grocery_list,
+            grocery_list_items=grocery_list_items,
+            skipped_items=skipped_items,
             homepage_url=base_url,
             household_settings_url=f"{base_url}/household/settings",
         )
@@ -100,6 +149,20 @@ def _send_household_kroger_order_created_emails(removed_exported_items: bool) ->
             f"Status: {grocery_list_status}\n\n"
             f"Open Auto-Cart: {base_url}\n"
             f"Household settings: {base_url}/household/settings\n\n"
+        )
+        if include_grocery_list_in_email:
+            text_body += "Grocery List Items:\n"
+            text_body += "\n".join(f"• {item}" for item in grocery_list_items)
+            text_body += "\n\n"
+        elif include_grocery_list:
+            text_body += "Grocery List Items:\nThe grocery list is currently empty.\n\n"
+
+        if skipped_items:
+            text_body += "Skipped Items:\n"
+            text_body += "\n".join(f"• {item}" for item in skipped_items)
+            text_body += "\n\n"
+
+        text_body += (
             "---\n"
             "Auto-Cart - Smart Household Grocery Management\n"
             f"For support: {response_email}"
@@ -113,8 +176,7 @@ def _send_household_kroger_order_created_emails(removed_exported_items: bool) ->
         mail.send(msg)
 
     logger.info(
-        "Sent Kroger pickup order notification email to %s household members",
-        len(recipients),
+        "Sent Kroger pickup order notification email to %s recipients", len(recipients)
     )
     return len(recipients)
 
@@ -464,7 +526,12 @@ def kroger_send_to_cart() -> Response:
         return redirect(url_for("main.homepage"))
 
     should_remove_added = request.args.get("remove_added") == "true"
-    should_email_household = request.args.get("email_household") == "true"
+    selected_recipient_ids = [
+        int(recipient_id)
+        for recipient_id in request.args.getlist("email_recipient_ids")
+        if recipient_id.isdigit()
+    ]
+    include_grocery_list = request.args.get("include_grocery_list") == "true"
 
     # Check if there are skipped ingredients
     skipped = kroger_session_manager.get_skipped_ingredients()
@@ -498,14 +565,19 @@ def kroger_send_to_cart() -> Response:
 
     success = kroger_workflow.handle_send_to_cart(valid_token)
     if success:
+        grocery_list_items = _build_grocery_list_email_items()
         if should_remove_added:
             _remove_exported_items_from_grocery_list(
                 kroger_session_manager.get_skipped_grocery_list_item_ids(), skipped
             )
-        if should_email_household:
+        if selected_recipient_ids:
             try:
                 _send_household_kroger_order_created_emails(
-                    removed_exported_items=should_remove_added
+                    recipient_ids=selected_recipient_ids,
+                    removed_exported_items=should_remove_added,
+                    include_grocery_list=include_grocery_list,
+                    grocery_list_items=grocery_list_items,
+                    skipped_items=skipped,
                 )
             except Exception as e:
                 logger.error(

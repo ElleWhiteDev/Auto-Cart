@@ -58,6 +58,37 @@
             padding: 15px;
             margin: 20px 0;
         }
+        .grocery-section {
+            background-color: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-left: 4px solid #ff6600;
+            border-radius: 5px;
+        }
+        .grocery-section h2 {
+            color: #ff6600;
+            margin-top: 0;
+            font-size: 20px;
+        }
+        .grocery-list {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .grocery-list li {
+            margin-bottom: 8px;
+        }
+        .skipped-section {
+            background-color: #fff8e8;
+            padding: 20px;
+            margin: 20px 0;
+            border-left: 4px solid #c75000;
+            border-radius: 5px;
+        }
+        .skipped-section h2 {
+            color: #c75000;
+            margin-top: 0;
+            font-size: 20px;
+        }
         .cta-button {
             display: inline-block;
             background-color: #c75000;
@@ -103,6 +134,33 @@
             <div class="callout">
                 Your household can keep coordinating in Auto-Cart while this Kroger pickup order is being finalized.
             </div>
+
+            {% if skipped_items %}
+            <div class="skipped-section">
+                <h2>Skipped Items</h2>
+                <p>These items could not be sent to Kroger and still need attention:</p>
+                <ul class="grocery-list">
+                    {% for skipped_item in skipped_items %}
+                    <li>{{ skipped_item }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            {% if include_grocery_list %}
+            <div class="grocery-section">
+                <h2>Included Grocery List</h2>
+                {% if grocery_list_items %}
+                <ul class="grocery-list">
+                    {% for grocery_item in grocery_list_items %}
+                    <li>{{ grocery_item }}</li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p style="margin-bottom: 0;">The grocery list is currently empty.</p>
+                {% endif %}
+            </div>
+            {% endif %}
 
             <div style="text-align: center;">
                 <a href="{{ homepage_url }}" class="cta-button">Open Auto-Cart</a>

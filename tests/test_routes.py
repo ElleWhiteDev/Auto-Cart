@@ -447,6 +447,27 @@ class TestKrogerRoutes:
         db_session.commit()
         return grocery_list_item
 
+    def _add_household_member(
+        self, db_session, household, sample_user, username, email
+    ):
+        """Create a second household member for route tests."""
+        household_user = User(
+            username=username,
+            email=email,
+            password=sample_user.password,
+        )
+        db_session.add(household_user)
+        db_session.flush()
+        db_session.add(
+            HouseholdMember(
+                household_id=household.id,
+                user_id=household_user.id,
+                role="member",
+            )
+        )
+        db_session.commit()
+        return household_user
+
     def test_send_to_cart_with_expired_token_shows_reconnect_prompt(
         self,
         authenticated_client,
@@ -456,6 +477,13 @@ class TestKrogerRoutes:
         sample_user,
     ):
         """Expired auth should preserve cart selections and guide the user to reconnect."""
+        second_user = self._add_household_member(
+            db_session,
+            sample_household,
+            sample_user,
+            "housemate",
+            "housemate@example.com",
+        )
         sample_user.oauth_token = "expired-token"
         sample_user.refresh_token = "refresh-token"
         sample_household.kroger_user_id = sample_user.id
@@ -471,7 +499,7 @@ class TestKrogerRoutes:
             sess["location_id"] = "store-123"
 
         response = authenticated_client.get(
-            "/send-to-cart?confirmed=true&email_household=true",
+            f"/send-to-cart?confirmed=true&email_recipient_ids={second_user.id}&include_grocery_list=true",
             follow_redirects=True,
         )
 
@@ -487,7 +515,11 @@ class TestKrogerRoutes:
             assert sess["products_for_cart"] == [{"upc": "000111222333", "quantity": 1}]
             assert sess["skipped_ingredients"] == ["1 unit milk"]
             assert "confirmed=true" in sess["kroger_post_auth_redirect"]
-            assert "email_household=true" in sess["kroger_post_auth_redirect"]
+            assert (
+                f"email_recipient_ids={second_user.id}"
+                in sess["kroger_post_auth_redirect"]
+            )
+            assert "include_grocery_list=true" in sess["kroger_post_auth_redirect"]
             assert sess["kroger_recovery_prompt"]["primary_url"].endswith(
                 "/authenticate?resume=send-to-cart"
             )
@@ -562,21 +594,13 @@ class TestKrogerRoutes:
         sample_grocery_list,
     ):
         """The export summary should still appear when nothing was skipped."""
-        second_user = User(
-            username="housemate",
-            email="housemate@example.com",
-            password=sample_user.password,
+        second_user = self._add_household_member(
+            db_session,
+            sample_household,
+            sample_user,
+            "housemate",
+            "housemate@example.com",
         )
-        db_session.add(second_user)
-        db_session.flush()
-        db_session.add(
-            HouseholdMember(
-                household_id=sample_household.id,
-                user_id=second_user.id,
-                role="member",
-            )
-        )
-        db_session.commit()
 
         with authenticated_client.session_transaction() as sess:
             sess["household_id"] = sample_household.id
@@ -587,7 +611,10 @@ class TestKrogerRoutes:
         assert b"Kroger Export Summary" in response.data
         assert b"Continue to Kroger" in response.data
         assert b"Remove exported grocery list items after sending" in response.data
-        assert b"Email household members" in response.data
+        assert b"Email selected household members" in response.data
+        assert second_user.username.encode() in response.data
+        assert second_user.email.encode() in response.data
+        assert b"Include the grocery list in the email" in response.data
 
     def test_send_to_cart_emails_household_members_when_requested(
         self,
@@ -599,20 +626,15 @@ class TestKrogerRoutes:
         sample_grocery_list,
     ):
         """Requesting household email notifications should trigger the Kroger email helper."""
-        second_user = User(
-            username="familymember",
-            email="familymember@example.com",
-            password=sample_user.password,
+        second_user = self._add_household_member(
+            db_session,
+            sample_household,
+            sample_user,
+            "familymember",
+            "familymember@example.com",
         )
-        db_session.add(second_user)
-        db_session.flush()
-        db_session.add(
-            HouseholdMember(
-                household_id=sample_household.id,
-                user_id=second_user.id,
-                role="member",
-            )
-        )
+        self._add_grocery_list_item(db_session, sample_grocery_list, "milk")
+        self._add_grocery_list_item(db_session, sample_grocery_list, "bread")
 
         sample_user.oauth_token = "valid-token"
         sample_user.refresh_token = "refresh-token"
@@ -625,8 +647,18 @@ class TestKrogerRoutes:
 
         captured = {}
 
-        def fake_send_household_email(removed_exported_items):
+        def fake_send_household_email(
+            recipient_ids,
+            removed_exported_items,
+            include_grocery_list,
+            grocery_list_items,
+            skipped_items,
+        ):
+            captured["recipient_ids"] = recipient_ids
             captured["removed_exported_items"] = removed_exported_items
+            captured["include_grocery_list"] = include_grocery_list
+            captured["grocery_list_items"] = grocery_list_items
+            captured["skipped_items"] = skipped_items
             return 1
 
         monkeypatch.setattr(
@@ -636,15 +668,22 @@ class TestKrogerRoutes:
 
         with authenticated_client.session_transaction() as sess:
             sess["household_id"] = sample_household.id
+            sess["skipped_ingredients"] = ["1 unit eggs", "2 cups spinach"]
 
         response = authenticated_client.get(
-            "/send-to-cart?confirmed=true&email_household=true",
+            f"/send-to-cart?confirmed=true&email_recipient_ids={second_user.id}&include_grocery_list=true",
             follow_redirects=False,
         )
 
         assert response.status_code == 302
         assert response.headers["Location"] == "https://www.kroger.com/cart"
-        assert captured == {"removed_exported_items": False}
+        assert captured == {
+            "recipient_ids": [second_user.id],
+            "removed_exported_items": False,
+            "include_grocery_list": True,
+            "grocery_list_items": ["1 unit milk", "1 unit bread"],
+            "skipped_items": ["1 unit eggs", "2 cups spinach"],
+        }
 
     def test_send_to_cart_remove_added_keeps_skipped_items(
         self,

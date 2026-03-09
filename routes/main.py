@@ -83,6 +83,7 @@ def homepage() -> Union[str, Response]:
         recipes=recipes,
         selected_recipe_ids=selected_recipe_ids,
         all_users=household_users,
+        kroger_email_recipients=kroger_email_recipients,
         kroger_email_recipient_count=len(kroger_email_recipients),
         all_grocery_lists=all_grocery_lists,
     )
