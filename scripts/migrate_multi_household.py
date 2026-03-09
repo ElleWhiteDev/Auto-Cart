@@ -36,9 +36,9 @@ def migrate_multi_household():
             # Check if the unique constraint exists
             result = db.session.execute(
                 text("""
-                SELECT COUNT(*) as count 
-                FROM sqlite_master 
-                WHERE type='index' 
+                SELECT COUNT(*) as count
+                FROM sqlite_master
+                WHERE type='index'
                 AND name='unique_household_user'
             """)
             )
@@ -89,21 +89,21 @@ def migrate_multi_household():
         except Exception as e:
             print(f"   - Error checking recipes: {e}")
 
-        # 5. Verify grocery lists are scoped to households
-        print("\n5. Verifying grocery list household scoping...")
+        # 5. Verify pantry lists are scoped to households
+        print("\n5. Verifying pantry list household scoping...")
         try:
             lists_without_household = GroceryList.query.filter(
                 GroceryList.household_id.is_(None)
             ).count()
             if lists_without_household > 0:
                 print(
-                    f"   ⚠ Found {lists_without_household} grocery lists without household_id"
+                    f"   ⚠ Found {lists_without_household} pantry lists without household_id"
                 )
                 print("   → These lists should be migrated to a household")
             else:
-                print("   ✓ All grocery lists are scoped to households")
+                print("   ✓ All pantry lists are scoped to households")
         except Exception as e:
-            print(f"   - Error checking grocery lists: {e}")
+            print(f"   - Error checking pantry lists: {e}")
 
         # 6. Display multi-household statistics
         print("\n6. Multi-household statistics:")

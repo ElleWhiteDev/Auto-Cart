@@ -31,7 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enhanced requirements.txt with testing and code quality dependencies
 
 ### Fixed
-- Mobile grocery list editing UI
+- Mobile pantry list editing UI
   - Compact input fields for mobile screens
   - Enter key saves immediately from any field
   - Auto-save on blur (keyboard close)
@@ -41,7 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - Similar Recipes feature
-  - AI-powered recipe matching based on grocery list ingredients
+  - AI-powered recipe matching based on pantry list ingredients
   - Modal UI with expandable recipe cards
   - Automatic meal plan integration
 - Feature announcement email system
@@ -49,7 +49,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Admin dashboard integration
 - Multi-household support
   - Users can belong to multiple households
-  - Household-scoped recipes and grocery lists
+  - Household-scoped recipes and pantry lists
   - Role-based access (owners and members)
 - Kroger API integration
   - OAuth 2.0 authentication
@@ -64,7 +64,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Multiple cook assignments per meal
   - Custom meals without recipes
   - Daily email summaries
-- Grocery list management
+- Pantry list management
   - Intelligent ingredient consolidation
   - Shopping mode with real-time updates
   - Email delivery
@@ -74,7 +74,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Password reset functionality
   - Persistent login sessions
 - Alexa integration
-  - Voice-controlled grocery list management
+  - Voice-controlled pantry list management
 
 ### Security
 - Bcrypt password hashing
@@ -90,7 +90,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - SQLAlchemy database models
 - User registration and login
 - Recipe management
-- Basic grocery list functionality
+- Basic pantry list functionality
 
 ---
 
@@ -113,4 +113,3 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on contributing to this pr
 ## License
 
 This project is licensed under the MIT License - see [LICENSE](LICENSE) for details.
-

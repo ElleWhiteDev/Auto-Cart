@@ -1,7 +1,7 @@
 """
-Grocery list management routes blueprint.
+Pantry list management routes blueprint.
 
-Handles grocery list CRUD operations and item management.
+Handles pantry list CRUD operations and item management.
 """
 
 from flask import (
@@ -30,7 +30,7 @@ grocery_bp = Blueprint("grocery", __name__)
 @require_login
 def update_grocery_list() -> Response:
     """
-    Add selected recipes to current grocery list.
+    Add selected recipes to current pantry list.
 
     Returns:
         Redirect to homepage
@@ -40,13 +40,13 @@ def update_grocery_list() -> Response:
 
     grocery_list = g.grocery_list
 
-    # If no grocery list exists, create a default one
+    # If no pantry list exists, create a default one
     if not grocery_list and g.household:
         grocery_list = GroceryList(
             household_id=g.household.id,
             user_id=g.user.id,
             created_by_user_id=g.user.id,
-            name="Household Grocery List",
+            name="Household Pantry List",
             status="planning",
         )
         db.session.add(grocery_list)
@@ -63,7 +63,7 @@ def update_grocery_list() -> Response:
 @grocery_bp.route("/send-email", methods=["POST"])
 @require_login
 def send_grocery_list_email() -> Response:
-    """Send the grocery list and selected recipes to supplied email recipients."""
+    """Send the pantry list and selected recipes to supplied email recipients."""
     selected_user_emails = request.form.getlist("user_emails")
     custom_email = request.form.get("custom_email", "").strip()
 
@@ -89,7 +89,7 @@ def send_grocery_list_email() -> Response:
                 continue
 
             if not grocery_list:
-                flash("No grocery list found", "error")
+                flash("No pantry list found", "error")
                 return redirect(url_for("main.homepage"))
 
             GroceryList.send_email(email, grocery_list, selected_recipe_ids, mail)
@@ -102,7 +102,8 @@ def send_grocery_list_email() -> Response:
             )
         else:
             flash(
-                f"List sent successfully to {recipient_count} recipient(s)!", "success"
+                f"Pantry list sent successfully to {recipient_count} recipient(s)!",
+                "success",
             )
     except Exception as e:
         logger.error(f"Email error: {e}", exc_info=True)
@@ -118,13 +119,13 @@ def send_grocery_list_email() -> Response:
 @require_login
 def create_grocery_list() -> Response:
     """
-    Create a new grocery list for the household.
+    Create a new pantry list for the household.
 
     Returns:
         Redirect to homepage
     """
     if not g.household:
-        flash("You must be in a household to create a grocery list", "danger")
+        flash("You must be in a household to create a pantry list", "danger")
         return redirect(url_for("main.homepage"))
 
     list_name = request.form.get("list_name", "").strip()
@@ -145,7 +146,7 @@ def create_grocery_list() -> Response:
     # Switch to the new list
     session[CURR_GROCERY_LIST_KEY] = new_list.id
 
-    flash(f'Grocery list "{list_name}" created successfully!', "success")
+    flash(f'Pantry list "{list_name}" created successfully!', "success")
     return redirect(url_for("main.homepage"))
 
 
@@ -153,10 +154,10 @@ def create_grocery_list() -> Response:
 @require_login
 def switch_grocery_list(list_id: int) -> Response:
     """
-    Switch to a different grocery list.
+    Switch to a different pantry list.
 
     Args:
-        list_id: Grocery list ID
+        list_id: Pantry list ID
 
     Returns:
         Redirect to homepage
@@ -167,7 +168,7 @@ def switch_grocery_list(list_id: int) -> Response:
     ).first()
 
     if not grocery_list:
-        flash("Grocery list not found", "danger")
+        flash("Pantry list not found", "danger")
         return redirect(url_for("main.homepage"))
 
     session[CURR_GROCERY_LIST_KEY] = list_id
@@ -179,10 +180,10 @@ def switch_grocery_list(list_id: int) -> Response:
 @require_login
 def rename_grocery_list(list_id: int) -> Response:
     """
-    Rename a grocery list.
+    Rename a pantry list.
 
     Args:
-        list_id: Grocery list ID
+        list_id: Pantry list ID
 
     Returns:
         Redirect to homepage
@@ -193,7 +194,7 @@ def rename_grocery_list(list_id: int) -> Response:
     ).first()
 
     if not grocery_list:
-        flash("Grocery list not found", "danger")
+        flash("Pantry list not found", "danger")
         return redirect(url_for("main.homepage"))
 
     new_name = request.form.get("list_name", "").strip()
@@ -213,10 +214,10 @@ def rename_grocery_list(list_id: int) -> Response:
 @require_login
 def delete_grocery_list(list_id: int) -> Response:
     """
-    Delete a grocery list.
+    Delete a pantry list.
 
     Args:
-        list_id: Grocery list ID
+        list_id: Pantry list ID
 
     Returns:
         Redirect to homepage
@@ -227,13 +228,13 @@ def delete_grocery_list(list_id: int) -> Response:
     ).first()
 
     if not grocery_list:
-        flash("Grocery list not found", "danger")
+        flash("Pantry list not found", "danger")
         return redirect(url_for("main.homepage"))
 
     # Don't allow deleting the last list
     all_lists = GroceryList.query.filter_by(household_id=g.household.id).all()
     if len(all_lists) <= 1:
-        flash("Cannot delete the last grocery list", "danger")
+        flash("Cannot delete the last pantry list", "danger")
         return redirect(url_for("main.homepage"))
 
     # If deleting current list, switch to another one
@@ -254,7 +255,7 @@ def delete_grocery_list(list_id: int) -> Response:
 @require_login
 def clear_grocery_list() -> Response:
     """
-    Clear all items from the current grocery list.
+    Clear all items from the current pantry list.
 
     Returns:
         Redirect to homepage
@@ -262,13 +263,13 @@ def clear_grocery_list() -> Response:
     grocery_list = g.grocery_list
 
     if grocery_list:
-        # Delete all grocery list items
+        # Delete all pantry list items
         for item in grocery_list.items:
             db.session.delete(item)
         db.session.commit()
-        flash("Grocery list cleared successfully!", "success")
+        flash("Pantry list cleared successfully!", "success")
     else:
-        flash("No grocery list found", "error")
+        flash("No pantry list found", "error")
 
     # Clear selected recipe IDs from session
     session.pop("selected_recipe_ids", None)
@@ -286,7 +287,7 @@ def shopping_mode() -> Union[str, Response]:
         Rendered shopping mode template or redirect to homepage
     """
     if not g.grocery_list:
-        flash("Please select a grocery list first", "warning")
+        flash("Please select a pantry list first", "warning")
         return redirect(url_for("main.homepage"))
 
     grocery_list = g.grocery_list
@@ -317,7 +318,7 @@ def start_shopping() -> Response:
         Redirect to shopping mode
     """
     if not g.grocery_list:
-        flash("Please select a grocery list first", "warning")
+        flash("Please select a pantry list first", "warning")
         return redirect(url_for("main.homepage"))
 
     grocery_list = g.grocery_list
@@ -341,7 +342,7 @@ def end_shopping() -> Response:
         Redirect to homepage
     """
     if not g.grocery_list:
-        flash("Please select a grocery list first", "warning")
+        flash("Please select a pantry list first", "warning")
         return redirect(url_for("main.homepage"))
 
     grocery_list = g.grocery_list
@@ -372,7 +373,7 @@ def toggle_item(item_id: int) -> tuple[dict, int]:
     Toggle item checked status.
 
     Args:
-        item_id: Grocery list item ID
+        item_id: Pantry list item ID
 
     Returns:
         JSON response with updated status

@@ -31,7 +31,7 @@ main_bp = Blueprint("main", __name__)
 @main_bp.route("/")
 def homepage() -> Union[str, Response]:
     """
-    Show homepage with recipes and grocery list.
+    Show homepage with recipes and pantry list.
 
     Requires login and household membership.
 
@@ -69,7 +69,7 @@ def homepage() -> Union[str, Response]:
         if member.user and member.user.email and member.user_id != g.user.id
     ]
 
-    # Get all household grocery lists
+    # Get all household pantry lists
     all_grocery_lists = (
         GroceryList.query.filter_by(household_id=g.household.id)
         .order_by(GroceryList.last_modified_at.desc())

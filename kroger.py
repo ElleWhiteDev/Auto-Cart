@@ -281,7 +281,7 @@ class KrogerSessionManager:
 
     @staticmethod
     def get_ingredient_names_from_grocery_list():
-        """Get ingredient details from current grocery list and store in session."""
+        """Get ingredient details from current pantry list and store in session."""
         if not session.get("ingredient_details"):
             ingredient_details = []
             for item in g.grocery_list.items:

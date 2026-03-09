@@ -594,7 +594,7 @@ def delete_meal_plan_entry(entry_id: int) -> Response:
 @require_login
 def add_meal_plan_to_list() -> Response:
     """
-    Add recipes from meal plan to grocery list.
+    Add recipes from meal plan to pantry list.
 
     Returns:
         Redirect to homepage
@@ -637,16 +637,16 @@ def add_meal_plan_to_list() -> Response:
 
     session["selected_recipe_ids"] = recipe_ids
 
-    # Add to current grocery list
+    # Add to current pantry list
     grocery_list = g.grocery_list
 
-    # If no grocery list exists, create one
+    # If no pantry list exists, create one
     if not grocery_list and g.household:
         grocery_list = GroceryList(
             household_id=g.household.id,
             user_id=g.user.id,
             created_by_user_id=g.user.id,
-            name="Household Grocery List",
+            name="Household Pantry List",
             status="planning",
         )
         db.session.add(grocery_list)
@@ -658,7 +658,7 @@ def add_meal_plan_to_list() -> Response:
         recipe_ids, grocery_list=grocery_list, user_id=g.user.id
     )
 
-    flash(f"Added {len(recipe_ids)} recipes to grocery list!", "success")
+    flash(f"Added {len(recipe_ids)} recipes to pantry list!", "success")
     return redirect(url_for("main.homepage"))
 
 

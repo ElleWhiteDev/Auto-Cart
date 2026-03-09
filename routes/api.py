@@ -18,10 +18,10 @@ api_bp = Blueprint("api", __name__)
 @require_login
 def grocery_list_state(list_id: int) -> Union[tuple[dict, int], Response]:
     """
-    Get current state of grocery list for polling.
+    Get current state of pantry list for polling.
 
     Args:
-        list_id: Grocery list ID
+        list_id: Pantry list ID
 
     Returns:
         JSON response with list state

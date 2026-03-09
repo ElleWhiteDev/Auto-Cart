@@ -64,9 +64,9 @@ class AlexaSettingsForm(FlaskForm):
         validators=[Optional(), Length(max=255)],
     )
 
-    # Populated at runtime with the user's accessible grocery lists
+    # Populated at runtime with the user's accessible pantry lists
     default_grocery_list_id = SelectField(
-        "Default Grocery List for Alexa",
+        "Default Pantry List for Alexa",
         coerce=int,
         validators=[Optional()],
     )

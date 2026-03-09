@@ -66,8 +66,8 @@ try:
     return grocery_list, None
 except Exception as e:
     db.session.rollback()
-    logger.error(f"Error creating grocery list: {e}", exc_info=True)
-    return None, "Failed to create grocery list. Please try again."
+    logger.error(f"Error creating pantry list: {e}", exc_info=True)
+    return None, "Failed to create pantry list. Please try again."
 
 # After (8 lines)
 def create_operation():
@@ -83,7 +83,7 @@ def create_operation():
 return BaseService.execute_with_transaction(
     create_operation,
     ErrorMessages.GROCERY_LIST_CREATE_ERROR,
-    "grocery list creation",
+    "pantry list creation",
 )
 ```
 
@@ -181,7 +181,7 @@ def some_kroger_route():
 1. **Split app.py** (5178 lines) into blueprints:
    - `routes/auth.py` - Authentication routes
    - `routes/recipes.py` - Recipe management
-   - `routes/grocery.py` - Grocery list management
+   - `routes/grocery.py` - Pantry list management
    - `routes/meal_plan.py` - Meal planning
    - `routes/kroger.py` - Kroger integration
    - `routes/admin.py` - Admin routes
@@ -226,4 +226,3 @@ All changes are backward compatible:
 - Old session keys still work
 - Old error messages still work
 - No breaking changes to existing functionality
-

@@ -74,7 +74,7 @@ def migrate_to_household():
         try:
             db.session.execute(
                 text(
-                    "ALTER TABLE grocery_lists ADD COLUMN name TEXT DEFAULT 'My Grocery List'"
+                    "ALTER TABLE grocery_lists ADD COLUMN name TEXT DEFAULT 'My Pantry List'"
                 )
             )
             print("   ✓ Added name to grocery_lists")
@@ -205,8 +205,8 @@ def migrate_to_household():
 
         db.session.commit()
 
-        # Update existing grocery lists to belong to households
-        print("\n5. Migrating existing grocery lists to households...")
+        # Update existing pantry lists to belong to households
+        print("\n5. Migrating existing pantry lists to households...")
         grocery_lists = GroceryList.query.filter(
             GroceryList.household_id.is_(None)
         ).all()
@@ -220,13 +220,13 @@ def migrate_to_household():
                 if membership:
                     grocery_list.household_id = membership.household_id
                     grocery_list.created_by_user_id = grocery_list.user_id
-                    grocery_list.name = "My Grocery List"
-                    print(f"   ✓ Migrated grocery list #{grocery_list.id} to household")
+                    grocery_list.name = "My Pantry List"
+                    print(f"   ✓ Migrated pantry list #{grocery_list.id} to household")
 
         db.session.commit()
 
-        # Migrate grocery list items from old association table to new GroceryListItem model
-        print("\n6. Migrating grocery list items to new structure...")
+        # Migrate pantry list items from old association table to new GroceryListItem model
+        print("\n6. Migrating pantry list items to new structure...")
 
         # Check if old association table exists
         try:
@@ -246,7 +246,7 @@ def migrate_to_household():
                 ).first()
 
                 if not existing_item:
-                    # Get the grocery list to find the user
+                    # Get the pantry list to find the user
                     grocery_list = GroceryList.query.get(grocery_list_id)
 
                     item = GroceryListItem(
@@ -257,17 +257,17 @@ def migrate_to_household():
                     db.session.add(item)
 
             db.session.commit()
-            print("   ✓ Migrated grocery list items")
+            print("   ✓ Migrated pantry list items")
 
         except Exception as e:
-            print(f"   Note: Could not migrate old grocery list items: {e}")
+            print(f"   Note: Could not migrate old pantry list items: {e}")
             print("   This is expected if the old table doesn't exist or is empty")
 
         print("\n✅ Migration completed successfully!")
         print("\nNext steps:")
         print("1. Test the application with household features")
         print("2. Users can now invite others to their households")
-        print("3. Recipes and grocery lists are now shared within households")
+        print("3. Recipes and pantry lists are now shared within households")
 
 
 if __name__ == "__main__":

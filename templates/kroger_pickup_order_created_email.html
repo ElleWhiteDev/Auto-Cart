@@ -126,7 +126,7 @@
             <div class="details-card">
                 <h2>Order Update</h2>
                 <p><strong>Household:</strong> {{ household_name }}</p>
-                <p><strong>Grocery List:</strong> {{ grocery_list_name }}</p>
+                <p><strong>Pantry List:</strong> {{ grocery_list_name }}</p>
                 <p><strong>Created By:</strong> {{ created_by_name }}</p>
                 <p><strong>List Status:</strong> {{ grocery_list_status }}</p>
             </div>
@@ -149,7 +149,7 @@
 
             {% if include_grocery_list %}
             <div class="grocery-section">
-                <h2>Included Grocery List</h2>
+                <h2>Included Pantry List</h2>
                 {% if grocery_list_items %}
                 <ul class="grocery-list">
                     {% for grocery_item in grocery_list_items %}
@@ -157,7 +157,7 @@
                     {% endfor %}
                 </ul>
                 {% else %}
-                <p style="margin-bottom: 0;">The grocery list is currently empty.</p>
+                <p style="margin-bottom: 0;">The pantry list is currently empty.</p>
                 {% endif %}
             </div>
             {% endif %}

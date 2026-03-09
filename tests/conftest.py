@@ -20,15 +20,17 @@ def app():
     os.environ['FLASK_ENV'] = 'testing'
     os.environ['SECRET_KEY'] = 'test-secret-key'
     os.environ['LOCAL_DATABASE_CONN'] = 'sqlite:///:memory:'
-    
+
     # Reuse the application that has all routes registered.
     test_app = flask_app
-    test_app.config.update({
-        'TESTING': True,
-        'WTF_CSRF_ENABLED': False,  # Disable CSRF for testing
-        'SQLALCHEMY_DATABASE_URI': 'sqlite:///:memory:',
-    })
-    
+    test_app.config.update(
+        {
+            "TESTING": True,
+            "WTF_CSRF_ENABLED": False,  # Disable CSRF for testing
+            "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
+        }
+    )
+
     with test_app.app_context():
         db.create_all()
         yield test_app
@@ -66,11 +68,11 @@ def db_session(app):
 def sample_user(db_session):
     """Create a sample user for testing."""
     from models import bcrypt
-    
+
     user = User(
-        username='testuser',
-        email='test@example.com',
-        password=bcrypt.generate_password_hash('password123').decode('utf-8')
+        username="testuser",
+        email="test@example.com",
+        password=bcrypt.generate_password_hash("password123").decode("utf-8"),
     )
     db_session.add(user)
     db_session.commit()
@@ -80,10 +82,10 @@ def sample_user(db_session):
 @pytest.fixture
 def sample_household(db_session, sample_user):
     """Create a sample household with the sample user as owner."""
-    household = Household(name='Test Household')
+    household = Household(name="Test Household")
     db_session.add(household)
     db_session.commit()
-    
+
     # Add user as owner
     member = HouseholdMember(
         household_id=household.id,
@@ -92,7 +94,7 @@ def sample_household(db_session, sample_user):
     )
     db_session.add(member)
     db_session.commit()
-    
+
     return household
 
 
@@ -113,12 +115,12 @@ def sample_recipe(db_session, sample_household, sample_user):
 
 @pytest.fixture
 def sample_grocery_list(db_session, sample_household, sample_user):
-    """Create a sample grocery list for testing."""
+    """Create a sample pantry list for testing."""
     grocery_list = GroceryList(
         household_id=sample_household.id,
         user_id=sample_user.id,
-        name='Test Grocery List',
-        created_by_user_id=sample_user.id
+        name="Test Pantry List",
+        created_by_user_id=sample_user.id,
     )
     db_session.add(grocery_list)
     db_session.commit()

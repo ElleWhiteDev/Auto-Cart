@@ -1,6 +1,6 @@
 # Auto-Cart 🛒
 
-> **A modern, full-stack grocery list management application with AI-powered recipe parsing and Kroger API integration**
+> **A modern, full-stack pantry list management application with AI-powered recipe parsing and Kroger API integration**
 
 [![Live Demo](https://img.shields.io/badge/demo-live-success)](http://www.ellewhite.dev)
 [![Python](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
@@ -16,7 +16,7 @@
 
 ## 📋 Overview
 
-Auto-Cart is a sophisticated web application that streamlines meal planning and grocery shopping. Built with modern software engineering principles, it features AI-powered recipe extraction, intelligent ingredient consolidation, multi-household support, and seamless Kroger API integration for one-click cart population.
+Auto-Cart is a sophisticated web application that streamlines meal planning and pantry planning. Built with modern software engineering principles, it features AI-powered recipe extraction, intelligent ingredient consolidation, multi-household support, and seamless Kroger API integration for one-click cart population.
 
 ## 📚 Documentation
 
@@ -51,12 +51,12 @@ Auto-Cart is a sophisticated web application that streamlines meal planning and 
   - Manual recipe entry with ingredient parsing
   - Recipe editing and deletion (household owners)
   - Recipe notes and source URL tracking
-- 🛒 **Smart Grocery Lists**: AI-powered ingredient consolidation
+- 🛒 **Smart Pantry Lists**: AI-powered ingredient consolidation
   - Automatic quantity consolidation (e.g., "1 cup milk" + "2 cups milk" = "3 cups milk")
   - **Editable grocery items** - Edit quantity, measurement, and ingredient name inline
   - Mobile-optimized editing with Enter key to save
   - Real-time item checking/unchecking
-  - Email grocery lists to anyone
+  - Email pantry lists to anyone
 - 🏪 **Kroger Integration**: One-click export to Kroger shopping cart via OAuth 2.0
   - Product search and matching
   - Store location services
@@ -68,32 +68,32 @@ Auto-Cart is a sophisticated web application that streamlines meal planning and 
   - Daily email summaries with meal details
   - Chef assignment notifications
   - Meal plan change tracking
-  - Export meal plan to grocery list
+  - Export meal plan to pantry list
 - 🧾 **Manual Ingredients**: Paste or type a single ingredient line, have Auto-Cart parse and consolidate it via AI, and add it without leaving the page.
 - 🧠 **Recipe Editing Flow**: The recipe editor now shows instant loading feedback and redirects back to your profile when saved.
-- ⚡ **Real-Time Collaboration**: Household members now stay in sync as edits flow through instantly, especially in recipes and grocery lists.
+- ⚡ **Real-Time Collaboration**: Household members now stay in sync as edits flow through instantly, especially in recipes and pantry lists.
 - 🤖 **Similar Recipes**: AI-powered recipe recommendations
   - Analyzes current meal plan ingredients
   - Suggests recipes with 25%+ ingredient overlap
   - One-click add to meal plan
-  - Helps reduce grocery list size
+  - Helps reduce pantry list size
 - 👥 **Multi-Household Support**: Manage multiple households
   - Create unlimited households (family, roommates, vacation homes)
   - Role-based access (owners and members)
   - Switch between households seamlessly
-  - Household-scoped recipes and grocery lists
+  - Household-scoped recipes and pantry lists
   - Invite members via email
 - 📧 **Email Integration**: Comprehensive email features
-  - Grocery list delivery
+  - Pantry list delivery
   - Daily meal plan summaries
   - Chef assignment notifications
   - Password reset emails
   - Feature announcements (admin)
   - Customizable email preferences
-- 🗣️ **Alexa Integration**: Voice-controlled grocery list management
+- 🗣️ **Alexa Integration**: Voice-controlled pantry list management
   - Add items via voice
   - Check items off list
-  - Hear grocery list read aloud
+  - Hear pantry list read aloud
 
 ### Technical Features
 - **Responsive Design**: Mobile-first CSS with custom design system
@@ -102,7 +102,7 @@ Auto-Cart is a sophisticated web application that streamlines meal planning and 
   - Progressive Web App capabilities
 - **Real-time Updates**: AJAX-powered interactions without page reloads
   - Instant item checking/unchecking
-  - Live grocery list updates
+  - Live pantry list updates
   - Seamless recipe additions
 - **Shopping Mode**: Dedicated shopping interface
   - Large, touch-friendly checkboxes
@@ -208,7 +208,7 @@ Auto-Cart/
 **Key Relationships**
 - Users can belong to multiple households
 - Households can have multiple owners and members
-- Recipes and grocery lists are scoped to households
+- Recipes and pantry lists are scoped to households
 - Meal plans support cook assignments and custom meals
 
 ## 🚀 Getting Started
@@ -300,7 +300,7 @@ Auto-Cart/
    - Paste a recipe URL and let AI extract the data
    - Or manually enter recipe details
    - Use AI to standardize ingredient formatting
-4. **Build Grocery List**: Select recipes to automatically generate a consolidated shopping list
+4. **Build Pantry List**: Select recipes to automatically generate a consolidated shopping list
 5. **Shop**:
    - Export to Kroger cart with one click
    - Or email the list to yourself
@@ -406,7 +406,7 @@ mypy .
 
 - [x] ~~Unit and integration test suite~~ ✅ **COMPLETED**
 - [x] ~~Similar recipe recommendations~~ ✅ **COMPLETED**
-- [x] ~~Editable grocery list items~~ ✅ **COMPLETED**
+- [x] ~~Editable pantry list items~~ ✅ **COMPLETED**
 - [x] ~~Password reset functionality~~ ✅ **COMPLETED**
 - [x] ~~Admin dashboard~~ ✅ **COMPLETED**
 - [ ] Recipe sharing between households

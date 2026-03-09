@@ -153,7 +153,7 @@ class TestGroceryListModel:
     """Tests for the GroceryList model."""
 
     def test_grocery_list_creation(self, db_session, sample_household, sample_user):
-        """Test creating a new grocery list."""
+        """Test creating a new pantry list."""
         grocery_list = GroceryList(
             household_id=sample_household.id,
             user_id=sample_user.id,
@@ -168,7 +168,7 @@ class TestGroceryListModel:
         assert grocery_list.household_id == sample_household.id
 
     def test_grocery_list_household_relationship(self, sample_grocery_list, sample_household):
-        """Test grocery list belongs to household."""
+        """Test pantry list belongs to household."""
         assert sample_grocery_list.household_id == sample_household.id
         assert sample_grocery_list in sample_household.grocery_lists
 

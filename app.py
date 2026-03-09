@@ -1,7 +1,7 @@
 """
 Auto-Cart Flask Application.
 
-A grocery list and meal planning application with Kroger integration.
+A pantry list and meal planning application with Kroger integration.
 """
 
 import os
@@ -199,7 +199,7 @@ def add_household_to_g():
 
 @app.before_request
 def add_grocery_list_to_g():
-    """Add current grocery list to Flask global."""
+    """Add current pantry list to Flask global."""
     # Skip for migration endpoint
     if request.endpoint == "migrate_database":
         g.grocery_list = None
@@ -208,7 +208,7 @@ def add_grocery_list_to_g():
     g.grocery_list = None
 
     if g.user and g.household:
-        # Try to get the grocery list from session first
+        # Try to get the pantry list from session first
         list_id = session.get(CURR_GROCERY_LIST_KEY)
         grocery_list = None
 
@@ -242,7 +242,7 @@ def add_grocery_list_to_g():
                 household_id=g.household.id,
                 user_id=g.user.id,
                 created_by_user_id=g.user.id,
-                name="Household Grocery List",
+                name="Household Pantry List",
                 status="planning",
             )
             db.session.add(grocery_list)

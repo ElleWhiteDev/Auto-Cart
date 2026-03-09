@@ -7,7 +7,7 @@ Auto-Cart now supports **multiple households per profile**. This means:
 - ✅ A profile (user) can be part of **multiple households**
 - ✅ A profile can be an **owner** of one or more households
 - ✅ A profile can be a **member** of one or more households
-- ✅ All **recipes** and **grocery lists** are scoped to households
+- ✅ All **recipes** and **pantry lists** are scoped to households
 - ✅ Users can easily **switch** between their households
 
 ## Key Concepts
@@ -21,7 +21,7 @@ A profile represents a single user account in the system. Each profile has:
 ### Households
 A household is a group of profiles that collaborate on:
 - Recipe collections
-- Grocery lists
+- Pantry lists
 - Meal planning
 - Shopping activities
 
@@ -198,12 +198,11 @@ This script will:
 1. **Always scope recipes and lists to households** - Never create recipes or lists without a household_id
 2. **Use helper methods for permission checks** - Use `is_owner()` instead of checking `role == 'owner'`
 3. **Verify household membership** - Always check user is member before allowing access to household data
-4. **Handle household switching gracefully** - Clear grocery list session when switching households
+4. **Handle household switching gracefully** - Clear pantry list session when switching households
 
 ## Notes
 
-- Recipes and grocery lists are **always** scoped to a household
+- Recipes and pantry lists are **always** scoped to a household
 - Users see recipes from their currently active household
 - Switching households changes which recipes and lists are visible
 - Each household can have its own Kroger integration account
-

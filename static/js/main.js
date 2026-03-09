@@ -1,6 +1,6 @@
 /**
  * Auto-Cart Frontend Application
- * Modern, organized JavaScript for grocery list management
+ * Modern, organized JavaScript for pantry list management
  */
 
 // ============================================================================
@@ -266,7 +266,7 @@ const RecipeManager = {
     },
 
     /**
-     * Add a manual ingredient to the grocery list
+     * Add a manual ingredient to the pantry list
      */
     async addManualIngredient(ingredientText) {
         if (!ingredientText || !ingredientText.trim()) {
@@ -287,7 +287,7 @@ const RecipeManager = {
 
             if (result.success) {
                 UIUtils.showFlashMessage(result.message, 'success');
-                // Reload the page to show updated grocery list
+                // Reload the page to show updated pantry list
                 // Use a slight delay to ensure the flash message is visible
                 setTimeout(() => {
                     window.location.reload();
@@ -305,7 +305,7 @@ const RecipeManager = {
     },
 
     /**
-     * Delete an ingredient from the grocery list
+     * Delete an ingredient from the pantry list
      */
     async deleteIngredient(ingredientId, listItem) {
         try {

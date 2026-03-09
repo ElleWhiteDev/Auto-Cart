@@ -61,7 +61,7 @@ Created blueprints:
 - ✅ `routes/main.py` - Homepage and household management (159 lines, complete)
 - ✅ `routes/auth.py` - Authentication routes (275 lines, complete with rate limiting)
 - ✅ `routes/recipes.py` - Recipe CRUD operations (295 lines, complete)
-- ⏳ `routes/grocery.py` - Grocery list management (placeholder)
+- ⏳ `routes/grocery.py` - Pantry list management (placeholder)
 - ⏳ `routes/meal_plan.py` - Meal planning (placeholder)
 - ⏳ `routes/kroger.py` - Kroger integration (placeholder)
 - ✅ `routes/admin.py` - Admin functions (90 lines, complete)
@@ -72,7 +72,7 @@ Created blueprints:
 ### Immediate Priority (Week 1)
 
 1. **Complete Remaining Blueprints**
-   - [x] Implement `routes/grocery.py` (grocery list CRUD, item toggling, shopping mode) - **COMPLETE** (339 lines)
+   - [x] Implement `routes/grocery.py` (pantry list CRUD, item toggling, shopping mode) - **COMPLETE** (339 lines)
    - [x] Implement `routes/meal_plan.py` (meal planning, email notifications) - **COMPLETE** (260 lines)
    - [x] Implement `routes/kroger.py` (OAuth, product search, cart management) - **COMPLETE** (296 lines)
    - [x] Implement `routes/api.py` (AJAX endpoints for dynamic updates) - **COMPLETE** (56 lines)

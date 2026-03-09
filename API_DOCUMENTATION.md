@@ -49,11 +49,11 @@ End the current user session.
 ## Recipe Endpoints
 
 ### GET `/`
-Homepage - displays recipe box and grocery list.
+Homepage - displays recipe box and pantry list.
 
 **Authentication:** Required
 
-**Response:** HTML page with recipes and current grocery list
+**Response:** HTML page with recipes and current pantry list
 
 ---
 
@@ -120,10 +120,10 @@ Delete a recipe.
 
 ---
 
-## Grocery List Endpoints
+## Pantry List Endpoints
 
 ### POST `/add-to-list`
-Add recipe ingredients to the current grocery list.
+Add recipe ingredients to the current pantry list.
 
 **Authentication:** Required
 
@@ -138,14 +138,14 @@ Add recipe ingredients to the current grocery list.
 ```json
 {
   "success": true,
-  "message": "Ingredients added to grocery list"
+  "message": "Ingredients added to pantry list"
 }
 ```
 
 ---
 
 ### POST `/update_ingredient`
-Update a grocery list item.
+Update a pantry list item.
 
 **Authentication:** Required
 
@@ -175,7 +175,7 @@ Update a grocery list item.
 ---
 
 ### POST `/remove-from-list`
-Remove an item from the grocery list.
+Remove an item from the pantry list.
 
 **Authentication:** Required
 
@@ -197,7 +197,7 @@ Remove an item from the grocery list.
 ---
 
 ### POST `/toggle-checked`
-Toggle the checked status of a grocery list item.
+Toggle the checked status of a pantry list item.
 
 **Authentication:** Required
 
@@ -273,7 +273,7 @@ OAuth callback endpoint for Kroger.
 ---
 
 ### POST `/add-to-kroger-cart`
-Add grocery list items to Kroger cart.
+Add pantry list items to Kroger cart.
 
 **Authentication:** Required (Kroger account must be connected)
 
@@ -371,5 +371,3 @@ CORS is not currently enabled. The API is designed for same-origin requests only
 ---
 
 For more information, see the main [README.md](README.md) and [ARCHITECTURE.md](ARCHITECTURE.md).
-
-

@@ -604,7 +604,7 @@ p {
   flex-grow: 1;
 }
 
-/* Grocery List Component */
+/* Pantry List Component */
 .grocery-list {
   background: var(--white);
   border: 2px solid var(--gray-200);
@@ -1041,7 +1041,7 @@ p {
   background: #eff6ff;
 }
 
-/* Mobile UX: Reorder sections - Grocery List first */
+/* Mobile UX: Reorder sections - Pantry List first */
 .homepage .recipe-box {
   order: 2;
 }

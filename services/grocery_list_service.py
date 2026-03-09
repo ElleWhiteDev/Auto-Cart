@@ -1,5 +1,5 @@
 """
-Grocery list service layer for business logic related to grocery lists.
+Pantry list service layer for business logic related to pantry lists.
 """
 
 from typing import List, Dict, Any, Optional, Tuple
@@ -12,7 +12,7 @@ from constants import ErrorMessages
 
 
 class GroceryListService(BaseService):
-    """Service class for grocery list-related business logic."""
+    """Service class for pantry list-related business logic."""
 
     @staticmethod
     def create_grocery_list(
@@ -21,11 +21,11 @@ class GroceryListService(BaseService):
         created_by_user_id: int,
     ) -> Tuple[Optional[GroceryList], Optional[str]]:
         """
-        Create a new grocery list.
+        Create a new pantry list.
 
         Args:
             household_id: ID of the household
-            name: Name of the grocery list
+            name: Name of the pantry list
             created_by_user_id: ID of user creating the list
 
         Returns:
@@ -45,7 +45,7 @@ class GroceryListService(BaseService):
         return BaseService.execute_with_transaction(
             create_operation,
             ErrorMessages.GROCERY_LIST_CREATE_ERROR,
-            "grocery list creation",
+            "pantry list creation",
         )
 
     @staticmethod
@@ -55,7 +55,7 @@ class GroceryListService(BaseService):
         user_id: int,
     ) -> Tuple[bool, Optional[str]]:
         """
-        Add recipes to a grocery list with ingredient consolidation.
+        Add recipes to a pantry list with ingredient consolidation.
 
         Args:
             grocery_list: GroceryList object
@@ -75,7 +75,7 @@ class GroceryListService(BaseService):
             # Consolidate ingredients by name and measurement
             consolidated = GroceryListService._consolidate_ingredients(ingredients)
 
-            # Add consolidated ingredients to grocery list
+            # Add consolidated ingredients to pantry list
             for _, data in consolidated.items():
                 recipe_ingredient = RecipeIngredient(
                     ingredient_name=data["name"],
@@ -97,7 +97,7 @@ class GroceryListService(BaseService):
         return BaseService.execute_update_with_transaction(
             add_operation,
             "Failed to add recipes to list. Please try again.",
-            "adding recipes to grocery list",
+            "adding recipes to pantry list",
         )
 
     @staticmethod
@@ -138,7 +138,7 @@ class GroceryListService(BaseService):
         user_id: int,
     ) -> Tuple[bool, Optional[str]]:
         """
-        Toggle the checked status of a grocery list item.
+        Toggle the checked status of a pantry list item.
 
         Args:
             item: GroceryListItem object
@@ -155,7 +155,7 @@ class GroceryListService(BaseService):
         return BaseService.execute_update_with_transaction(
             toggle_operation,
             "Failed to update item. Please try again.",
-            "toggling grocery list item",
+            "toggling pantry list item",
         )
 
     @staticmethod
@@ -164,7 +164,7 @@ class GroceryListService(BaseService):
         user_id: int,
     ) -> Tuple[bool, Optional[str]]:
         """
-        Clear all items from a grocery list.
+        Clear all items from a pantry list.
 
         Args:
             grocery_list: GroceryList object
@@ -180,6 +180,6 @@ class GroceryListService(BaseService):
 
         return BaseService.execute_update_with_transaction(
             clear_operation,
-            "Failed to clear grocery list. Please try again.",
-            "clearing grocery list",
+            "Failed to clear pantry list. Please try again.",
+            "clearing pantry list",
         )

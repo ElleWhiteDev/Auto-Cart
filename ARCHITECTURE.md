@@ -64,7 +64,7 @@ User Input → Form Validation → RecipeService.create_recipe()
 ### Kroger Integration Flow
 
 ```
-User Selects Recipes → Build Grocery List → Consolidate Ingredients
+User Selects Recipes → Build Pantry List → Consolidate Ingredients
                                                     ↓
                                             OAuth Authentication
                                                     ↓
@@ -345,4 +345,3 @@ logger.debug()   # Development debugging
 
 **Last Updated**: 2026-02-09
 **Maintained By**: Elle White
-

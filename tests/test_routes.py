@@ -1,6 +1,6 @@
 """Integration tests for route handlers.
 
-Tests HTTP endpoints including authentication, recipe management, and grocery lists.
+Tests HTTP endpoints including authentication, recipe management, and pantry lists.
 """
 
 from datetime import date, datetime, timezone
@@ -275,16 +275,16 @@ class TestRecipeRoutes:
 
 @pytest.mark.integration
 class TestGroceryListRoutes:
-    """Tests for grocery list routes."""
+    """Tests for pantry list routes."""
 
     def test_create_grocery_list_requires_auth(self, client):
-        """Test that creating grocery list requires authentication."""
+        """Test that creating pantry list requires authentication."""
         response = client.post("/grocery-list/create", data={"list_name": "Test List"})
         # Should redirect to login or return 401
         assert response.status_code in [302, 401]
 
     def test_grocery_list_api_requires_auth(self, client):
-        """Test that grocery list API endpoints require authentication."""
+        """Test that pantry list API endpoints require authentication."""
         response = client.get('/api/grocery-list/1/state')
         # Should require authentication
         assert response.status_code in [302, 401] or b'login' in response.data.lower()
@@ -610,11 +610,11 @@ class TestKrogerRoutes:
         assert response.status_code == 200
         assert b"Kroger Export Summary" in response.data
         assert b"Continue to Kroger" in response.data
-        assert b"Remove exported grocery list items after sending" in response.data
+        assert b"Remove exported pantry list items after sending" in response.data
         assert b"Email selected household members" in response.data
         assert second_user.username.encode() in response.data
         assert second_user.email.encode() in response.data
-        assert b"Include the grocery list in the email" in response.data
+        assert b"Include the pantry list in the email" in response.data
 
     def test_send_to_cart_emails_household_members_when_requested(
         self,
@@ -741,7 +741,7 @@ class TestKrogerRoutes:
         sample_user,
         sample_grocery_list,
     ):
-        """Removing exported items with no skipped items should clear the grocery list."""
+        """Removing exported items with no skipped items should clear the pantry list."""
         self._add_grocery_list_item(db_session, sample_grocery_list, "milk")
         self._add_grocery_list_item(db_session, sample_grocery_list, "bread")
 
@@ -783,7 +783,7 @@ class TestKrogerRoutes:
         sample_user,
         sample_grocery_list,
     ):
-        """The standard continue path should not change the grocery list."""
+        """The standard continue path should not change the pantry list."""
         milk_item = self._add_grocery_list_item(db_session, sample_grocery_list, "milk")
         self._add_grocery_list_item(db_session, sample_grocery_list, "bread")
 

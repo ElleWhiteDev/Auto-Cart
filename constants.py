@@ -80,7 +80,7 @@ class ErrorMessages:
     DB_COMMIT_ERROR = "An error occurred. Please try again."
     RECIPE_CREATE_ERROR = "Error Occurred. Please try again"
     RECIPE_UPDATE_ERROR = "Failed to update recipe. Please try again."
-    GROCERY_LIST_CREATE_ERROR = "Failed to create grocery list. Please try again."
+    GROCERY_LIST_CREATE_ERROR = "Failed to create pantry list. Please try again."
 
     # User registration errors
     EMAIL_TAKEN = "Email already taken"
@@ -121,4 +121,3 @@ MAX_USERNAME_LENGTH = 20
 
 # Timezone
 DEFAULT_TIMEZONE = "US/Eastern"
-

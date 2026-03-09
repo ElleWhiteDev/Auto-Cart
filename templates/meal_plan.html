@@ -482,7 +482,7 @@
 				<form method="POST" action="{{ url_for('meal_plan.add_meal_plan_to_list') }}" id="add-to-list-form">
 					<input type="hidden" name="week_offset" value="{{ week_offset }}">
 					<button type="submit" id="add-to-list-btn" class="btn btn-light btn-sm meal-plan-action-btn">
-						<i class="fas fa-shopping-cart"></i> <span class="d-none d-md-inline">Add All to Grocery List</span><span class="d-md-none">Add All</span>
+						<i class="fas fa-shopping-cart"></i> <span class="d-none d-md-inline">Add All to Pantry List</span><span class="d-md-none">Add All</span>
 					</button>
 				</form>
 			</div>
@@ -937,7 +937,7 @@
 
 				<!-- Warning message -->
 				<div id="similar-recipes-warning" class="alert alert-info" style="display: none; padding: 1rem; background-color: #d1ecf1; border: 1px solid #bee5eb; border-radius: 0.25rem; color: #0c5460;">
-					<i class="fas fa-info-circle"></i> <strong>Note:</strong> Any recipes added this way will have ingredients automatically added to the grocery list.
+					<i class="fas fa-info-circle"></i> <strong>Note:</strong> Any recipes added this way will have ingredients automatically added to the pantry list.
 				</div>
 
 				<!-- No results message -->
@@ -1052,7 +1052,7 @@ if (emailMealPlanForm && emailMealPlanBtn) {
 	});
 }
 
-// Add processing state to Add All to Grocery List button
+// Add processing state to Add All to Pantry List button
 const addToListForm = document.getElementById('add-to-list-form');
 const addToListBtn = document.getElementById('add-to-list-btn');
 

@@ -160,7 +160,7 @@
 							</div>
 						</form>
 						<p class="text-muted small mt-2 mb-0">
-							<i class="fas fa-exclamation-triangle text-danger"></i> Deleting the household will permanently remove all associated recipes, grocery lists, and meal plans.
+							<i class="fas fa-exclamation-triangle text-danger"></i> Deleting the household will permanently remove all associated recipes, pantry lists, and meal plans.
 						</p>
 						<!-- Hidden delete form -->
 						<form method="POST" action="{{ url_for('main.delete_household') }}" id="delete-household-form" style="display: none;">
@@ -284,7 +284,7 @@
 				<div class="mt-3">
 					<h4 class="h6 mb-3">Set Kroger Account</h4>
 					<p class="text-muted small mb-3">
-						Choose which household member's Kroger account to use for sending grocery lists to cart.
+						Choose which household member's Kroger account to use for sending pantry lists to cart.
 					</p>
 					{% for member in members %}
 					{% if member.user.oauth_token %}
@@ -362,7 +362,7 @@
 		const deleteBtn = document.getElementById('delete-household-trigger-btn');
 		const deleteForm = document.getElementById('delete-household-form');
 
-		const confirmed = confirm(`⚠️ WARNING: This will permanently delete the household "${householdName}" and ALL associated recipes, grocery lists, and meal plans.\n\nThis action CANNOT be undone.\n\nAre you sure you want to continue?`);
+		const confirmed = confirm(`⚠️ WARNING: This will permanently delete the household "${householdName}" and ALL associated recipes, pantry lists, and meal plans.\n\nThis action CANNOT be undone.\n\nAre you sure you want to continue?`);
 
 		if (confirmed) {
 			// Show loading state

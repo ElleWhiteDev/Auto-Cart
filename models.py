@@ -205,7 +205,7 @@ class Household(db.Model):
 
     A household can have multiple owners and members. Profiles (users) can belong to
     multiple households - they can be owners of some and members of others.
-    All recipes and grocery lists are scoped to households.
+    All recipes and pantry lists are scoped to households.
     """
 
     __tablename__ = "households"
@@ -709,7 +709,7 @@ class User(db.Model):
         db.Text, nullable=True, unique=True
     )  # OAuth token for Alexa integration
 
-    # Optional default grocery list Alexa should use for this user
+    # Optional default pantry list Alexa should use for this user
     alexa_default_grocery_list_id = db.Column(
         db.Integer,
         db.ForeignKey("grocery_lists.id", ondelete="SET NULL"),
@@ -732,7 +732,7 @@ class User(db.Model):
         foreign_keys="GroceryList.user_id",
     )
 
-    # Direct relationship to the user's Alexa default grocery list (if configured)
+    # Direct relationship to the user's Alexa default pantry list (if configured)
     alexa_default_grocery_list = db.relationship(
         "GroceryList", foreign_keys=[alexa_default_grocery_list_id]
     )
@@ -1136,7 +1136,7 @@ Examples:
 
 
 class GroceryListItem(db.Model):
-    """Association object for grocery list items with metadata"""
+    """Association object for pantry list items with metadata"""
 
     __tablename__ = "grocery_list_items"
 
@@ -1182,10 +1182,10 @@ class GroceryListItem(db.Model):
 
 
 class GroceryList(db.Model):
-    """Grocery List of ingredients scoped to a household.
+    """Pantry List of ingredients scoped to a household.
 
-    Grocery lists belong to a household and can be collaboratively managed by all
-    household members. Users can access grocery lists from all households they belong to.
+    Pantry lists belong to a household and can be collaboratively managed by all
+    household members. Users can access pantry lists from all households they belong to.
     """
 
     __tablename__ = "grocery_lists"
@@ -1197,7 +1197,7 @@ class GroceryList(db.Model):
     household_id = db.Column(
         db.Integer, db.ForeignKey("households.id", ondelete="CASCADE"), nullable=True
     )
-    name = db.Column(db.Text, nullable=False, default="My Grocery List")
+    name = db.Column(db.Text, nullable=False, default="My Pantry List")
     status = db.Column(
         db.String(20), nullable=False, default="planning"
     )  # 'planning', 'ready_to_shop', 'shopping', 'done'
@@ -1231,14 +1231,14 @@ class GroceryList(db.Model):
 
     @classmethod
     def update_grocery_list(cls, selected_recipe_ids, grocery_list, user_id=None):
-        """Add selected recipes to current grocery list (append, not replace)"""
+        """Add selected recipes to current pantry list (append, not replace)"""
 
         recipes = Recipe.query.filter(Recipe.id.in_(selected_recipe_ids)).all()
 
-        # Collect all ingredients - START WITH EXISTING ONES from the grocery list
+        # Collect all ingredients - START WITH EXISTING ONES from the pantry list
         all_ingredients = []
 
-        # Add existing ingredients from the grocery list
+        # Add existing ingredients from the pantry list
         if grocery_list is not None:
             for existing_item in grocery_list.items:
                 ingredient = existing_item.recipe_ingredient
@@ -1271,7 +1271,7 @@ class GroceryList(db.Model):
             for item in grocery_list.items:
                 db.session.delete(item)
 
-        # Create new recipe ingredients and grocery list items from consolidated list
+        # Create new recipe ingredients and pantry list items from consolidated list
         for ingredient_data in consolidated_ingredients:
             quantity_string = str(ingredient_data["quantity"])
 
@@ -1291,7 +1291,7 @@ class GroceryList(db.Model):
             db.session.add(recipe_ingredient)
             db.session.flush()  # Get the ID
 
-            # Create grocery list item
+            # Create pantry list item
             grocery_list_item = GroceryListItem(
                 grocery_list_id=grocery_list.id,
                 recipe_ingredient_id=recipe_ingredient.id,
@@ -1308,7 +1308,7 @@ class GroceryList(db.Model):
 
     @classmethod
     def send_email(cls, recipient, grocery_list, selected_recipe_ids, mail):
-        """Send the grocery list and selected recipes via email."""
+        """Send the pantry list and selected recipes via email."""
         try:
             # Build HTML email body
             html_body = f"""
@@ -1348,15 +1348,15 @@ class GroceryList(db.Model):
                     <line x1="16" y1="-14" x2="16" y2="5" stroke="white" stroke-width="2"/>
                 </g>
             </svg>
-            <h1 style="margin: 10px 0 0 0; font-size: 24px;">Your Grocery List & Recipes</h1>
+            <h1 style="margin: 10px 0 0 0; font-size: 24px;">Your Pantry List & Recipes</h1>
         </div>
         <div class="content">
             <div class="grocery-section">
-                <h2 style="color: #004c91; margin-top: 0;">🛒 Grocery List: {grocery_list.name}</h2>
+                <h2 style="color: #004c91; margin-top: 0;">🛒 Pantry List: {grocery_list.name}</h2>
                 <ul class="ingredient-list">
 """
 
-            # Add grocery list items
+            # Add pantry list items
             for recipe_ingredient in grocery_list.recipe_ingredients:
                 if (
                     recipe_ingredient.quantity
@@ -1427,7 +1427,7 @@ class GroceryList(db.Model):
 """
 
             # Build plain text version
-            text_body = f"Your Grocery List: {grocery_list.name}\n\n"
+            text_body = f"Your Pantry List: {grocery_list.name}\n\n"
             text_body += "=" * 50 + "\n"
 
             for recipe_ingredient in grocery_list.recipe_ingredients:
@@ -1479,7 +1479,7 @@ class GroceryList(db.Model):
             text_body += "\n---\nAuto-Cart - Smart Household Grocery Management"
 
             msg = Message(
-                "Your Grocery List & Recipes",
+                "Your Pantry List & Recipes",
                 recipients=[recipient],
                 body=text_body,
                 html=html_body,
@@ -1487,7 +1487,7 @@ class GroceryList(db.Model):
             mail.send(msg)
 
         except Exception as e:
-            logger.error(f"Failed to send grocery list email: {e}", exc_info=True)
+            logger.error(f"Failed to send pantry list email: {e}", exc_info=True)
             raise e
 
     @classmethod
@@ -1627,7 +1627,7 @@ class GroceryList(db.Model):
             raise e
 
     def format_grocery_list(self):
-        """Format the grocery list for email."""
+        """Format the pantry list for email."""
         ingredients_list = []
         for recipe_ingredient in self.recipe_ingredients:
             ingredient_detail = f"{recipe_ingredient.quantity} {recipe_ingredient.measurement} {recipe_ingredient.ingredient_name}"

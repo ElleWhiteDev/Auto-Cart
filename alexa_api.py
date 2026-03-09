@@ -1,13 +1,13 @@
 """Alexa Skill API endpoints for Auto-Cart.
 
 This module exposes endpoints that the Alexa skill calls to:
-- Add items to a grocery list
-- Read the current grocery list
+- Add items to a pantry list
+- Read the current pantry list
 
 Requests are authenticated via an access token that is stored on the User
 model as ``alexa_access_token`` and configured from the profile screen.
 
-The target grocery list is chosen per-user based on their configured
+The target pantry list is chosen per-user based on their configured
 Alexa default list or their most recent planning list across households.
 """
 
@@ -25,20 +25,19 @@ from logging_config import logger
 alexa_bp = Blueprint("alexa", __name__, url_prefix="/api/alexa")
 
 ALEXA_EMPTY_LIST_TEXT = (
-    "Your grocery list is empty. You can add items by saying, "
+    "Your pantry list is empty. You can add items by saying, "
     "Alexa, ask Auto-Cart to add milk."
 )
 ALEXA_ADD_ITEM_REPROMPT = "Try saying add bananas."
 ALEXA_WELCOME_TEXT = (
-    "Welcome to Auto-Cart. You can say add bananas, or ask me to read your "
-    "grocery list."
+    "Welcome to Auto-Cart. You can say add bananas, or ask me to read your pantry list."
 )
 ALEXA_HELP_TEXT = (
     "You can ask me to add an item, like say add bananas, or ask what is on "
-    "my grocery list."
+    "my pantry list."
 )
 ALEXA_FALLBACK_TEXT = (
-    "I can add items and read your grocery list. Try saying add bananas."
+    "I can add items and read your pantry list. Try saying add bananas."
 )
 
 
@@ -133,7 +132,7 @@ def get_target_grocery_list_for_user(
     user: User,
     create_if_missing: bool = False,
 ) -> Optional[GroceryList]:
-    """Determine which grocery list Alexa should use for this user.
+    """Determine which pantry list Alexa should use for this user.
 
     Priority:
 
@@ -200,14 +199,14 @@ def get_target_grocery_list_for_user(
     if not selected_list and create_if_missing:
         selected_list = GroceryList(
             user_id=user.id,
-            name="My Grocery List",
+            name="My Pantry List",
             status="planning",
             created_by_user_id=user.id,
             last_modified_by_user_id=user.id,
         )
         db.session.add(selected_list)
         db.session.flush()
-        logger.info("Created new personal grocery list for Alexa user %s", user.id)
+        logger.info("Created new personal pantry list for Alexa user %s", user.id)
 
     return selected_list
 
@@ -364,13 +363,13 @@ def _replace_grocery_list_items(
 
 
 def _empty_list_response():
-    """Return the standard Alexa empty grocery list response."""
+    """Return the standard Alexa empty pantry list response."""
 
     return _speech_response(ALEXA_EMPTY_LIST_TEXT)
 
 
 def _format_list_item_for_speech(list_item: GroceryListItem) -> Optional[str]:
-    """Return a speech-friendly phrase for a grocery list item."""
+    """Return a speech-friendly phrase for a pantry list item."""
 
     ingredient = list_item.recipe_ingredient
     if not ingredient:
@@ -402,7 +401,7 @@ def _get_spoken_item_names(unchecked_items):
 
 
 def _handle_add_item_request(alexa_request):
-    """Add an item to the user's target grocery list from an Alexa request."""
+    """Add an item to the user's target pantry list from an Alexa request."""
 
     try:
         user, error_response = _get_alexa_user(alexa_request)
@@ -427,12 +426,12 @@ def _handle_add_item_request(alexa_request):
         grocery_list = get_target_grocery_list_for_user(user, create_if_missing=True)
         if not grocery_list:
             logger.error(
-                "Failed to determine or create a grocery list for Alexa user %s",
+                "Failed to determine or create a pantry list for Alexa user %s",
                 user.id,
             )
             return (
                 _speech_response(
-                    "Sorry, I could not determine which grocery list to use. Please check your Alexa settings in Auto-Cart."
+                    "Sorry, I could not determine which pantry list to use. Please check your Alexa settings in Auto-Cart."
                 ),
                 500,
             )
@@ -475,9 +474,9 @@ def _handle_add_item_request(alexa_request):
 
         if len(parsed_ingredients) == 1:
             spoken_name = parsed_ingredients[0].get("ingredient_name") or item_name
-            response_text = f"I've added {spoken_name} to your Auto-Cart grocery list."
+            response_text = f"I've added {spoken_name} to your Auto-Cart pantry list."
         else:
-            response_text = "I've updated your Auto-Cart grocery list."
+            response_text = "I've updated your Auto-Cart pantry list."
 
         return _speech_response(response_text)
 
@@ -492,7 +491,7 @@ def _handle_add_item_request(alexa_request):
 
 
 def _handle_read_list_request(alexa_request):
-    """Read grocery list items aloud from an Alexa request."""
+    """Read pantry list items aloud from an Alexa request."""
 
     try:
         user, error_response = _get_alexa_user(alexa_request)
@@ -590,9 +589,9 @@ def alexa_webhook():
 @alexa_bp.route("/add-item", methods=["POST"])
 @verify_alexa_request
 def add_item():
-    """Add an item to the grocery list Alexa should use for this user.
+    """Add an item to the pantry list Alexa should use for this user.
 
-    Uses the user's configured default Alexa grocery list if set; otherwise,
+    Uses the user's configured default Alexa pantry list if set; otherwise,
     falls back to their most recently modified planning list, optionally
     creating a new personal planning list if none exist.
     """
@@ -604,7 +603,7 @@ def add_item():
 @alexa_bp.route("/read-list", methods=["POST"])
 @verify_alexa_request
 def read_list():
-    """Read items from the grocery list Alexa should use for this user."""
+    """Read items from the pantry list Alexa should use for this user."""
 
     alexa_request = request.get_json() or {}
     return _handle_read_list_request(alexa_request)

@@ -255,9 +255,9 @@ def send_generic_invitation_email(
 
     # Personalize opening line if sender name provided
     if sender_name:
-        opening_line = f"{sender_name} wanted to share Auto-Cart with you - it's a free web app for organizing recipes, planning meals, and managing grocery shopping. It's been a game-changer for keeping the kitchen organized!"
+        opening_line = f"{sender_name} wanted to share Auto-Cart with you - it's a free web app for organizing recipes, planning meals, and managing pantry lists. It's been a game-changer for keeping the kitchen organized!"
     else:
-        opening_line = "I wanted to share Auto-Cart with you - it's a free web app I've been using to organize recipes, plan meals, and manage grocery shopping. It's been a game-changer for keeping my kitchen organized!"
+        opening_line = "I wanted to share Auto-Cart with you - it's a free web app I've been using to organize recipes, plan meals, and manage pantry lists. It's been a game-changer for keeping my kitchen organized!"
 
     subject = "Check out Auto-Cart - Your Kitchen's New Best Friend!"
 

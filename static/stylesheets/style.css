@@ -1342,7 +1342,7 @@ nav {
 }
 
 /* ===================================
-   GROCERY LIST ITEM EDITING
+   PANTRY LIST ITEM EDITING
    =================================== */
 
 .grocery-item-content {
@@ -1431,7 +1431,7 @@ nav {
 	background-color: var(--gray-500, #6b7280);
 }
 
-/* Mobile grocery list editing - ULTRA COMPACT */
+/* Mobile pantry list editing - ULTRA COMPACT */
 @media (max-width: 768px) {
 	.grocery-item-edit {
 		gap: 2px !important;

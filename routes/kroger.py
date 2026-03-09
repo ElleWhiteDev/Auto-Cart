@@ -82,7 +82,7 @@ def _get_household_notification_recipients(selected_user_ids) -> list[User]:
 
 
 def _build_grocery_list_email_items() -> list[str]:
-    """Return the current grocery list items as user-facing labels."""
+    """Return the current pantry list items as user-facing labels."""
     if not g.grocery_list:
         return []
 
@@ -119,11 +119,11 @@ def _send_household_kroger_order_created_emails(
         "MAIL_DEFAULT_SENDER", "support@autocart.com"
     )
     household_name = g.household.name if g.household else "your household"
-    grocery_list_name = g.grocery_list.name if g.grocery_list else "Shared Grocery List"
+    grocery_list_name = g.grocery_list.name if g.grocery_list else "Shared Pantry List"
     grocery_list_status = (
-        "Exported grocery list items were removed after the send."
+        "Exported pantry list items were removed after the send."
         if removed_exported_items
-        else "The household grocery list was left unchanged after the send."
+        else "The household pantry list was left unchanged after the send."
     )
     include_grocery_list_in_email = include_grocery_list and bool(grocery_list_items)
     subject = f"Kroger pickup order created for {household_name}"
@@ -145,17 +145,17 @@ def _send_household_kroger_order_created_emails(
         text_body = (
             f"Hi {recipient.username},\n\n"
             f"{g.user.username} created a Kroger pickup order for the {household_name} household.\n"
-            f"Grocery list: {grocery_list_name}\n"
+            f"Pantry list: {grocery_list_name}\n"
             f"Status: {grocery_list_status}\n\n"
             f"Open Auto-Cart: {base_url}\n"
             f"Household settings: {base_url}/household/settings\n\n"
         )
         if include_grocery_list_in_email:
-            text_body += "Grocery List Items:\n"
+            text_body += "Pantry List Items:\n"
             text_body += "\n".join(f"• {item}" for item in grocery_list_items)
             text_body += "\n\n"
         elif include_grocery_list:
-            text_body += "Grocery List Items:\nThe grocery list is currently empty.\n\n"
+            text_body += "Pantry List Items:\nThe pantry list is currently empty.\n\n"
 
         if skipped_items:
             text_body += "Skipped Items:\n"
@@ -203,7 +203,7 @@ def _build_ingredient_label(name: str, quantity=None, measurement=None) -> str:
 def _remove_exported_items_from_grocery_list(
     skipped_item_ids: list[int], skipped_ingredients: list[str]
 ) -> None:
-    """Remove exported items from the grocery list, keeping skipped items when possible."""
+    """Remove exported items from the pantry list, keeping skipped items when possible."""
     if not g.grocery_list:
         return
 

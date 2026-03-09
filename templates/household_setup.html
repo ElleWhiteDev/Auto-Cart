@@ -23,16 +23,16 @@
 						<p class="card-text text-muted">
 							Start a new household and invite family members or roommates to join.
 						</p>
-						
+
 						<form method="POST" action="{{ url_for('main.household_setup') }}">
 							<input type="hidden" name="action" value="create">
 							<div class="form-group">
 								<label for="household_name">Household Name</label>
-								<input 
-									type="text" 
-									class="form-control" 
-									id="household_name" 
-									name="household_name" 
+								<input
+									type="text"
+									class="form-control"
+									id="household_name"
+									name="household_name"
 									placeholder="e.g., Smith Family, Apartment 4B"
 									required
 								/>
@@ -55,16 +55,16 @@
 						<p class="card-text text-muted">
 							Join an existing household by entering the household owner's username.
 						</p>
-						
+
 						<form method="POST" action="{{ url_for('main.household_setup') }}">
 							<input type="hidden" name="action" value="join">
 							<div class="form-group">
 								<label for="join_code">Owner's Username</label>
-								<input 
-									type="text" 
-									class="form-control" 
-									id="join_code" 
-									name="join_code" 
+								<input
+									type="text"
+									class="form-control"
+									id="join_code"
+									name="join_code"
 									placeholder="e.g., JohnSmith"
 									required
 								/>
@@ -84,7 +84,7 @@
 		<div class="mt-4 p-3" style="background-color: #f8f9fa; border-radius: 8px;">
 			<h4 class="h6 mb-2"><i class="fas fa-info-circle"></i> What is a household?</h4>
 			<ul class="mb-0" style="font-size: 0.9rem;">
-				<li>Share recipes and grocery lists with household members</li>
+					<li>Share recipes and pantry lists with household members</li>
 				<li>Collaborate on meal planning and shopping</li>
 				<li>Use a shared Kroger account for the household</li>
 				<li>Everyone can add items and manage lists together</li>
@@ -93,4 +93,3 @@
 	</div>
 </div>
 {% endblock %}
-

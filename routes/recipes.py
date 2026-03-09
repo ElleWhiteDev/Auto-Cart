@@ -257,7 +257,7 @@ def standardize_ingredients() -> tuple[dict, int]:
 @require_login
 def add_manual_ingredient() -> tuple[dict, int]:
     """
-    Add a manually entered ingredient to the grocery list.
+    Add a manually entered ingredient to the pantry list.
 
     Returns:
         JSON response consumed by the client script
@@ -284,7 +284,7 @@ def add_manual_ingredient() -> tuple[dict, int]:
                 household_id=g.household.id,
                 user_id=g.user.id,
                 created_by_user_id=g.user.id,
-                name="Household Grocery List",
+                name="Household Pantry List",
                 status="planning",
             )
             db.session.add(grocery_list)
@@ -294,7 +294,12 @@ def add_manual_ingredient() -> tuple[dict, int]:
 
         if not grocery_list:
             return (
-                jsonify({"success": False, "error": "Unable to determine a grocery list for this household"}),
+                jsonify(
+                    {
+                        "success": False,
+                        "error": "Unable to determine a pantry list for this household",
+                    }
+                ),
                 500,
             )
 
@@ -350,7 +355,7 @@ def add_manual_ingredient() -> tuple[dict, int]:
 @require_login
 def delete_ingredient() -> tuple[dict, int]:
     """
-    Delete a specific ingredient from the grocery list.
+    Delete a specific ingredient from the pantry list.
 
     Returns:
         JSON response
@@ -366,7 +371,7 @@ def delete_ingredient() -> tuple[dict, int]:
         return jsonify({"success": False, "error": "Ingredient not found"}), 404
 
     try:
-        # Remove linked grocery list item first so foreign key constraint stays intact.
+        # Remove linked pantry list item first so foreign key constraint stays intact.
         if g.grocery_list:
             grocery_list_item = GroceryListItem.query.filter_by(
                 grocery_list_id=g.grocery_list.id, recipe_ingredient_id=ingredient.id

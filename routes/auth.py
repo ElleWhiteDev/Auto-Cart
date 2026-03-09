@@ -158,7 +158,7 @@ def profile() -> Union[str, Response]:
 
     alexa_form = AlexaSettingsForm()
 
-    # Build list of grocery lists the user can use for Alexa
+    # Build list of pantry lists the user can use for Alexa
     accessible_lists = []
 
     # Household-scoped lists for households the user belongs to
@@ -192,7 +192,7 @@ def profile() -> Union[str, Response]:
         token_val = (alexa_form.alexa_access_token.data or "").strip()
         g.user.alexa_access_token = token_val or None
 
-        # Update default grocery list selection
+        # Update default pantry list selection
         selected_id = alexa_form.default_grocery_list_id.data
 
         if selected_id == 0:
@@ -201,7 +201,7 @@ def profile() -> Union[str, Response]:
             # Ensure the selected list is one of the accessible lists
             valid_ids = {gl.id for gl in accessible_lists}
             if selected_id not in valid_ids:
-                flash("Invalid grocery list selection for Alexa.", "danger")
+                flash("Invalid pantry list selection for Alexa.", "danger")
                 return redirect(url_for("auth.profile"))
             g.user.alexa_default_grocery_list_id = selected_id
 
