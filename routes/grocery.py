@@ -6,6 +6,7 @@ Handles pantry list CRUD operations and item management.
 
 from flask import (
     Blueprint,
+    current_app,
     render_template,
     request,
     flash,
@@ -15,15 +16,179 @@ from flask import (
     session,
     jsonify,
 )
+from flask_mail import Message
 from werkzeug.wrappers import Response
 
 from extensions import db, mail
-from models import GroceryList, GroceryListItem
-from utils import require_login, CURR_GROCERY_LIST_KEY
+from models import GroceryList, GroceryListItem, Recipe, RecipeIngredient
+from utils import (
+    require_login,
+    CURR_GROCERY_LIST_KEY,
+    parse_quantity_string,
+    get_est_now,
+    parse_simple_ingredient,
+)
 from logging_config import logger
 from typing import Union
 
 grocery_bp = Blueprint("grocery", __name__)
+
+
+def _build_ingredient_label(name: str, quantity=None, measurement=None) -> str:
+    """Build a user-facing ingredient label for emails and flashes."""
+    ingredient_name = str(name or "ingredient").strip()
+
+    quantity_text = ""
+    if quantity not in (None, ""):
+        if isinstance(quantity, float) and quantity.is_integer():
+            quantity = int(quantity)
+        quantity_text = str(quantity).strip()
+
+    measurement_text = str(measurement or "").strip()
+    if measurement_text.lower() == "unit":
+        measurement_text = ""
+
+    if not quantity_text and not measurement_text:
+        return ingredient_name
+    if not measurement_text:
+        if quantity_text in ("1", "1.0"):
+            return ingredient_name
+        return f"{quantity_text} {ingredient_name}".strip()
+    return f"{quantity_text} {measurement_text} {ingredient_name}".strip()
+
+
+def _add_last_minute_items_to_grocery_list(
+    grocery_list: GroceryList, last_minute_items_text: str
+) -> list[str]:
+    """Parse and append last-minute items to the active pantry list."""
+    added_item_labels = []
+
+    for ingredient_text in [
+        line.strip() for line in last_minute_items_text.splitlines() if line.strip()
+    ]:
+        parsed_ingredients = Recipe.parse_ingredients(ingredient_text)
+        if not parsed_ingredients:
+            parsed_ingredients = parse_simple_ingredient(ingredient_text)
+
+        for ingredient_data in parsed_ingredients:
+            quantity = parse_quantity_string(str(ingredient_data.get("quantity") or ""))
+            if quantity is None:
+                quantity = 1.0
+
+            measurement = ingredient_data.get("measurement") or "unit"
+            ingredient_name = (
+                ingredient_data.get("ingredient_name")
+                or ingredient_data.get("name")
+                or ingredient_text
+            )
+
+            recipe_ingredient = RecipeIngredient(
+                ingredient_name=ingredient_name,
+                quantity=quantity,
+                measurement=measurement,
+            )
+            db.session.add(recipe_ingredient)
+            db.session.flush()
+
+            grocery_list_item = GroceryListItem(
+                grocery_list_id=grocery_list.id,
+                recipe_ingredient_id=recipe_ingredient.id,
+                added_by_user_id=g.user.id,
+            )
+            db.session.add(grocery_list_item)
+            added_item_labels.append(
+                _build_ingredient_label(ingredient_name, quantity, measurement)
+            )
+
+    if added_item_labels:
+        grocery_list.last_modified_by_user_id = g.user.id
+        grocery_list.last_modified_at = get_est_now()
+
+    return added_item_labels
+
+
+def _get_household_notification_recipients(selected_user_ids) -> list:
+    """Return valid, selected household members who can receive notifications."""
+    if not g.household:
+        return []
+
+    selected_id_set = {
+        int(user_id) for user_id in selected_user_ids if str(user_id).strip().isdigit()
+    }
+    if not selected_id_set:
+        return []
+
+    recipients = []
+    for member in g.household.members:
+        user = member.user
+        if (
+            not user
+            or not user.email
+            or user.id == g.user.id
+            or user.id not in selected_id_set
+        ):
+            continue
+        recipients.append(user)
+
+    return recipients
+
+
+def _send_household_shopping_started_emails(
+    recipient_ids: list[str], last_minute_items: list[str]
+) -> int:
+    """Notify selected household members that shopping has started."""
+    recipients = _get_household_notification_recipients(recipient_ids)
+    if not recipients:
+        return 0
+
+    base_url = request.url_root.rstrip("/")
+    response_email = current_app.config.get(
+        "MAIL_DEFAULT_SENDER", "support@autocart.com"
+    )
+    household_name = g.household.name if g.household else "your household"
+    grocery_list_name = g.grocery_list.name if g.grocery_list else "Shared Pantry List"
+    subject = f"{g.user.username} started shopping for {household_name}"
+
+    for recipient in recipients:
+        html_body = render_template(
+            "shopping_started_email.html",
+            recipient_name=recipient.username,
+            shopper_name=g.user.username,
+            household_name=household_name,
+            grocery_list_name=grocery_list_name,
+            last_minute_items=last_minute_items,
+            homepage_url=base_url,
+            household_settings_url=f"{base_url}/household/settings",
+        )
+        text_body = (
+            f"Hi {recipient.username},\n\n"
+            f"{g.user.username} just started shopping for the {household_name} household.\n"
+            f"Pantry list: {grocery_list_name}\n\n"
+            f"Open Auto-Cart: {base_url}\n"
+            f"Household settings: {base_url}/household/settings\n\n"
+        )
+        if last_minute_items:
+            text_body += "Last-Minute Items Added:\n"
+            text_body += "\n".join(f"• {item}" for item in last_minute_items)
+            text_body += "\n\n"
+
+        text_body += (
+            "---\n"
+            "Auto-Cart - Smart Household Grocery Management\n"
+            f"For support: {response_email}"
+        )
+        msg = Message(
+            subject=subject,
+            recipients=[recipient.email],
+            body=text_body,
+            html=html_body,
+        )
+        mail.send(msg)
+
+    logger.info(
+        "Sent shopping-started notification email to %s recipients", len(recipients)
+    )
+    return len(recipients)
 
 
 @grocery_bp.route("/update_grocery_list", methods=["POST"])
@@ -298,6 +463,16 @@ def shopping_mode() -> Union[str, Response]:
     # Calculate progress
     total_items = len(items)
     checked_items = sum(1 for item in items if item.is_checked)
+    household_members = []
+    if g.household:
+        household_members = sorted(
+            [
+                member
+                for member in g.household.members
+                if member.user and member.user.email and member.user.id != g.user.id
+            ],
+            key=lambda member: member.user.username.lower(),
+        )
 
     return render_template(
         "shopping_mode.html",
@@ -305,6 +480,7 @@ def shopping_mode() -> Union[str, Response]:
         items=items,
         total_items=total_items,
         checked_items=checked_items,
+        household_members=household_members,
     )
 
 
@@ -322,13 +498,48 @@ def start_shopping() -> Response:
         return redirect(url_for("main.homepage"))
 
     grocery_list = g.grocery_list
-    grocery_list.status = "shopping"
-    grocery_list.shopping_user_id = g.user.id
-    grocery_list.last_modified_by_user_id = g.user.id
+    recipient_ids = request.form.getlist("email_recipient_ids")
+    last_minute_items_text = request.form.get("last_minute_items", "").strip()
 
-    db.session.commit()
+    try:
+        added_last_minute_items = _add_last_minute_items_to_grocery_list(
+            grocery_list, last_minute_items_text
+        )
+        grocery_list.status = "shopping"
+        grocery_list.shopping_user_id = g.user.id
+        grocery_list.last_modified_by_user_id = g.user.id
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error starting shopping session: {e}", exc_info=True)
+        flash("Could not start shopping session. Please try again.", "danger")
+        return redirect(url_for("grocery.shopping_mode"))
 
-    flash("Shopping session started!", "success")
+    emails_sent = 0
+    if recipient_ids:
+        try:
+            emails_sent = _send_household_shopping_started_emails(
+                recipient_ids, added_last_minute_items
+            )
+        except Exception as e:
+            logger.error(
+                f"Error sending shopping-start notification emails: {e}",
+                exc_info=True,
+            )
+            flash(
+                "Shopping session started, but email notifications could not be sent.",
+                "warning",
+            )
+
+    success_parts = ["Shopping session started!"]
+    if added_last_minute_items:
+        success_parts.append(
+            f"Added {len(added_last_minute_items)} last-minute item(s)."
+        )
+    if recipient_ids and emails_sent:
+        success_parts.append(f"Notified {emails_sent} household member(s) by email.")
+
+    flash(" ".join(success_parts), "success")
     return redirect(url_for("grocery.shopping_mode"))
 
 

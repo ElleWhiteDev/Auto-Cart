@@ -306,6 +306,132 @@ class TestGroceryListRoutes:
         assert response.status_code == 302
         assert response.headers["Location"].endswith("/#email-modal")
 
+    def test_shopping_mode_renders_start_shopping_modal_with_household_members(
+        self,
+        authenticated_client,
+        db_session,
+        sample_household,
+        sample_grocery_list,
+        sample_user,
+    ):
+        """Shopping mode should expose the new notify-and-add-items start modal."""
+        household_member_user = User(
+            username="shopmate",
+            email="shopmate@example.com",
+            password=sample_user.password,
+        )
+        db_session.add(household_member_user)
+        db_session.flush()
+        db_session.add(
+            HouseholdMember(
+                household_id=sample_household.id,
+                user_id=household_member_user.id,
+                role="member",
+            )
+        )
+        db_session.commit()
+
+        with authenticated_client.session_transaction() as sess:
+            sess["curr_household_id"] = sample_household.id
+            sess["curr_grocery_list_id"] = sample_grocery_list.id
+            sess["curr_user"] = sample_user.id
+
+        response = authenticated_client.get("/shopping-mode")
+
+        assert response.status_code == 200
+        assert b"Notify household members" in response.data
+        assert b"Last-minute items" in response.data
+        assert b"shopmate@example.com" in response.data
+
+    def test_start_shopping_adds_last_minute_items_and_sends_notifications(
+        self,
+        authenticated_client,
+        db_session,
+        monkeypatch,
+        sample_household,
+        sample_grocery_list,
+        sample_user,
+    ):
+        """Starting shopping should add extra items and only notify valid household recipients."""
+        household_member_user = User(
+            username="shopmate",
+            email="shopmate@example.com",
+            password=sample_user.password,
+        )
+        outsider_user = User(
+            username="outsider",
+            email="outsider@example.com",
+            password=sample_user.password,
+        )
+        db_session.add_all([household_member_user, outsider_user])
+        db_session.flush()
+        db_session.add(
+            HouseholdMember(
+                household_id=sample_household.id,
+                user_id=household_member_user.id,
+                role="member",
+            )
+        )
+        db_session.commit()
+
+        def fake_parse_ingredients(ingredient_text):
+            if ingredient_text == "2 cups rice":
+                return [
+                    {
+                        "quantity": "2",
+                        "measurement": "cup",
+                        "ingredient_name": "rice",
+                    }
+                ]
+            return []
+
+        sent_messages = []
+
+        monkeypatch.setattr(
+            "routes.grocery.Recipe.parse_ingredients", fake_parse_ingredients
+        )
+        monkeypatch.setattr("routes.grocery.mail.send", sent_messages.append)
+
+        with authenticated_client.session_transaction() as sess:
+            sess["curr_household_id"] = sample_household.id
+            sess["curr_grocery_list_id"] = sample_grocery_list.id
+            sess["curr_user"] = sample_user.id
+
+        response = authenticated_client.post(
+            "/shopping-mode/start",
+            data={
+                "email_recipient_ids": [
+                    str(household_member_user.id),
+                    str(sample_user.id),
+                    str(outsider_user.id),
+                    "not-a-user-id",
+                ],
+                "last_minute_items": "2 cups rice\nmilk",
+            },
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.headers["Location"].endswith("/shopping-mode")
+
+        db_session.refresh(sample_grocery_list)
+        assert sample_grocery_list.status == "shopping"
+        assert sample_grocery_list.shopping_user_id == sample_user.id
+
+        items = GroceryListItem.query.filter_by(
+            grocery_list_id=sample_grocery_list.id
+        ).all()
+        ingredient_names = sorted(
+            item.recipe_ingredient.ingredient_name for item in items
+        )
+        assert ingredient_names == ["milk", "rice"]
+
+        assert len(sent_messages) == 1
+        assert sent_messages[0].recipients == ["shopmate@example.com"]
+        assert "started shopping" in sent_messages[0].subject.lower()
+        assert "rice" in sent_messages[0].body
+        assert "milk" in sent_messages[0].body
+
     def test_meal_plan_add_to_list_sets_selected_recipe_ids(
         self,
         authenticated_client,

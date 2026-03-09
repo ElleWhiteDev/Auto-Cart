@@ -60,11 +60,9 @@
 				</div>
 				{% endif %}
 			{% else %}
-				<form method="POST" action="{{ url_for('grocery.start_shopping') }}">
-					<button type="submit" class="btn btn-success w-100 btn-lg">
+					<a href="#start-shopping-modal" class="btn btn-success w-100 btn-lg">
 						<i class="fas fa-play"></i> Start Shopping
-					</button>
-				</form>
+					</a>
 			{% endif %}
 		</div>
 	</div>
@@ -125,6 +123,73 @@
 	{% endif %}
 </div>
 
+	<div id="start-shopping-modal" class="modal-container">
+		<div class="my-modal">
+			<div class="modal-header">
+				<h2 class="modal-title">
+					<i class="fas fa-bell text-primary mr-2"></i>Start Shopping
+				</h2>
+				<p class="modal-description">
+					Let your household know you’re shopping and capture any last-minute items before you go.
+				</p>
+			</div>
+			<div class="modal-body">
+				<form method="POST" action="{{ url_for('grocery.start_shopping') }}" class="modal-form">
+					<div class="form-group">
+						<label class="form-label">
+							<i class="fas fa-users mr-1"></i>Notify household members
+						</label>
+						{% if household_members %}
+						<div class="selection-options">
+							{% for member in household_members %}
+							<div class="selection-option">
+								<input
+									type="checkbox"
+									name="email_recipient_ids"
+									value="{{ member.user.id }}"
+									id="shopping-recipient-{{ member.user.id }}"
+									class="selection-radio"
+								>
+								<label for="shopping-recipient-{{ member.user.id }}" class="selection-label">
+									<div class="product-info">
+										<div class="product-name">{{ member.user.username }}</div>
+										<div class="product-brand">{{ member.user.email }}</div>
+									</div>
+								</label>
+							</div>
+							{% endfor %}
+						</div>
+						{% else %}
+						<p class="text-muted mb-0">No other household members with email addresses are available to notify.</p>
+						{% endif %}
+					</div>
+
+					<div class="form-group">
+						<label for="last-minute-items" class="form-label">
+							<i class="fas fa-list-ul mr-1"></i>Last-minute items
+						</label>
+						<textarea
+							id="last-minute-items"
+							name="last_minute_items"
+							class="form-textarea"
+							rows="5"
+							placeholder="Add one item per line, like:&#10;2 cups rice&#10;milk"
+						></textarea>
+					</div>
+
+					<div class="modal-actions">
+						<a href="#modal-closed" class="btn btn-outline">
+							<i class="fas fa-times mr-2"></i>Cancel
+						</a>
+						<button type="submit" class="btn btn-primary">
+							<i class="fas fa-play mr-2"></i>Start Shopping
+						</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
+
 <style>
 .shopping-item {
 	transition: background-color 0.3s ease;
@@ -182,5 +247,13 @@ document.querySelectorAll('.item-checkbox').forEach(checkbox => {
 		});
 	});
 });
+
+	document.querySelectorAll('.modal-container').forEach(container => {
+		container.addEventListener('click', function(e) {
+			if (e.target === container) {
+				window.location.hash = 'modal-closed';
+			}
+		});
+	});
 </script>
 {% endblock %}
