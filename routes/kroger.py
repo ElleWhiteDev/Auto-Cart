@@ -6,10 +6,21 @@ Handles Kroger authentication, product search, and cart management.
 
 from collections import Counter
 
-from flask import Blueprint, request, flash, redirect, url_for, g, session, current_app
+from flask import (
+    Blueprint,
+    request,
+    flash,
+    redirect,
+    url_for,
+    g,
+    session,
+    current_app,
+    render_template,
+)
+from flask_mail import Message
 from werkzeug.wrappers import Response
 
-from extensions import db
+from extensions import db, mail
 from models import User
 from utils import require_login
 from logging_config import logger
@@ -32,7 +43,80 @@ def _build_send_to_cart_resume_url() -> str:
         route_values["confirmed"] = "true"
     if request.args.get("remove_added"):
         route_values["remove_added"] = "true"
+    if request.args.get("email_household"):
+        route_values["email_household"] = "true"
     return url_for("kroger.kroger_send_to_cart", **route_values)
+
+
+def _get_household_notification_recipients() -> list[User]:
+    """Return household members who should receive a Kroger order notification."""
+    if not g.household:
+        return []
+
+    recipients = []
+    for member in g.household.members:
+        user = member.user
+        if not user or not user.email or user.id == g.user.id:
+            continue
+        recipients.append(user)
+
+    return recipients
+
+
+def _send_household_kroger_order_created_emails(removed_exported_items: bool) -> int:
+    """Notify other household members that a Kroger pickup order was created."""
+    recipients = _get_household_notification_recipients()
+    if not recipients:
+        return 0
+
+    base_url = request.url_root.rstrip("/")
+    response_email = current_app.config.get(
+        "MAIL_DEFAULT_SENDER", "support@autocart.com"
+    )
+    household_name = g.household.name if g.household else "your household"
+    grocery_list_name = g.grocery_list.name if g.grocery_list else "Shared Grocery List"
+    grocery_list_status = (
+        "Exported grocery list items were removed after the send."
+        if removed_exported_items
+        else "The household grocery list was left unchanged after the send."
+    )
+    subject = f"Kroger pickup order created for {household_name}"
+
+    for recipient in recipients:
+        html_body = render_template(
+            "kroger_pickup_order_created_email.html",
+            recipient_name=recipient.username,
+            created_by_name=g.user.username,
+            household_name=household_name,
+            grocery_list_name=grocery_list_name,
+            grocery_list_status=grocery_list_status,
+            homepage_url=base_url,
+            household_settings_url=f"{base_url}/household/settings",
+        )
+        text_body = (
+            f"Hi {recipient.username},\n\n"
+            f"{g.user.username} created a Kroger pickup order for the {household_name} household.\n"
+            f"Grocery list: {grocery_list_name}\n"
+            f"Status: {grocery_list_status}\n\n"
+            f"Open Auto-Cart: {base_url}\n"
+            f"Household settings: {base_url}/household/settings\n\n"
+            "---\n"
+            "Auto-Cart - Smart Household Grocery Management\n"
+            f"For support: {response_email}"
+        )
+        msg = Message(
+            subject=subject,
+            recipients=[recipient.email],
+            body=text_body,
+            html=html_body,
+        )
+        mail.send(msg)
+
+    logger.info(
+        "Sent Kroger pickup order notification email to %s household members",
+        len(recipients),
+    )
+    return len(recipients)
 
 
 def _normalize_ingredient_value(value) -> str:
@@ -379,6 +463,9 @@ def kroger_send_to_cart() -> Response:
         flash("Kroger integration not configured", "danger")
         return redirect(url_for("main.homepage"))
 
+    should_remove_added = request.args.get("remove_added") == "true"
+    should_email_household = request.args.get("email_household") == "true"
+
     # Check if there are skipped ingredients
     skipped = kroger_session_manager.get_skipped_ingredients()
 
@@ -411,10 +498,20 @@ def kroger_send_to_cart() -> Response:
 
     success = kroger_workflow.handle_send_to_cart(valid_token)
     if success:
-        if request.args.get("remove_added"):
+        if should_remove_added:
             _remove_exported_items_from_grocery_list(
                 kroger_session_manager.get_skipped_grocery_list_item_ids(), skipped
             )
+        if should_email_household:
+            try:
+                _send_household_kroger_order_created_emails(
+                    removed_exported_items=should_remove_added
+                )
+            except Exception as e:
+                logger.error(
+                    f"Failed to send Kroger household notification emails: {e}",
+                    exc_info=True,
+                )
         kroger_session_manager.clear_skipped_ingredients()
         session.pop("kroger_recovery_prompt", None)
         session.pop("kroger_post_auth_redirect", None)

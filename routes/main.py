@@ -63,6 +63,11 @@ def homepage() -> Union[str, Response]:
         household_id=g.household.id
     ).all()
     household_users = [m.user for m in household_members]
+    kroger_email_recipients = [
+        member.user
+        for member in household_members
+        if member.user and member.user.email and member.user_id != g.user.id
+    ]
 
     # Get all household grocery lists
     all_grocery_lists = (
@@ -78,6 +83,7 @@ def homepage() -> Union[str, Response]:
         recipes=recipes,
         selected_recipe_ids=selected_recipe_ids,
         all_users=household_users,
+        kroger_email_recipient_count=len(kroger_email_recipients),
         all_grocery_lists=all_grocery_lists,
     )
 

@@ -576,21 +576,43 @@
 				No items were skipped. If you choose to remove exported items after this send, the current grocery list will be cleared.
 			</div>
 			{% endif %}
-			<div class="modal-actions">
-				<a href="#modal-closed" class="btn btn-outline">
-					<i class="fas fa-arrow-left mr-2"></i>Go Back
-				</a>
-				<a href="{{ url_for('kroger.kroger_send_to_cart', confirmed='true') }}" class="btn btn-outline">
-					<i class="fas fa-check mr-2"></i>Continue to Kroger
-				</a>
-				<a href="{{ url_for('kroger.kroger_send_to_cart', confirmed='true', remove_added='true') }}" class="btn btn-primary">
-					{% if session.get('skipped_ingredients') %}
-					<i class="fas fa-list-check mr-2"></i>Continue + Keep Only Skipped Items
-					{% else %}
-					<i class="fas fa-broom-ball mr-2"></i>Continue + Clear Grocery List
-					{% endif %}
-				</a>
-			</div>
+				<form method="GET" action="{{ url_for('kroger.kroger_send_to_cart') }}" class="modal-form">
+					<input type="hidden" name="confirmed" value="true" />
+					<div style="background-color: #f8fafc; border: 1px solid #dbeafe; border-radius: 8px; padding: 16px; margin-bottom: 20px; display: flex; flex-direction: column; gap: 14px;">
+						<label style="display: flex; align-items: flex-start; gap: 10px; color: #1f2937; cursor: pointer;">
+							<input type="checkbox" name="remove_added" value="true" style="margin-top: 4px;" />
+							<span>
+								<strong>Remove exported grocery list items after sending</strong><br />
+								<span style="font-size: 14px; color: #666;">
+									{% if session.get('skipped_ingredients') %}
+									Keep only the skipped items on your grocery list after the Kroger send finishes.
+									{% else %}
+									Clear the current grocery list after all items are sent to Kroger.
+									{% endif %}
+								</span>
+							</span>
+						</label>
+						{% if kroger_email_recipient_count %}
+						<label style="display: flex; align-items: flex-start; gap: 10px; color: #1f2937; cursor: pointer;">
+							<input type="checkbox" name="email_household" value="true" style="margin-top: 4px;" />
+							<span>
+								<strong>Email household members</strong><br />
+								<span style="font-size: 14px; color: #666;">
+									Send a Kroger pickup order update to {{ kroger_email_recipient_count }} other household member{% if kroger_email_recipient_count != 1 %}s{% endif %}.
+								</span>
+							</span>
+						</label>
+						{% endif %}
+					</div>
+					<div class="modal-actions">
+						<a href="#modal-closed" class="btn btn-outline">
+							<i class="fas fa-arrow-left mr-2"></i>Go Back
+						</a>
+						<button type="submit" class="btn btn-primary">
+							<i class="fas fa-check mr-2"></i>Continue to Kroger
+						</button>
+					</div>
+				</form>
 		</div>
 	</div>
 </div>

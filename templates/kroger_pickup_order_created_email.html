@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Kroger Pickup Order Created</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f8f9fa;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+        }
+        .header {
+            background: linear-gradient(135deg, #004c91 0%, #1e6bb8 100%);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .header .icon {
+            font-size: 42px;
+            margin-bottom: 10px;
+        }
+        .content {
+            padding: 30px 20px;
+            background-color: #f9f9f9;
+        }
+        .details-card {
+            background-color: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-left: 4px solid #004c91;
+            border-radius: 5px;
+        }
+        .details-card h2 {
+            color: #004c91;
+            margin-top: 0;
+            font-size: 20px;
+        }
+        .callout {
+            background-color: #eef6ff;
+            border: 1px solid #90caf9;
+            color: #0d47a1;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .cta-button {
+            display: inline-block;
+            background-color: #c75000;
+            color: white !important;
+            text-decoration: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #495057;
+            font-size: 13px;
+            background-color: #f9f9f9;
+            border-top: 1px solid #ddd;
+        }
+        .footer a {
+            color: #1e6bb8;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="icon">🛒</div>
+            <h1>Kroger Pickup Order Created</h1>
+        </div>
+        <div class="content">
+            <p>Hi {{ recipient_name }},</p>
+            <p><strong>{{ created_by_name }}</strong> created a Kroger pickup order for the <strong>{{ household_name }}</strong> household.</p>
+
+            <div class="details-card">
+                <h2>Order Update</h2>
+                <p><strong>Household:</strong> {{ household_name }}</p>
+                <p><strong>Grocery List:</strong> {{ grocery_list_name }}</p>
+                <p><strong>Created By:</strong> {{ created_by_name }}</p>
+                <p><strong>List Status:</strong> {{ grocery_list_status }}</p>
+            </div>
+
+            <div class="callout">
+                Your household can keep coordinating in Auto-Cart while this Kroger pickup order is being finalized.
+            </div>
+
+            <div style="text-align: center;">
+                <a href="{{ homepage_url }}" class="cta-button">Open Auto-Cart</a>
+            </div>
+
+            <p style="margin-top: 30px;">Thanks for planning together!</p>
+            <p><strong>— The Auto-Cart Team</strong></p>
+        </div>
+        <div class="footer">
+            <p>You're receiving this because you're a member of the {{ household_name }} household on Auto-Cart.</p>
+            <p><a href="{{ homepage_url }}">Visit Auto-Cart</a> | <a href="{{ household_settings_url }}">Household Settings</a></p>
+        </div>
+    </div>
+</body>
+</html>

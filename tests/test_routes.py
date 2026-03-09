@@ -7,7 +7,14 @@ from datetime import date, datetime, timezone
 
 import pytest
 
-from models import MealPlanEntry, MealPlanChange, RecipeIngredient, GroceryListItem
+from models import (
+    MealPlanEntry,
+    MealPlanChange,
+    RecipeIngredient,
+    GroceryListItem,
+    HouseholdMember,
+    User,
+)
 
 
 def _alexa_request_payload(request_body, access_token=None):
@@ -464,7 +471,8 @@ class TestKrogerRoutes:
             sess["location_id"] = "store-123"
 
         response = authenticated_client.get(
-            "/send-to-cart?confirmed=true", follow_redirects=True
+            "/send-to-cart?confirmed=true&email_household=true",
+            follow_redirects=True,
         )
 
         assert response.status_code == 200
@@ -478,9 +486,8 @@ class TestKrogerRoutes:
         with authenticated_client.session_transaction() as sess:
             assert sess["products_for_cart"] == [{"upc": "000111222333", "quantity": 1}]
             assert sess["skipped_ingredients"] == ["1 unit milk"]
-            assert sess["kroger_post_auth_redirect"].endswith(
-                "/send-to-cart?confirmed=true"
-            )
+            assert "confirmed=true" in sess["kroger_post_auth_redirect"]
+            assert "email_household=true" in sess["kroger_post_auth_redirect"]
             assert sess["kroger_recovery_prompt"]["primary_url"].endswith(
                 "/authenticate?resume=send-to-cart"
             )
@@ -549,10 +556,28 @@ class TestKrogerRoutes:
     def test_send_to_cart_shows_summary_even_without_skipped_items(
         self,
         authenticated_client,
+        db_session,
         sample_household,
+        sample_user,
         sample_grocery_list,
     ):
         """The export summary should still appear when nothing was skipped."""
+        second_user = User(
+            username="housemate",
+            email="housemate@example.com",
+            password=sample_user.password,
+        )
+        db_session.add(second_user)
+        db_session.flush()
+        db_session.add(
+            HouseholdMember(
+                household_id=sample_household.id,
+                user_id=second_user.id,
+                role="member",
+            )
+        )
+        db_session.commit()
+
         with authenticated_client.session_transaction() as sess:
             sess["household_id"] = sample_household.id
 
@@ -561,7 +586,65 @@ class TestKrogerRoutes:
         assert response.status_code == 200
         assert b"Kroger Export Summary" in response.data
         assert b"Continue to Kroger" in response.data
-        assert b"Continue + Clear Grocery List" in response.data
+        assert b"Remove exported grocery list items after sending" in response.data
+        assert b"Email household members" in response.data
+
+    def test_send_to_cart_emails_household_members_when_requested(
+        self,
+        authenticated_client,
+        db_session,
+        monkeypatch,
+        sample_household,
+        sample_user,
+        sample_grocery_list,
+    ):
+        """Requesting household email notifications should trigger the Kroger email helper."""
+        second_user = User(
+            username="familymember",
+            email="familymember@example.com",
+            password=sample_user.password,
+        )
+        db_session.add(second_user)
+        db_session.flush()
+        db_session.add(
+            HouseholdMember(
+                household_id=sample_household.id,
+                user_id=second_user.id,
+                role="member",
+            )
+        )
+
+        sample_user.oauth_token = "valid-token"
+        sample_user.refresh_token = "refresh-token"
+        sample_household.kroger_user_id = sample_user.id
+        db_session.commit()
+
+        workflow = authenticated_client.application.config["kroger_workflow"]
+        monkeypatch.setattr(workflow, "ensure_valid_token", lambda user: "valid-token")
+        monkeypatch.setattr(workflow, "handle_send_to_cart", lambda token: True)
+
+        captured = {}
+
+        def fake_send_household_email(removed_exported_items):
+            captured["removed_exported_items"] = removed_exported_items
+            return 1
+
+        monkeypatch.setattr(
+            "routes.kroger._send_household_kroger_order_created_emails",
+            fake_send_household_email,
+        )
+
+        with authenticated_client.session_transaction() as sess:
+            sess["household_id"] = sample_household.id
+
+        response = authenticated_client.get(
+            "/send-to-cart?confirmed=true&email_household=true",
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 302
+        assert response.headers["Location"] == "https://www.kroger.com/cart"
+        assert captured == {"removed_exported_items": False}
 
     def test_send_to_cart_remove_added_keeps_skipped_items(
         self,
