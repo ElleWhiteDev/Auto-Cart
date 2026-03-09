@@ -38,6 +38,11 @@
 				{{ kroger_recovery_prompt['secondary_label'] }}
 			</a>
 			{% endif %}
+				<form method="POST" action="{{ url_for('kroger.dismiss_recovery_prompt') }}" class="m-0">
+					<button type="submit" class="btn btn-outline">
+						<i class="fas fa-times mr-2"></i>Dismiss
+					</button>
+				</form>
 		</div>
 	</div>
 	{% endif %}

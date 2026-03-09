@@ -277,6 +277,40 @@ def _queue_send_to_cart_reconnect_prompt(message: str) -> None:
     )
 
 
+def _clear_kroger_flow_session(kroger_session_manager=None) -> None:
+    """Clear in-progress Kroger flow state and any recovery prompt."""
+    kroger_session_manager = kroger_session_manager or current_app.config.get(
+        "kroger_session_manager"
+    )
+
+    if kroger_session_manager:
+        kroger_session_manager.clear_kroger_session_data()
+    else:
+        for key in [
+            "products_for_cart",
+            "items_to_choose_from",
+            "location_id",
+            "stores",
+            "ingredient_details",
+            "current_ingredient_detail",
+            "skipped_ingredients",
+            "skipped_grocery_list_item_ids",
+        ]:
+            session.pop(key, None)
+        session["show_modal"] = False
+
+    session.pop("kroger_recovery_prompt", None)
+    session.pop("kroger_post_auth_redirect", None)
+
+
+@kroger_bp.route("/dismiss-recovery-prompt", methods=["POST"])
+@require_login
+def dismiss_recovery_prompt() -> Response:
+    """Dismiss the homepage recovery prompt and exit the current Kroger flow."""
+    _clear_kroger_flow_session()
+    return redirect(url_for("main.homepage"))
+
+
 @kroger_bp.route("/authenticate")
 @require_login
 def kroger_authenticate() -> Response:
@@ -545,9 +579,6 @@ def kroger_send_to_cart() -> Response:
             "Your Kroger connection needs to be updated before we can send this cart. "
             "Your selections are still saved."
         )
-        flash(
-            "Please reconnect a Kroger account to finish sending your cart.", "warning"
-        )
         return redirect(url_for("main.homepage"))
 
     valid_token = kroger_workflow.ensure_valid_token(kroger_user)
@@ -555,11 +586,6 @@ def kroger_send_to_cart() -> Response:
         _queue_send_to_cart_reconnect_prompt(
             "Your Kroger connection expired before we could send your cart. "
             "Reconnect to continue, and we’ll keep your current selections ready."
-        )
-        flash(
-            "Your Kroger connection expired before we could send your cart. "
-            "Reconnect to continue.",
-            "warning",
         )
         return redirect(url_for("main.homepage"))
 
@@ -584,9 +610,7 @@ def kroger_send_to_cart() -> Response:
                     f"Failed to send Kroger household notification emails: {e}",
                     exc_info=True,
                 )
-        kroger_session_manager.clear_skipped_ingredients()
-        session.pop("kroger_recovery_prompt", None)
-        session.pop("kroger_post_auth_redirect", None)
+        _clear_kroger_flow_session(kroger_session_manager)
         return redirect("https://www.kroger.com/cart")
 
     session.pop("kroger_post_auth_redirect", None)
@@ -595,10 +619,6 @@ def kroger_send_to_cart() -> Response:
         "Your selections are still saved, so you can try again without starting over.",
         "Try Again",
         _build_send_to_cart_resume_url(),
-    )
-    flash(
-        "We couldn't send your items to Kroger. Your selections are still saved, so please try again.",
-        "warning",
     )
     return redirect(url_for("main.homepage"))
 

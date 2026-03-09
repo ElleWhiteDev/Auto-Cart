@@ -506,9 +506,14 @@ class TestKrogerRoutes:
         assert response.status_code == 200
         assert b"Reconnect Kroger to finish sending your cart" in response.data
         assert b"Reconnect Kroger" in response.data
+        assert b"Dismiss" in response.data
         assert (
             b"Your Kroger connection expired before we could send your cart"
             in response.data
+        )
+        assert (
+            b"Your Kroger connection expired before we could send your cart. "
+            b"Reconnect to continue." not in response.data
         )
 
         with authenticated_client.session_transaction() as sess:
@@ -584,6 +589,48 @@ class TestKrogerRoutes:
         with authenticated_client.session_transaction() as sess:
             assert "kroger_post_auth_redirect" not in sess
             assert "kroger_recovery_prompt" not in sess
+
+    def test_dismiss_recovery_prompt_clears_kroger_flow_session(
+        self, authenticated_client
+    ):
+        """Dismissing the recovery prompt should clear all in-progress Kroger state."""
+        with authenticated_client.session_transaction() as sess:
+            sess["products_for_cart"] = [{"upc": "000111222333", "quantity": 1}]
+            sess["items_to_choose_from"] = [{"id": "000111222333"}]
+            sess["location_id"] = "store-123"
+            sess["stores"] = [("123 Main St", "Cincinnati", "store-123")]
+            sess["ingredient_details"] = [{"name": "milk"}]
+            sess["current_ingredient_detail"] = {"name": "milk"}
+            sess["skipped_ingredients"] = ["1 unit milk"]
+            sess["skipped_grocery_list_item_ids"] = [42]
+            sess["kroger_post_auth_redirect"] = "/send-to-cart?confirmed=true"
+            sess["kroger_recovery_prompt"] = {
+                "title": "We couldn't send your cart to Kroger",
+                "message": "Your selections are still saved.",
+                "primary_label": "Try Again",
+                "primary_url": "/send-to-cart?confirmed=true",
+            }
+            sess["show_modal"] = True
+
+        response = authenticated_client.post(
+            "/dismiss-recovery-prompt", follow_redirects=False
+        )
+
+        assert response.status_code == 302
+        assert response.headers["Location"].endswith("/")
+
+        with authenticated_client.session_transaction() as sess:
+            assert "products_for_cart" not in sess
+            assert "items_to_choose_from" not in sess
+            assert "location_id" not in sess
+            assert "stores" not in sess
+            assert "ingredient_details" not in sess
+            assert "current_ingredient_detail" not in sess
+            assert "skipped_ingredients" not in sess
+            assert "skipped_grocery_list_item_ids" not in sess
+            assert "kroger_post_auth_redirect" not in sess
+            assert "kroger_recovery_prompt" not in sess
+            assert sess["show_modal"] is False
 
     def test_send_to_cart_shows_summary_even_without_skipped_items(
         self,
@@ -798,8 +845,20 @@ class TestKrogerRoutes:
 
         with authenticated_client.session_transaction() as sess:
             sess["household_id"] = sample_household.id
+            sess["products_for_cart"] = [{"upc": "000111222333", "quantity": 1}]
+            sess["items_to_choose_from"] = [{"id": "000111222333"}]
+            sess["location_id"] = "store-123"
+            sess["ingredient_details"] = [{"name": "milk"}]
+            sess["current_ingredient_detail"] = {"name": "milk"}
             sess["skipped_ingredients"] = ["1 unit milk"]
             sess["skipped_grocery_list_item_ids"] = [milk_item.id]
+            sess["kroger_post_auth_redirect"] = "/send-to-cart?confirmed=true"
+            sess["kroger_recovery_prompt"] = {
+                "title": "We couldn't send your cart to Kroger",
+                "message": "Your selections are still saved.",
+                "primary_label": "Try Again",
+                "primary_url": "/send-to-cart?confirmed=true",
+            }
 
         response = authenticated_client.get(
             "/send-to-cart?confirmed=true", follow_redirects=False
@@ -815,6 +874,17 @@ class TestKrogerRoutes:
             "milk",
             "bread",
         ]
+
+        with authenticated_client.session_transaction() as sess:
+            assert "products_for_cart" not in sess
+            assert "items_to_choose_from" not in sess
+            assert "location_id" not in sess
+            assert "ingredient_details" not in sess
+            assert "current_ingredient_detail" not in sess
+            assert "skipped_ingredients" not in sess
+            assert "skipped_grocery_list_item_ids" not in sess
+            assert "kroger_post_auth_redirect" not in sess
+            assert "kroger_recovery_prompt" not in sess
 
 
 @pytest.mark.integration

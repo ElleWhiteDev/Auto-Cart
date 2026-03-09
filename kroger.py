@@ -255,13 +255,16 @@ class KrogerSessionManager:
 
     @staticmethod
     def clear_kroger_session_data():
-        """Clear Kroger-related session data after cart operations."""
+        """Clear Kroger-related session data after cart operations or exit."""
         session_keys_to_clear = [
             "products_for_cart",
             "items_to_choose_from",
             "location_id",
             "stores",
             "ingredient_details",
+            "current_ingredient_detail",
+            "skipped_ingredients",
+            "skipped_grocery_list_item_ids",
         ]
 
         for key in session_keys_to_clear:
