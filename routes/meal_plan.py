@@ -1123,7 +1123,7 @@ def send_daily_meal_plan_summaries() -> Tuple[Dict[str, Any], int]:
             # Get all unemailed changes for this household
             changes = (
                 MealPlanChange.query.filter_by(household_id=household_id, emailed=False)
-                .order_by(MealPlanChange.created_at)
+                .order_by(MealPlanChange.changed_at)
                 .all()
             )
 

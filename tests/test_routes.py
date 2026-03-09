@@ -7,7 +7,7 @@ from datetime import date, datetime, timezone
 
 import pytest
 
-from models import MealPlanEntry, RecipeIngredient, GroceryListItem
+from models import MealPlanEntry, MealPlanChange, RecipeIngredient, GroceryListItem
 
 
 def _alexa_request_payload(request_body, access_token=None):
@@ -340,6 +340,75 @@ class TestGroceryListRoutes:
 
         with authenticated_client.session_transaction() as sess:
             assert sess["selected_recipe_ids"] == [str(sample_recipe.id)]
+
+
+@pytest.mark.integration
+class TestMealPlanRoutes:
+    """Tests for meal plan routes."""
+
+    def test_daily_summary_route_sends_pending_updates(
+        self, client, db_session, monkeypatch, sample_household, sample_user
+    ):
+        """Daily summaries should process unemailed changes in changed_at order."""
+        monkeypatch.setenv("CRON_SECRET_TOKEN", "test-cron-token")
+
+        first_change = MealPlanChange(
+            household_id=sample_household.id,
+            change_type="added",
+            meal_name="Pasta Night",
+            meal_date=date.today(),
+            meal_type="dinner",
+            changed_by_user_id=sample_user.id,
+            changed_at=datetime(2024, 1, 2, 18, 0, 0),
+        )
+        second_change = MealPlanChange(
+            household_id=sample_household.id,
+            change_type="updated",
+            meal_name="Taco Tuesday",
+            meal_date=date.today(),
+            meal_type="lunch",
+            changed_by_user_id=sample_user.id,
+            changed_at=datetime(2024, 1, 2, 19, 0, 0),
+            change_details="Moved to lunch",
+        )
+        db_session.add_all([first_change, second_change])
+        db_session.commit()
+
+        captured = {}
+
+        def fake_send_summary_email(**kwargs):
+            captured["recipient_email"] = kwargs["recipient_email"]
+            captured["added_names"] = [
+                change.meal_name for change in kwargs["added_changes"]
+            ]
+            captured["updated_names"] = [
+                change.meal_name for change in kwargs["updated_changes"]
+            ]
+
+        monkeypatch.setattr(
+            "routes.meal_plan._send_meal_plan_summary_email", fake_send_summary_email
+        )
+
+        response = client.post(
+            "/meal-plan/send-daily-summaries",
+            headers={"X-Cron-Token": "test-cron-token"},
+        )
+
+        assert response.status_code == 200
+        payload = response.get_json()
+        assert payload["results"][0]["status"] == "success"
+        assert payload["results"][0]["emails_sent"] == 1
+        assert payload["results"][0]["changes_count"] == 2
+        assert captured == {
+            "recipient_email": sample_user.email,
+            "added_names": ["Pasta Night"],
+            "updated_names": ["Taco Tuesday"],
+        }
+
+        refreshed_changes = MealPlanChange.query.order_by(
+            MealPlanChange.changed_at
+        ).all()
+        assert [change.emailed for change in refreshed_changes] == [True, True]
 
 
 @pytest.mark.integration

@@ -69,7 +69,7 @@ git push heroku main
 4. Configure the job:
    - **Schedule**: Select the time you want summaries sent (e.g., "8:00 PM UTC")
    - **Frequency**: Daily
-   - **Run Command**: `python send_daily_summaries.py`
+   - **Run Command**: `python scripts/send_daily_summaries.py`
 5. Click **Save**
 
 ### Via Heroku CLI:
@@ -92,7 +92,7 @@ Then follow the dashboard instructions above.
 #### Via Heroku CLI:
 ```bash
 # Run the script manually to test
-heroku run python send_daily_summaries.py -a YOUR_APP_NAME
+heroku run python scripts/send_daily_summaries.py -a YOUR_APP_NAME
 ```
 
 ### Check the Logs:
@@ -200,4 +200,3 @@ After setup is complete:
 ## Questions?
 
 Check the main documentation: `MEAL_PLAN_NOTIFICATIONS_README.md`
-

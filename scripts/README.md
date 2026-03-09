@@ -64,7 +64,7 @@ python scripts/make_admin.py
 python scripts/send_daily_summaries.py
 
 # Or set up with Heroku Scheduler
-# Add this command to Heroku Scheduler: python send_daily_summaries.py
+# Add this command to Heroku Scheduler: python scripts/send_daily_summaries.py
 ```
 
 ## Development Guidelines
@@ -114,4 +114,3 @@ Before running any migration:
 ## Questions?
 
 See the main project README or open an issue on GitHub.
-
