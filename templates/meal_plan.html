@@ -591,6 +591,10 @@
 													</select>
 													<small class="text-muted" style="font-size: 0.65rem;">Hold Ctrl/Cmd for multiple. Removed chefs will be emailed.</small>
 												</div>
+												<div class="mb-2">
+													<label for="notes-desktop-{{ entry.id }}" style="font-size: 0.75rem; font-weight: 600; margin-bottom: 2px;">Notes:</label>
+													<textarea id="notes-desktop-{{ entry.id }}" name="notes" class="form-control form-control-sm" rows="2" style="font-size: 0.75rem; resize: vertical;">{{ entry.notes or '' }}</textarea>
+												</div>
 												<div class="d-flex gap-1">
 													<button type="submit" class="btn btn-sm btn-success" style="font-size: 0.7rem; padding: 2px 8px;">
 														<i class="fas fa-check"></i> Save
@@ -703,8 +707,8 @@
 											<input type="date" name="date" class="form-control form-control-sm" value="{{ entry.date.strftime('%Y-%m-%d') }}">
 										</div>
 										<div class="mb-2">
-											<label style="font-size: 0.75rem; font-weight: 600; margin-bottom: 2px;">Assigned Cooks:</label>
-											<select name="assigned_cook_ids" class="form-control edit-cook-select" multiple>
+											<label for="cooks-mobile-{{ entry.id }}" style="font-size: 0.75rem; font-weight: 600; margin-bottom: 2px;">Assigned Cooks:</label>
+											<select id="cooks-mobile-{{ entry.id }}" name="assigned_cook_ids" class="form-control edit-cook-select" multiple>
 												{% for user in household_users %}
 												<option value="{{ user.id }}" {% if user in entry.assigned_cooks %}selected{% endif %}>
 													{{ user.username }}
@@ -712,6 +716,10 @@
 												{% endfor %}
 											</select>
 											<small class="text-muted" style="font-size: 0.65rem;">Hold Ctrl/Cmd for multiple. Removed chefs will be emailed.</small>
+										</div>
+										<div class="mb-2">
+											<label for="notes-mobile-{{ entry.id }}" style="font-size: 0.75rem; font-weight: 600; margin-bottom: 2px;">Notes:</label>
+											<textarea id="notes-mobile-{{ entry.id }}" name="notes" class="form-control form-control-sm" rows="2" style="font-size: 0.75rem; resize: vertical;">{{ entry.notes or '' }}</textarea>
 										</div>
 										<div class="d-flex gap-1">
 											<button type="submit" class="btn btn-sm btn-success" style="font-size: 0.7rem; padding: 2px 8px;">
@@ -1256,97 +1264,65 @@ document.addEventListener('DOMContentLoaded', function() {
 			});
 		});
 	} else {
-		// Mobile: Drag-and-drop functionality with handle
+		// Mobile: Pure touch-based drag-and-drop (HTML5 DnD doesn't fire from touch events)
 		let draggingCard = null;
 		let draggedOverCard = null;
 
-		// Make cards draggable via handle
+		function clearMobileDragState() {
+			if (draggingCard) draggingCard.classList.remove('dragging');
+			if (draggedOverCard) draggedOverCard.classList.remove('drag-over');
+			draggingCard = null;
+			draggedOverCard = null;
+		}
+
 		document.querySelectorAll('.mobile-view .mobile-drag-handle').forEach(handle => {
 			const card = handle.closest('.meal-card');
 
 			handle.addEventListener('touchstart', function(e) {
-				if (card.classList.contains('editing')) {
-					return;
-				}
-
-				// Enable dragging on the card
-				card.setAttribute('draggable', 'true');
+				if (card.classList.contains('editing')) return;
+				e.preventDefault(); // prevent scroll while dragging from handle
 				draggingCard = card;
+				if (navigator.vibrate) navigator.vibrate(50);
+				card.classList.add('dragging');
+			}, { passive: false });
 
-				// Vibrate if available
-				if (navigator.vibrate) {
-					navigator.vibrate(50);
-				}
+			handle.addEventListener('touchmove', function(e) {
+				if (!draggingCard) return;
+				e.preventDefault();
+				const touch = e.touches[0];
 
-				// Add visual feedback
-				setTimeout(() => {
-					if (draggingCard === card) {
-						card.classList.add('dragging');
+				// Temporarily hide dragging card so elementFromPoint finds what's beneath
+				draggingCard.style.pointerEvents = 'none';
+				const el = document.elementFromPoint(touch.clientX, touch.clientY);
+				draggingCard.style.pointerEvents = '';
+
+				const targetCard = el ? el.closest('.mobile-view .meal-card') : null;
+
+				if (targetCard && targetCard !== draggingCard) {
+					if (draggedOverCard !== targetCard) {
+						if (draggedOverCard) draggedOverCard.classList.remove('drag-over');
+						draggedOverCard = targetCard;
+						draggedOverCard.classList.add('drag-over');
 					}
-				}, 50);
-			});
-
-			handle.addEventListener('touchend', function() {
-				// Disable dragging after touch ends
-				setTimeout(() => {
-					card.setAttribute('draggable', 'false');
-					card.classList.remove('dragging');
-					draggingCard = null;
-				}, 100);
-			});
-		});
-
-		// Handle drag events on mobile cards
-		document.querySelectorAll('.mobile-view .meal-card').forEach(card => {
-			card.addEventListener('dragstart', function(e) {
-				if (this.classList.contains('editing')) {
-					e.preventDefault();
-					return;
+				} else {
+					if (draggedOverCard) {
+						draggedOverCard.classList.remove('drag-over');
+						draggedOverCard = null;
+					}
 				}
-				draggingCard = this;
-				this.classList.add('dragging');
-				e.dataTransfer.effectAllowed = 'move';
-				e.dataTransfer.setData('text/plain', this.dataset.entryId || '');
-			});
+			}, { passive: false });
 
-			card.addEventListener('dragend', function() {
-				this.classList.remove('dragging');
-				draggingCard = null;
-				clearDropHighlights();
-			});
-
-			// Allow dropping on cards for swapping
-			card.addEventListener('dragover', function(e) {
-				if (!draggingCard || draggingCard === this) return;
-				e.preventDefault();
-				e.stopPropagation();
-				e.dataTransfer.dropEffect = 'move';
-				this.classList.add('drag-over');
-				draggedOverCard = this;
-			});
-
-			card.addEventListener('dragleave', function() {
-				this.classList.remove('drag-over');
-				if (draggedOverCard === this) {
-					draggedOverCard = null;
-				}
-			});
-
-			card.addEventListener('drop', async function(e) {
-				e.preventDefault();
-				e.stopPropagation();
-				this.classList.remove('drag-over');
-
-				if (!draggingCard || draggingCard === this) return;
+			handle.addEventListener('touchend', async function(e) {
+				if (!draggingCard) return;
 
 				const movedCard = draggingCard;
-				const targetCard = this;
+				const targetCard = draggedOverCard;
+				clearMobileDragState();
+
+				if (!targetCard || !movedCard.dataset.entryId || !targetCard.dataset.entryId) return;
+
 				const movedEntryId = movedCard.dataset.entryId;
 				const targetEntryId = targetCard.dataset.entryId;
-
-				if (!movedEntryId || !targetEntryId) return;
-
-				// Get target position info
 				const targetDate = targetCard.dataset.date;
 				const targetMealType = targetCard.dataset.mealType;
 
@@ -1364,13 +1340,10 @@ document.addEventListener('DOMContentLoaded', function() {
 							week_offset: weekOffset
 						})
 					});
-
 					const result = await response.json();
 					if (!response.ok || !result.success) {
 						throw new Error((result && result.error) || 'Failed to swap meals');
 					}
-
-					// Reload page to show swapped positions
 					window.location.reload();
 				} catch (err) {
 					alert(err.message || 'Could not swap meals. Please try again.');

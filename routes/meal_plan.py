@@ -822,6 +822,9 @@ def update_meal_plan_entry(entry_id: int) -> Response:
     # Find newly added cooks (those who weren't assigned before)
     added_cook_ids = set(new_cook_ids) - current_cook_ids
 
+    # Update notes
+    entry.notes = request.form.get("notes", "").strip() or None
+
     # Update the assigned cooks
     cooks = User.query.filter(User.id.in_(new_cook_ids)).all() if new_cook_ids else []
 
