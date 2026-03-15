@@ -52,7 +52,7 @@ def homepage() -> Union[str, Response]:
     recipes = Recipe.query.filter(
         (Recipe.household_id == g.household.id)
         | ((Recipe.user_id == g.user.id) & (Recipe.household_id.is_(None)))
-    ).all()
+    ).order_by(Recipe.name.asc()).all()
 
     selected_recipe_ids = session.get("selected_recipe_ids", [])
     logger.debug(f"Selected recipe IDs: {selected_recipe_ids}")

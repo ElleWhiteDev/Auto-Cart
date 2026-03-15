@@ -362,7 +362,7 @@ def meal_plan() -> Union[str, Response]:
     recipes = Recipe.query.filter(
         (Recipe.household_id == g.household.id)
         | ((Recipe.user_id == g.user.id) & (Recipe.household_id.is_(None)))
-    ).all()
+    ).order_by(Recipe.name.asc()).all()
 
     # Get household members for cook assignment
     from models import HouseholdMember
