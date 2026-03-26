@@ -15,6 +15,20 @@ def _mock_openai_response(content):
     )
 
 
+def _capture_openai_call(monkeypatch, response_content):
+    captured = {}
+
+    def _fake_create(**kwargs):
+        captured.update(kwargs)
+        return _mock_openai_response(response_content)
+
+    monkeypatch.setattr(
+        "models.openai_client.chat.completions.create",
+        _fake_create,
+    )
+    return captured
+
+
 @pytest.mark.unit
 class TestUserModel:
     """Tests for the User model."""
@@ -147,6 +161,74 @@ class TestRecipeModel:
             {"quantity": "14.5", "measurement": "oz", "ingredient_name": "tomatoes"}
         ]
 
+    def test_clean_ingredients_prompt_mentions_line_order_and_no_invention(
+        self, monkeypatch
+    ):
+        """Cleaning prompt should emphasize stable line cleanup without hallucination."""
+        captured = _capture_openai_call(monkeypatch, "1/2 cup sugar")
+
+        Recipe.clean_ingredients_with_openai("½ cup sugar")
+
+        system_prompt = captured["messages"][0]["content"]
+        assert (
+            "Preserve the original ingredient order of retained lines." in system_prompt
+        )
+        assert (
+            "Never invent missing ingredients, quantities, or units." in system_prompt
+        )
+        assert "Remove non-ingredient noise" in system_prompt
+
+    def test_parse_prompt_mentions_json_contract_and_prep_removal(self, monkeypatch):
+        """Parsing prompt should enforce strict JSON and shopping-safe normalization."""
+        captured = _capture_openai_call(
+            monkeypatch,
+            '[{"quantity":"1","measurement":"cup","ingredient_name":"yellow onion"}]',
+        )
+
+        Recipe.parse_ingredients("1 cup yellow onion, diced")
+
+        system_prompt = captured["messages"][0]["content"]
+        assert "Return ONLY a valid JSON array." in system_prompt
+        assert "Remove prep-only descriptors wherever they appear" in system_prompt
+        assert (
+            "Never merge, deduplicate, summarize, or omit any meaningful ingredient line."
+            in system_prompt
+        )
+
+    def test_parse_ingredients_strips_prep_but_keeps_variant(self, monkeypatch):
+        """Post-processing should keep shoppable variants while removing prep-only wording."""
+        response = _mock_openai_response(
+            '[{"quantity":"1","measurement":"cup","ingredient_name":"yellow onion diced"}]'
+        )
+
+        monkeypatch.setattr(
+            "models.openai_client.chat.completions.create",
+            lambda **kwargs: response,
+        )
+
+        parsed = Recipe.parse_ingredients("1 cup yellow onion, diced")
+
+        assert parsed == [
+            {"quantity": "1", "measurement": "cup", "ingredient_name": "yellow onion"}
+        ]
+
+    def test_parse_ingredients_removes_note_only_phrases(self, monkeypatch):
+        """Structured output should drop non-purchase notes while keeping the ingredient."""
+        response = _mock_openai_response(
+            '[{"quantity":"2","measurement":"tbsp","ingredient_name":"parsley divided"}]'
+        )
+
+        monkeypatch.setattr(
+            "models.openai_client.chat.completions.create",
+            lambda **kwargs: response,
+        )
+
+        parsed = Recipe.parse_ingredients("2 tbsp parsley, divided")
+
+        assert parsed == [
+            {"quantity": "2", "measurement": "tbsp", "ingredient_name": "parsley"}
+        ]
+
 
 @pytest.mark.unit
 class TestGroceryListModel:
@@ -277,3 +359,24 @@ class TestGroceryListModel:
             {"quantity": "1", "measurement": "unit", "ingredient_name": "tomatoes"},
             {"quantity": "1", "measurement": "unit", "ingredient_name": "tomato sauce"},
         ]
+
+    def test_consolidate_prompt_mentions_conservative_merging_and_order(
+        self, monkeypatch
+    ):
+        """Consolidation prompt should prefer safe merges and stable ordering."""
+        captured = _capture_openai_call(monkeypatch, "1 unit onion")
+
+        GroceryList.consolidate_ingredients_with_openai(
+            [{"quantity": "1", "measurement": "unit", "ingredient_name": "onion"}]
+        )
+
+        system_prompt = captured["messages"][0]["content"]
+        assert (
+            "If there is any reasonable doubt, keep the items separate."
+            in system_prompt
+        )
+        assert "Preserve input order based on the first retained line." in system_prompt
+        assert (
+            "Never omit a non-water ingredient unless it has been merged"
+            in system_prompt
+        )

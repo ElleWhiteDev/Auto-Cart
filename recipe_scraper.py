@@ -3,20 +3,58 @@
 import requests
 import json
 import re
+from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 from bs4 import BeautifulSoup
 from typing import Dict, List, Optional, Any
 from utils import safe_get_json_value
 from logging_config import logger
 
 
+def _clean_url(url: str) -> str:
+    """Remove tracking parameters from URL."""
+    try:
+        parsed = urlparse(url)
+        params = parse_qs(parsed.query, keep_blank_values=True)
+
+        # Remove common tracking parameters
+        tracking_params = {
+            "utm_source",
+            "utm_medium",
+            "utm_campaign",
+            "utm_content",
+            "utm_term",
+            "fbclid",
+            "gclid",
+            "msclkid",
+            "mc_cid",
+            "mc_eid",
+        }
+
+        cleaned_params = {
+            k: v for k, v in params.items() if k.lower() not in tracking_params
+        }
+
+        # Reconstruct query string
+        new_query = urlencode(cleaned_params, doseq=True)
+        cleaned_parsed = parsed._replace(query=new_query)
+
+        return urlunparse(cleaned_parsed)
+    except Exception as e:
+        logger.debug(f"Error cleaning URL: {e}")
+        return url
+
+
 def scrape_recipe_data(url: str) -> Dict[str, Any]:
     """Scrape recipe data from a given URL."""
+    # Clean the URL to remove tracking parameters
+    clean_url = _clean_url(url)
+
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
     }
 
     try:
-        response = requests.get(url, headers=headers, timeout=10)
+        response = requests.get(clean_url, headers=headers, timeout=10)
         response.raise_for_status()
 
         soup = BeautifulSoup(response.content, "html.parser")
@@ -46,8 +84,38 @@ def scrape_recipe_data(url: str) -> Dict[str, Any]:
             "name": "",
             "ingredients": [],
             "instructions": "",
-            "error": "Request timed out",
+            "error": "Request timed out. The website took too long to respond.",
         }
+    except requests.exceptions.HTTPError as e:
+        status_code = e.response.status_code if hasattr(e, "response") else "unknown"
+        if status_code == 402:
+            return {
+                "name": "",
+                "ingredients": [],
+                "instructions": "",
+                "error": "This website requires payment or has blocked automated access. Please try a different recipe source.",
+            }
+        elif status_code == 403:
+            return {
+                "name": "",
+                "ingredients": [],
+                "instructions": "",
+                "error": "Access to this website is forbidden. Please try a different recipe source.",
+            }
+        elif status_code == 404:
+            return {
+                "name": "",
+                "ingredients": [],
+                "instructions": "",
+                "error": "Recipe page not found. Please check the URL.",
+            }
+        else:
+            return {
+                "name": "",
+                "ingredients": [],
+                "instructions": "",
+                "error": f"Failed to fetch page (HTTP {status_code}). Please try again later.",
+            }
     except requests.exceptions.RequestException as e:
         return {
             "name": "",

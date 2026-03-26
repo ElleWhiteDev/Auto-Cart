@@ -94,9 +94,10 @@ Goal: catch drift, malformed output, destructive merges, and ambiguity handling 
   - `1 tbsp unsalted butter`
   - `1 cup yellow onion, diced`
 - Expected:
-  - keep `unsalted`, `yellow`, `diced` in `ingredient_name`
+  - keep purchase-critical descriptors like `unsalted` and `yellow`
+  - strip prep-only wording like `diced`
 - Fail signs:
-  - variant adjectives removed.
+  - variant adjectives removed or prep-only wording preserved.
 
 ### P6 - multi-line stability
 - Input:
@@ -105,6 +106,15 @@ Goal: catch drift, malformed output, destructive merges, and ambiguity handling 
   - one parsed object per meaningful line
 - Fail signs:
   - line drops, duplicates, or cross-line contamination.
+
+### P7 - note removal without dropping the ingredient
+- Input:
+  - `1 cup walnuts (optional)`
+  - `2 tbsp parsley, divided`
+- Expected:
+  - ingredient remains, but note-only phrases like `optional` and `divided` do not survive in structured output
+- Fail signs:
+  - notes remain in `ingredient_name`, or the ingredient itself is dropped.
 
 ## C. Consolidation Prompt Cases
 

@@ -54,6 +54,7 @@ _MEASUREMENT_ALIASES = {
     "cans": "unit",
 }
 _PREP_WORDS = {"chopped", "minced", "diced", "sliced", "cubed"}
+_NON_PURCHASE_NOTE_WORDS = {"optional", "divided"}
 _WORD_NORMALIZATIONS = {
     "onions": "onion",
     "breasts": "breast",
@@ -81,7 +82,11 @@ def _normalize_ingredient_name(ingredient_name: Any) -> str:
     """Normalize ingredient names while preserving purchase-critical distinctions."""
     normalized = re.sub(r"\s+", " ", str(ingredient_name or "").strip().lower())
     normalized = re.sub(r"[^a-z0-9\s-]", "", normalized)
-    tokens = [token for token in normalized.split() if token not in _PREP_WORDS]
+    tokens = [
+        token
+        for token in normalized.split()
+        if token not in _PREP_WORDS and token not in _NON_PURCHASE_NOTE_WORDS
+    ]
     tokens = [_WORD_NORMALIZATIONS.get(token, token) for token in tokens]
 
     if not tokens:
@@ -963,21 +968,28 @@ class Recipe(db.Model):
     def clean_ingredients_with_openai(cls, ingredients_text):
         """Clean and standardize scraped ingredients using OpenAI."""
         try:
-            system_prompt = """You clean noisy recipe ingredient text.
+            system_prompt = """You clean raw recipe ingredient text for a grocery and meal-planning app.
 
-Task:
-- Convert messy scraped ingredient lines into normalized ingredient lines.
+Primary goal:
+- Convert messy scraped ingredient input into clean, human-readable ingredient lines that are easy for a user to review and easy for a later parser to interpret.
 
-Input assumptions:
-- Input may include bullets, checkboxes, OCR artifacts, merged words, and inconsistent units.
-- Input may have one ingredient per line or broken formatting.
+How to process the input:
+- Treat each meaningful ingredient independently.
+- Preserve the original ingredient order of retained lines.
+- Keep exactly one logical ingredient per output line.
 
-Normalization rules:
-1) Split merged quantity/unit/word sequences when obvious:
+Input may contain:
+- bullets, checkboxes, OCR artifacts, merged tokens, unicode fractions, section headers, serving-count text, blank lines, and inconsistent spacing.
+
+Cleaning rules:
+1) Repair obvious token merges and spacing:
    - "1/4cuphoney" -> "1/4 cup honey"
-2) Remove non-ingredient symbols:
-   - checkboxes (▢☐□✓✔), bullets, repeated punctuation.
-3) Normalize units to canonical forms:
+2) Remove non-ingredient noise:
+   - checkboxes (▢☐□✓✔), bullets, repeated punctuation, stray symbols, standalone section headers, serving-count text, and blank lines.
+3) Normalize explicit quantities when safe:
+   - convert unicode fractions to ASCII fractions: ½ -> 1/2, ¼ -> 1/4, ¾ -> 3/4
+   - normalize exact decimals to simple fractions when obvious: 0.25 -> 1/4, 0.5 -> 1/2, 0.75 -> 3/4, 0.33 -> 1/3, 0.67 -> 2/3
+4) Normalize units to canonical forms when the unit is explicit:
    - tablespoon/tablespoons/tb/T -> tbsp
    - teaspoon/teaspoons/t -> tsp
    - cup/cups/c/C -> cup
@@ -985,18 +997,21 @@ Normalization rules:
    - pound/pounds/lbs -> lb
    - gram/grams -> g
    - kilogram/kilograms -> kg
-4) Normalize common decimal quantities to simple fractions when exact:
-   - 0.25 -> 1/4, 0.5 -> 1/2, 0.75 -> 3/4, 0.33 -> 1/3, 0.67 -> 2/3
-5) Preserve meaningful descriptors and prep terms:
-   - keep words like diced, minced, fresh, frozen, ground, crushed, grated.
-6) Keep one cleaned ingredient per line.
-7) Remove blank lines.
+   - milliliter/milliliters -> ml
+   - liter/litre/liters/litres -> l
+5) Preserve shopping-relevant descriptors and helpful prep wording:
+   - keep descriptors like yellow, red, unsalted, whole, fresh, frozen, ground, boneless, skinless
+   - keep prep words like diced, minced, chopped, grated, crushed when they help the user review the ingredient text
+6) Drop obviously non-purchase notes when they are not part of the core ingredient:
+   - optional, divided, plus more for serving, for garnish, as needed
+7) Never invent missing ingredients, quantities, or units.
+   - If a quantity or unit is absent, keep the line readable instead of guessing.
 
 Output contract:
 - Return plain text only.
-- No headings, numbering, commentary, or markdown.
-- Each output line format: "quantity measurement ingredient_name_with_descriptors".
-- If quantity or unit is missing, keep the line readable and minimally normalized rather than inventing extra context."""
+- No headings, numbering, commentary, markdown, or code fences.
+- Return one cleaned ingredient per line.
+- Do not add any explanation before or after the cleaned lines."""
 
             response = openai_client.chat.completions.create(
                 model="gpt-4o-mini",
@@ -1024,37 +1039,50 @@ Output contract:
         """Parse ingredient text into individual objects using OpenAI"""
 
         try:
-            system_prompt = """You parse ingredient lines into structured objects.
+            system_prompt = """You parse recipe ingredient lines into structured objects for a grocery and meal-planning app.
+
+Processing rules:
+- Treat each non-empty ingredient line independently.
+- Preserve input order.
+- Return exactly one object per meaningful ingredient line.
+- Ignore blank lines and lines that are clearly section headers or other non-ingredient text.
 
 Return format:
 - Return ONLY a valid JSON array.
-- Each element must be an object with EXACTLY these keys:
-  - "quantity" (string)
-  - "measurement" (string)
-  - "ingredient_name" (string)
-- No markdown, no prose, no code fences, no extra keys.
+- Each array element must be an object with EXACTLY these string keys:
+  - "quantity"
+  - "measurement"
+  - "ingredient_name"
+- No markdown, no prose, no comments, no code fences, no trailing commas, and no extra keys.
 
-Parsing rules:
+Field rules:
 1) Quantity:
    - Keep numeric quantities as strings (examples: "2", "1/2", "2 1/2", "1.5").
+   - Normalize common unicode fractions to ASCII equivalents when present.
    - For ranges like "3-4", use the first value ("3").
-   - If missing, use "1".
+   - If quantity is missing or non-numeric (for example: "to taste", "as needed", "a pinch"), use "1".
 2) Measurement:
-   - Normalize to: cup, tbsp, tsp, lb, oz, g, kg, ml, l, unit (when unknown).
-   - Singular canonical forms only.
+   - Allowed canonical values: cup, tbsp, tsp, lb, oz, g, kg, ml, l, unit.
+   - Normalize plurals and aliases to those singular canonical forms.
+   - If the source uses an unsupported or extra-specific unit (for example: clove, can, stick, bunch, sprig, pinch, dash, package, slice), use "unit" instead of inventing a new measurement.
 3) Ingredient name:
-   - Strip prep-only descriptors like chopped/minced/diced/sliced.
-   - Preserve purchase-critical descriptors and variants (e.g., "yellow onion", "unsalted butter", "ground beef", "fresh basil", "chicken thigh").
-   - Treat "diced tomatoes" as "tomatoes", but keep products like "tomato sauce" distinct.
-4) This step does NOT merge, deduplicate, filter, or reorder ingredients.
+   - Keep the shoppable ingredient or product name.
+   - Remove prep-only descriptors wherever they appear: chopped, minced, diced, sliced, cubed.
+   - Preserve purchase-critical distinctions such as yellow onion, red onion, unsalted butter, whole milk, fresh basil, dried basil, chicken thigh, chicken breast, ground beef, tomato sauce.
+   - Remove clearly non-purchase notes like optional, divided, for serving, for garnish, as needed.
+   - Treat "diced tomatoes" as "tomatoes", but keep products like "tomato sauce", "tomato paste", and "salsa" distinct.
+4) Never merge, deduplicate, summarize, or omit any meaningful ingredient line.
 
 Examples:
 "2 cups flour" -> {"quantity":"2","measurement":"cup","ingredient_name":"flour"}
 "1/4 tsp salt" -> {"quantity":"1/4","measurement":"tsp","ingredient_name":"salt"}
 "3-4 lb chicken thighs" -> {"quantity":"3","measurement":"lb","ingredient_name":"chicken thighs"}
 "14.5 oz diced tomatoes" -> {"quantity":"14.5","measurement":"oz","ingredient_name":"tomatoes"}
+"1 cup yellow onion, diced" -> {"quantity":"1","measurement":"cup","ingredient_name":"yellow onion"}
 "milk" -> {"quantity":"1","measurement":"unit","ingredient_name":"milk"}
-"salt and pepper to taste" -> {"quantity":"1","measurement":"unit","ingredient_name":"salt and pepper to taste"}"""
+"salt and pepper to taste" -> {"quantity":"1","measurement":"unit","ingredient_name":"salt and pepper to taste"}
+
+Before answering, verify that the response is valid JSON and that every object uses exactly the required keys."""
 
             response = openai_client.chat.completions.create(
                 model="gpt-4o-mini",
@@ -1649,40 +1677,58 @@ class GroceryList(db.Model):
                 ]
             )
 
-            system_prompt = """You consolidate grocery ingredients aggressively, while preserving purchase-critical distinctions.
+            system_prompt = """You consolidate already-parsed grocery ingredients for a pantry list.
 
-Goal:
-- Merge near-duplicate ingredients to reduce list noise.
+Primary goal:
+- Reduce duplicate noise while keeping purchasing decisions correct.
 
-Hard constraints:
-1) ALWAYS remove water lines (all variants): water, warm water, cold water, boiling water, etc.
-2) Keep these distinct when present:
-   - onion color/variety (yellow/red/white)
-   - tomato variety (roma/cherry/grape)
-   - meat cut/type (chicken breast vs thighs vs ground chicken)
-   - milk fat/type (whole/2%/skim)
-   - cheese type (cheddar/mozzarella/etc.)
-   - butter type (salted vs unsalted)
-3) Merge aggressively when items are clearly the same shopping item:
-   - prep-only variants: chopped/diced/minced/sliced onion -> onion
-   - tomatoes and diced tomatoes -> tomatoes
-   - plural/singular and minor wording variants.
+Decision policy:
+- Merge only when two lines are clearly the same shopping item.
+- If there is any reasonable doubt, keep the items separate.
+- Preserve input order based on the first retained line.
+- Never invent new ingredients, descriptors, quantities, or units.
+- Never omit a non-water ingredient unless it has been merged into an equivalent retained line.
 
-Quantity rules:
+Always remove:
+- water, warm water, cold water, hot water, boiling water, iced water
+
+Keep these distinct when present:
+- onion color or variety: yellow onion, red onion, white onion
+- tomato varieties: roma tomatoes, cherry tomatoes, grape tomatoes
+- tomato products: tomatoes vs tomato sauce vs tomato paste vs tomato puree vs salsa vs tomato juice vs tomato soup
+- meat cut or form: chicken breast vs chicken thigh vs ground chicken
+- milk fat or type: whole milk vs 2% milk vs skim milk
+- cheese type: cheddar vs mozzarella vs parmesan
+- butter type: salted butter vs unsalted butter
+- fresh vs frozen vs dried variants when they change what should be bought
+
+Allowed merges:
+- prep-only wording differences: chopped/diced/minced/sliced/cubed onion -> onion
+- tomatoes and diced tomatoes -> tomatoes
+- singular/plural forms and tiny wording variants that do not change what should be bought
+- exact same ingredient with different quantities -> sum quantities
+- explicit-size package lines can absorb matching unit/can lines only when the exact package size is known from another line for that same ingredient
+
+Quantity and unit rules:
 - Sum quantities for merged items.
-- Prefer canonical unit labels: cup, tbsp, tsp, lb, oz, g, kg, ml, l, unit.
-- If exact conversion is uncertain, keep a stable existing unit and still merge when reasonable.
-- For packaged tomatoes, if one line has an explicit can size like 14.5 oz and another is just a unit/can of the same tomatoes, treat them as the same item.
+- Prefer an existing canonical unit already present in the input: cup, tbsp, tsp, lb, oz, g, kg, ml, l, unit.
+- Do not guess cross-unit conversions.
+- If exact conversion is unclear, keep a stable existing unit or keep items separate rather than inventing math.
+- Convert unit/can lines to explicit package-size units only when an exact package size is known from another line for that same ingredient.
 
 Examples:
 - 1 unit chopped onion + 1 unit minced onion -> 2 unit onion
 - 14.5 oz diced tomatoes + 1 unit tomatoes -> 29 oz tomatoes
-- 1 lb chicken breast + 1 lb chicken thigh stays as two separate lines
+- 1 lb chicken breast + 1 lb chicken thigh -> keep as two separate lines
+- 1 tbsp salted butter + 1 tbsp unsalted butter -> keep as two separate lines
+- 1 bunch fresh basil + 1 tsp dried basil -> keep as two separate lines
 
 Output contract:
 - Return plain text only.
-- One ingredient per line, exactly: "quantity measurement ingredient_name"
-- No commentary, bullets, or markdown."""
+- Return one retained ingredient per line, exactly: "quantity measurement ingredient_name"
+- No commentary, bullets, markdown, numbering, or extra text.
+
+Before answering, verify that every retained non-water input line is represented either as its own output line or as part of a clearly merged equivalent output line."""
 
             response = openai_client.chat.completions.create(
                 model="gpt-4o-mini",
