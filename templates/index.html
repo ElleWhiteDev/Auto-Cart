@@ -3,6 +3,13 @@
 {% block body_class %}homepage{% endblock %}
 
 {% block content %}
+<script>
+(function() {
+    if (localStorage.getItem('defaultLandingPage') === 'meal_plan') {
+        window.location.replace('/meal-plan');
+    }
+})();
+</script>
 <!-- Hero Section -->
 <div class="text-center mb-6">
 	<h1 class="text-4xl font-bold text-gray-900 mb-4">

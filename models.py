@@ -1714,6 +1714,7 @@ Quantity and unit rules:
 - Preferred canonical units: cup, tbsp, tsp, lb, oz, g, kg, ml, l, unit.
 - Do not guess cross-unit conversions (e.g. cups to oz).
 - If exact conversion is unclear, keep a stable existing unit or keep items separate rather than inventing math.
+- "unit" as a placeholder: when the same ingredient appears with both a real unit (lb, oz, cup, etc.) and a "unit" entry, the "unit" entry is a vague placeholder meaning "some amount." Absorb it into the real-unit line — do not add to the quantity, just drop the "unit" entry and keep the real-unit total. Example: "1 lb ground beef" + "1 unit ground beef" -> "1 lb ground beef".
 
 Unit inference — replace vague "unit" with a real grocery unit when confident:
 - Countable whole items keep "unit" as-is (these are correct counts):

@@ -52,6 +52,22 @@
 				</div>
 			<div class="card mt-4">
 				<div class="card-header">
+					<i class="fas fa-home mr-2"></i>Default Landing Page
+				</div>
+				<div class="card-body">
+					<p class="text-muted small mb-3">Choose which page to open after login or when visiting the app.</p>
+					<div class="mb-3">
+						<select id="defaultLandingPage" class="form-select">
+							<option value="home">Home (Pantry & Lists)</option>
+							<option value="meal_plan">Meal Planner</option>
+						</select>
+					</div>
+					<button type="button" class="btn btn-primary btn-sm" onclick="saveLandingPage()">Save Preference</button>
+					<span id="landingPageSaved" class="text-success ms-2 small" style="display:none;">Saved!</span>
+				</div>
+			</div>
+			<div class="card mt-4">
+				<div class="card-header">
 					<i class="fas fa-book-open mr-2"></i>Household Recipe Box
 					{% if g.household %}
 					<small class="text-muted">({{ g.household.name }})</small>
@@ -100,5 +116,23 @@
 		</div>
 	</div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+    var saved = localStorage.getItem('defaultLandingPage') || 'home';
+    var select = document.getElementById('defaultLandingPage');
+    if (select) select.value = saved;
+})();
+
+function saveLandingPage() {
+    var val = document.getElementById('defaultLandingPage').value;
+    localStorage.setItem('defaultLandingPage', val);
+    var msg = document.getElementById('landingPageSaved');
+    msg.style.display = 'inline';
+    setTimeout(function() { msg.style.display = 'none'; }, 2000);
+}
+</script>
 {% endblock %}
 
