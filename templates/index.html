@@ -306,8 +306,8 @@
 				<li class="grocery-item" data-ingredient-id="{{ ingredient.id }}">
 					<div class="grocery-item-content">
 						<span class="grocery-item-text" onclick="editIngredient({{ ingredient.id }})">
-							{% if ingredient.quantity and ingredient.quantity > 0 and ingredient.measurement %}
-								<strong class="ingredient-quantity">{{ ingredient.quantity}} {{ ingredient.measurement }}</strong>
+							{% if ingredient.quantity and ingredient.quantity > 0 and ingredient.measurement and not (ingredient.quantity == 1.0 and ingredient.measurement == 'unit') %}
+								<strong class="ingredient-quantity">{% if ingredient.measurement != 'unit' %}{{ ingredient.quantity }} {{ ingredient.measurement }}{% else %}{{ ingredient.quantity|round(2)|string|replace('.0','') }}{% endif %}</strong>
 								<span class="ingredient-name">{{ ingredient.ingredient_name }}</span>
 							{% else %}
 								<span class="ingredient-name">{{ ingredient.ingredient_name }}</span>

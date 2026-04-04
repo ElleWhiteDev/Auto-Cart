@@ -92,8 +92,11 @@
 							style="width: 30px; height: 30px; cursor: pointer;">
 						<label class="form-check-label flex-grow-1" for="item-{{ item.id }}" style="cursor: pointer; font-size: 1.1rem;">
 							<div>
-								<strong>{{ item.recipe_ingredient.quantity_display }}</strong>
-								{{ item.recipe_ingredient.ingredient_name }}
+								{% set ri = item.recipe_ingredient %}
+								{% if ri.quantity and ri.quantity > 0 and ri.measurement and not (ri.quantity == 1.0 and ri.measurement == 'unit') %}
+								<strong>{% if ri.measurement != 'unit' %}{{ ri.quantity|round(2)|string|replace('.0','') }} {{ ri.measurement }}{% else %}{{ ri.quantity|round(2)|string|replace('.0','') }}{% endif %}</strong>
+								{% endif %}
+								{{ ri.ingredient_name }}
 							</div>
 							{% if item.recipe_ingredient.recipe %}
 							<small class="text-muted">

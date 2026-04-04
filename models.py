@@ -1681,13 +1681,13 @@ class GroceryList(db.Model):
 
 Primary goal:
 - Reduce duplicate noise while keeping purchasing decisions correct.
+- Replace vague "unit" measurements with the most likely real grocery unit when it can be confidently inferred.
 
 Decision policy:
 - Merge only when two lines are clearly the same shopping item.
 - If there is any reasonable doubt, keep the items separate.
 - Preserve input order based on the first retained line.
-- Never invent new ingredients, descriptors, quantities, or units.
-- Never omit a non-water ingredient unless it has been merged into an equivalent retained line.
+- Never invent new ingredients or omit non-water ingredients.
 
 Always remove:
 - water, warm water, cold water, hot water, boiling water, iced water
@@ -1703,7 +1703,7 @@ Keep these distinct when present:
 - fresh vs frozen vs dried variants when they change what should be bought
 
 Allowed merges:
-- prep-only wording differences: chopped/diced/minced/sliced/cubed onion -> onion
+- prep-only wording differences: chopped/diced/minced/sliced/cubed/whole/halved onion -> onion (same for other produce)
 - tomatoes and diced tomatoes -> tomatoes
 - singular/plural forms and tiny wording variants that do not change what should be bought
 - exact same ingredient with different quantities -> sum quantities
@@ -1711,17 +1711,38 @@ Allowed merges:
 
 Quantity and unit rules:
 - Sum quantities for merged items.
-- Prefer an existing canonical unit already present in the input: cup, tbsp, tsp, lb, oz, g, kg, ml, l, unit.
-- Do not guess cross-unit conversions.
+- Preferred canonical units: cup, tbsp, tsp, lb, oz, g, kg, ml, l, unit.
+- Do not guess cross-unit conversions (e.g. cups to oz).
 - If exact conversion is unclear, keep a stable existing unit or keep items separate rather than inventing math.
-- Convert unit/can lines to explicit package-size units only when an exact package size is known from another line for that same ingredient.
+
+Unit inference — replace vague "unit" with a real grocery unit when confident:
+- Countable whole items keep "unit" as-is (these are correct counts):
+  egg, onion, lemon, lime, orange, avocado, apple, banana, potato, sweet potato,
+  carrot, bell pepper, jalapeño, zucchini, cucumber, tomato (fresh whole), garlic head,
+  garlic clove, shallot, corn on the cob, beet, turnip, artichoke, ear of corn
+- Standard canned/packaged goods — replace "unit" with the standard US package size in oz:
+  - chicken broth, beef broth, vegetable broth: 32 oz per unit
+  - diced tomatoes, crushed tomatoes, whole peeled tomatoes (canned): 14.5 oz per unit
+  - tomato sauce (canned): 15 oz per unit
+  - tomato paste: 6 oz per unit
+  - coconut milk (canned): 13.5 oz per unit
+  - black beans, kidney beans, chickpeas, pinto beans, navy beans, white beans,
+    cannellini beans, great northern beans (canned): 15 oz per unit
+  - corn (canned): 15 oz per unit
+  - green beans (canned): 14.5 oz per unit
+  - pumpkin puree: 15 oz per unit
+  - cream of mushroom soup, cream of chicken soup: 10.5 oz per unit
+- All other "unit" ingredients: keep as "unit" — do not invent package sizes.
 
 Examples:
 - 1 unit chopped onion + 1 unit minced onion -> 2 unit onion
-- 14.5 oz diced tomatoes + 1 unit tomatoes -> 29 oz tomatoes
+- 1 unit chicken broth + 1 unit chicken broth -> 64 oz chicken broth
+- 14.5 oz diced tomatoes + 1 unit canned tomatoes -> 29 oz diced tomatoes
+- 1 unit black beans -> 15 oz black beans
+- 1 unit tomato paste -> 6 oz tomato paste
 - 1 lb chicken breast + 1 lb chicken thigh -> keep as two separate lines
 - 1 tbsp salted butter + 1 tbsp unsalted butter -> keep as two separate lines
-- 1 bunch fresh basil + 1 tsp dried basil -> keep as two separate lines
+- 1 tsp fresh basil + 1 tsp dried basil -> keep as two separate lines
 
 Output contract:
 - Return plain text only.
