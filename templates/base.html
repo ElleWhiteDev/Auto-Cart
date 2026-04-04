@@ -30,7 +30,7 @@
 		<script src="/static/js/main.js" defer></script>
 
 		<!-- Landing page preference redirect (runs once per session) -->
-		{% if g.user %}
+		{% if g.user and not open_modal %}
 		<script>
 		(function() {
 			var pref = localStorage.getItem('defaultLandingPage');
