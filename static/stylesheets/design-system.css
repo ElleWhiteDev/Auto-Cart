@@ -573,7 +573,7 @@ p {
 }
 
 .recipe-list {
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-1) var(--space-2);
   width: 100%;
 }
 
@@ -581,10 +581,10 @@ p {
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-lg);
   transition: all var(--transition-fast);
-  margin-bottom: var(--space-1);
+  margin-bottom: 0;
   width: 100%;
 }
 
