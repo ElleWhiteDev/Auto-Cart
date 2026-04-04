@@ -1238,4 +1238,12 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
+{% if open_modal %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    ModalManager.open('{{ open_modal }}');
+});
+</script>
+{% endif %}
+
 {% endblock %}

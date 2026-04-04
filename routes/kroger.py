@@ -344,6 +344,9 @@ def kroger_authenticate() -> Response:
             current_app.config["REDIRECT_URL"],
             success_redirect_url=success_redirect_url,
         )
+        # If we're redirecting back to our own app (valid token), trigger the modal
+        if not result.startswith("http"):
+            session["open_modal"] = "modal-zipcode"
         return redirect(result)
     except Exception as e:
         logger.error(f"Kroger authentication error: {e}", exc_info=True)
@@ -394,8 +397,8 @@ def callback() -> Response:
     else:
         flash("Failed to connect to Kroger. Please try again.", "danger")
 
-    session["show_modal"] = True
-    return redirect(url_for("main.homepage") + "#modal-zipcode")
+    session["open_modal"] = "modal-zipcode"
+    return redirect(url_for("main.homepage"))
 
 
 @kroger_bp.route("/location-search", methods=["POST"])

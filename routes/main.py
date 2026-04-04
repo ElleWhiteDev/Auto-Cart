@@ -76,6 +76,7 @@ def homepage() -> Union[str, Response]:
         .all()
     )
 
+    open_modal = session.pop("open_modal", None)
     form = AddRecipeForm()
     return render_template(
         "index.html",
@@ -86,6 +87,7 @@ def homepage() -> Union[str, Response]:
         kroger_email_recipients=kroger_email_recipients,
         kroger_email_recipient_count=len(kroger_email_recipients),
         all_grocery_lists=all_grocery_lists,
+        open_modal=open_modal,
     )
 
 
