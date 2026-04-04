@@ -77,7 +77,7 @@ function closeModal(modalId) {
 
 const KrogerAuth = {
     openAuth() {
-        window.location.href = '/authenticate';
+        window.open('/authenticate', '_blank');
     }
 };
 
