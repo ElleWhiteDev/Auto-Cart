@@ -1,0 +1,17 @@
+{
+  "name": "Auto Cart",
+  "short_name": "Auto Cart",
+  "description": "Smart pantry planning and meal prep",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "icons": [
+    {
+      "src": "/static/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

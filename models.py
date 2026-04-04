@@ -173,6 +173,18 @@ def _merge_ingredient_entries(
                 row["_quantity_value"] *= package_size
                 row["quantity"] = _format_quantity(row["_quantity_value"])
 
+    # Drop "unit" placeholder rows when a real-unit row exists for the same ingredient.
+    # e.g. "1 unit ground beef" + "1 lb ground beef" → keep only "1 lb ground beef".
+    names_with_real_unit = {
+        name
+        for name, rows in rows_by_name.items()
+        if any(r["measurement"] != "unit" for r in rows)
+    }
+    normalized_rows = [
+        r for r in normalized_rows
+        if not (r["ingredient_name"] in names_with_real_unit and r["measurement"] == "unit")
+    ]
+
     merged = {}
     ordered_keys = []
     for row in normalized_rows:
