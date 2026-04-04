@@ -28,6 +28,15 @@ from logging_config import logger
 kroger_bp = Blueprint("kroger", __name__)
 
 
+def _modal_redirect(url: str) -> Response:
+    """Redirect to a URL, converting any #modal-X hash to session["open_modal"]."""
+    if "#" in url:
+        base, modal_id = url.split("#", 1)
+        session["open_modal"] = modal_id
+        return redirect(base)
+    return redirect(url)
+
+
 def _get_household_kroger_user() -> User:
     """Return the Kroger-connected user for the current household."""
     kroger_user = g.user
@@ -344,10 +353,7 @@ def kroger_authenticate() -> Response:
             current_app.config["REDIRECT_URL"],
             success_redirect_url=success_redirect_url,
         )
-        # If we're redirecting back to our own app (valid token), trigger the modal
-        if not result.startswith("http"):
-            session["open_modal"] = "modal-zipcode"
-        return redirect(result)
+        return _modal_redirect(result)
     except Exception as e:
         logger.error(f"Kroger authentication error: {e}", exc_info=True)
         flash("Authentication error. Please try again.", "danger")
@@ -427,7 +433,7 @@ def location_search() -> Response:
     redirect_url = kroger_workflow.handle_location_search(
         zipcode, kroger_user.oauth_token
     )
-    return redirect(redirect_url)
+    return _modal_redirect(redirect_url)
 
 
 @kroger_bp.route("/select-store", methods=["POST"])
@@ -494,11 +500,11 @@ def kroger_product_search() -> Response:
                 kroger_session_manager.store_product_choices(
                     products, current_ingredient
                 )
-            return redirect(url_for("main.homepage") + "#modal-ingredient")
+            return _modal_redirect(url_for("main.homepage") + "#modal-ingredient")
 
     # Default behavior - search for next ingredient
     redirect_url = kroger_workflow.handle_product_search(kroger_user.oauth_token)
-    return redirect(redirect_url)
+    return _modal_redirect(redirect_url)
 
 
 @kroger_bp.route("/item-choice", methods=["POST"])
@@ -575,7 +581,7 @@ def kroger_send_to_cart() -> Response:
 
     # Always show the export summary before the final send.
     if not request.args.get("confirmed"):
-        return redirect(url_for("main.homepage") + "#modal-skipped")
+        return _modal_redirect(url_for("main.homepage") + "#modal-skipped")
 
     if not kroger_user or not kroger_user.oauth_token:
         _queue_send_to_cart_reconnect_prompt(
