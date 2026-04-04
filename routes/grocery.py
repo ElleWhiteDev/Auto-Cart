@@ -169,6 +169,11 @@ def update_grocery_list() -> Response:
         Redirect to homepage
     """
     selected_recipe_ids = request.form.getlist("recipe_ids")
+
+    if not selected_recipe_ids:
+        flash("Please select at least one recipe to update your pantry list.", "warning")
+        return redirect(request.referrer or url_for("main.homepage"))
+
     session["selected_recipe_ids"] = selected_recipe_ids
 
     grocery_list = g.grocery_list
@@ -190,7 +195,7 @@ def update_grocery_list() -> Response:
     GroceryList.update_grocery_list(
         selected_recipe_ids, grocery_list=grocery_list, user_id=g.user.id
     )
-    return redirect(url_for("main.homepage"))
+    return redirect(request.referrer or url_for("main.homepage"))
 
 
 @grocery_bp.route("/send-email", methods=["POST"])
