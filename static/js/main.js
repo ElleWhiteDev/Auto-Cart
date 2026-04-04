@@ -76,12 +76,8 @@ function closeModal(modalId) {
 // ============================================================================
 
 const KrogerAuth = {
-    /**
-     * Open Kroger authentication in a new tab
-     */
     openAuth() {
-        window.open('/authenticate', '_blank');
-        window.location.hash = 'modal-closed';
+        window.location.href = '/authenticate';
     }
 };
 
