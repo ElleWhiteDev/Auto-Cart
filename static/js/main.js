@@ -102,12 +102,9 @@ const UIUtils = {
      */
     showFlashMessage(message, category = 'info') {
         const flashDiv = document.createElement('div');
-        flashDiv.className = `alert alert-${category} alert-dismissible fade show`;
+        flashDiv.className = `alert alert-${category}`;
         flashDiv.setAttribute('role', 'alert');
-        flashDiv.innerHTML = `
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        `;
+        flashDiv.innerHTML = message;
 
         // Find appropriate container
         const targetElement =
