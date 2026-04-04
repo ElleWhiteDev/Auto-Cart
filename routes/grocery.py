@@ -214,7 +214,7 @@ def send_grocery_list_email() -> Response:
             "Please select at least one recipient or enter an email address",
             "danger",
         )
-        return redirect(url_for("main.homepage") + "#email-modal")
+        return redirect((request.referrer or url_for("main.homepage")) + "#email-modal")
 
     email_type = request.form.get("email_type", "list_and_recipes")
     selected_recipe_ids = request.form.getlist("recipe_ids")
@@ -228,7 +228,7 @@ def send_grocery_list_email() -> Response:
 
             if not grocery_list:
                 flash("No pantry list found", "error")
-                return redirect(url_for("main.homepage"))
+                return redirect(request.referrer or url_for("main.homepage"))
 
             GroceryList.send_email(email, grocery_list, selected_recipe_ids, mail)
 
@@ -250,7 +250,7 @@ def send_grocery_list_email() -> Response:
             "danger",
         )
 
-    return redirect(url_for("main.homepage"))
+    return redirect(request.referrer or url_for("main.homepage"))
 
 
 @grocery_bp.route("/grocery-list/create", methods=["POST"])
@@ -264,12 +264,12 @@ def create_grocery_list() -> Response:
     """
     if not g.household:
         flash("You must be in a household to create a pantry list", "danger")
-        return redirect(url_for("main.homepage"))
+        return redirect(request.referrer or url_for("main.homepage"))
 
     list_name = request.form.get("list_name", "").strip()
     if not list_name:
         flash("Please enter a list name", "danger")
-        return redirect(url_for("main.homepage"))
+        return redirect(request.referrer or url_for("main.homepage"))
 
     new_list = GroceryList(
         household_id=g.household.id,
@@ -285,7 +285,7 @@ def create_grocery_list() -> Response:
     session[CURR_GROCERY_LIST_KEY] = new_list.id
 
     flash(f'Pantry list "{list_name}" created successfully!', "success")
-    return redirect(url_for("main.homepage"))
+    return redirect(request.referrer or url_for("main.homepage"))
 
 
 @grocery_bp.route("/grocery-list/switch/<int:list_id>", methods=["POST"])
@@ -307,11 +307,11 @@ def switch_grocery_list(list_id: int) -> Response:
 
     if not grocery_list:
         flash("Pantry list not found", "danger")
-        return redirect(url_for("main.homepage"))
+        return redirect(request.referrer or url_for("main.homepage"))
 
     session[CURR_GROCERY_LIST_KEY] = list_id
     flash(f'Switched to "{grocery_list.name}"', "success")
-    return redirect(url_for("main.homepage"))
+    return redirect(request.referrer or url_for("main.homepage"))
 
 
 @grocery_bp.route("/grocery-list/rename/<int:list_id>", methods=["POST"])
@@ -333,19 +333,19 @@ def rename_grocery_list(list_id: int) -> Response:
 
     if not grocery_list:
         flash("Pantry list not found", "danger")
-        return redirect(url_for("main.homepage"))
+        return redirect(request.referrer or url_for("main.homepage"))
 
     new_name = request.form.get("list_name", "").strip()
     if not new_name:
         flash("Please enter a list name", "danger")
-        return redirect(url_for("main.homepage"))
+        return redirect(request.referrer or url_for("main.homepage"))
 
     old_name = grocery_list.name
     grocery_list.name = new_name
     db.session.commit()
 
     flash(f'Renamed "{old_name}" to "{new_name}"', "success")
-    return redirect(url_for("main.homepage"))
+    return redirect(request.referrer or url_for("main.homepage"))
 
 
 @grocery_bp.route("/grocery-list/delete/<int:list_id>", methods=["POST"])
@@ -367,13 +367,13 @@ def delete_grocery_list(list_id: int) -> Response:
 
     if not grocery_list:
         flash("Pantry list not found", "danger")
-        return redirect(url_for("main.homepage"))
+        return redirect(request.referrer or url_for("main.homepage"))
 
     # Don't allow deleting the last list
     all_lists = GroceryList.query.filter_by(household_id=g.household.id).all()
     if len(all_lists) <= 1:
         flash("Cannot delete the last pantry list", "danger")
-        return redirect(url_for("main.homepage"))
+        return redirect(request.referrer or url_for("main.homepage"))
 
     # If deleting current list, switch to another one
     if session.get(CURR_GROCERY_LIST_KEY) == list_id:
@@ -386,7 +386,7 @@ def delete_grocery_list(list_id: int) -> Response:
     db.session.commit()
 
     flash(f'Deleted "{list_name}"', "success")
-    return redirect(url_for("main.homepage"))
+    return redirect(request.referrer or url_for("main.homepage"))
 
 
 @grocery_bp.route("/clear_grocery_list", methods=["POST"])
@@ -412,7 +412,7 @@ def clear_grocery_list() -> Response:
     # Clear selected recipe IDs from session
     session.pop("selected_recipe_ids", None)
 
-    return redirect(url_for("main.homepage"))
+    return redirect(request.referrer or url_for("main.homepage"))
 
 
 @grocery_bp.route("/shopping-mode")
