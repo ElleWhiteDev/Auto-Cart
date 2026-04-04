@@ -37,6 +37,7 @@
 			if (sessionStorage.getItem('landingRedirectDone')) return;
 			var path = window.location.pathname;
 			if (path === '/meal-plan' || path.startsWith('/meal-plan')) return;
+			if (new URLSearchParams(window.location.search).get('direct') === '1') return;
 			sessionStorage.setItem('landingRedirectDone', '1');
 			window.location.replace('/meal-plan');
 		})();
@@ -65,7 +66,7 @@
 						<a class="nav-link" href="{{url_for('main.household_settings')}}">
 							<i class="fas fa-home"></i> {{ g.household.name }}
 						</a>
-						<a class="nav-link" href="{{url_for('main.index')}}">
+						<a class="nav-link" href="{{url_for('main.homepage', direct=1)}}">
 							<i class="fas fa-utensils"></i> Home
 						</a>
 						<a class="nav-link" href="{{url_for('meal_plan.meal_plan')}}">
