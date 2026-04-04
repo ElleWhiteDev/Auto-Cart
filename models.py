@@ -173,8 +173,25 @@ def _merge_ingredient_entries(
                 row["_quantity_value"] *= package_size
                 row["quantity"] = _format_quantity(row["_quantity_value"])
 
-    # Drop "unit" placeholder rows when a real-unit row exists for the same ingredient.
-    # e.g. "1 unit ground beef" + "1 lb ground beef" → keep only "1 lb ground beef".
+    # When an ingredient has both "unit" rows and real-unit rows, fold the "unit"
+    # quantities into the real-unit rows (treating 1 unit = 1 of that real unit)
+    # then drop the "unit" rows.
+    # e.g. "1 unit ground beef" + "1 lb ground beef" → "2 lb ground beef"
+    for ingredient_name, rows in rows_by_name.items():
+        real_unit_rows = [r for r in rows if r["measurement"] != "unit"]
+        unit_rows = [r for r in rows if r["measurement"] == "unit"]
+        if not real_unit_rows or not unit_rows:
+            continue
+        # All real-unit rows share the same measurement (already ensured by the merge
+        # key later); pick the first real unit to absorb into.
+        real_measurements = {r["measurement"] for r in real_unit_rows}
+        if len(real_measurements) != 1:
+            continue
+        unit_total = sum(r["_quantity_value"] or 0 for r in unit_rows)
+        for r in real_unit_rows:
+            if r["_quantity_value"] is not None:
+                r["_quantity_value"] += unit_total
+                r["quantity"] = _format_quantity(r["_quantity_value"])
     names_with_real_unit = {
         name
         for name, rows in rows_by_name.items()
@@ -1726,7 +1743,7 @@ Quantity and unit rules:
 - Preferred canonical units: cup, tbsp, tsp, lb, oz, g, kg, ml, l, unit.
 - Do not guess cross-unit conversions (e.g. cups to oz).
 - If exact conversion is unclear, keep a stable existing unit or keep items separate rather than inventing math.
-- "unit" as a placeholder: when the same ingredient appears with both a real unit (lb, oz, cup, etc.) and a "unit" entry, the "unit" entry is a vague placeholder meaning "some amount." Absorb it into the real-unit line — do not add to the quantity, just drop the "unit" entry and keep the real-unit total. Example: "1 lb ground beef" + "1 unit ground beef" -> "1 lb ground beef".
+- "unit" as a placeholder: when the same ingredient appears with both a real unit (lb, oz, cup, etc.) and a "unit" entry, treat the "unit" count as that many of the real unit and sum. Example: "1 lb ground beef" + "1 unit ground beef" -> "2 lb ground beef".
 
 Unit inference — replace vague "unit" with a real grocery unit when confident:
 - Countable whole items keep "unit" as-is (these are correct counts):

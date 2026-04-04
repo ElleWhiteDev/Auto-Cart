@@ -316,6 +316,40 @@ def add_manual_ingredient() -> tuple[dict, int]:
                 or ingredient_text
             )
 
+            # Check for an existing entry with the same name in this grocery list.
+            existing_items = (
+                db.session.query(GroceryListItem, RecipeIngredient)
+                .join(RecipeIngredient, GroceryListItem.recipe_ingredient_id == RecipeIngredient.id)
+                .filter(
+                    GroceryListItem.grocery_list_id == grocery_list.id,
+                    RecipeIngredient.ingredient_name == ingredient_name,
+                )
+                .all()
+            )
+
+            merged = False
+            for item, ri in existing_items:
+                if ri.measurement == measurement:
+                    # Same unit — sum the quantities.
+                    ri.quantity = (ri.quantity or 0) + quantity
+                    merged = True
+                    break
+                elif ri.measurement != "unit" and measurement == "unit":
+                    # Existing has a real unit, new is vague — treat as 1 of that unit.
+                    ri.quantity = (ri.quantity or 0) + quantity
+                    merged = True
+                    break
+                elif ri.measurement == "unit" and measurement != "unit":
+                    # Existing is vague, new has a real unit — upgrade and sum.
+                    ri.measurement = measurement
+                    ri.quantity = (ri.quantity or 0) + quantity
+                    merged = True
+                    break
+
+            if merged:
+                added_count += 1
+                continue
+
             recipe_ingredient = RecipeIngredient(
                 ingredient_name=ingredient_name,
                 quantity=quantity,
