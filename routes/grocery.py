@@ -174,12 +174,12 @@ def update_grocery_list() -> Response:
     grocery_list = g.grocery_list
 
     # If no pantry list exists, create a default one
-    if not grocery_list and g.household:
+    if not grocery_list:
         grocery_list = GroceryList(
-            household_id=g.household.id,
+            household_id=g.household.id if g.household else None,
             user_id=g.user.id,
             created_by_user_id=g.user.id,
-            name="Household Pantry List",
+            name="Household Pantry List" if g.household else "My Pantry List",
             status="planning",
         )
         db.session.add(grocery_list)
