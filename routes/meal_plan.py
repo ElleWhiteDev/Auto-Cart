@@ -872,10 +872,96 @@ def update_meal_plan_entry(entry_id: int) -> Response:
     return redirect(url_for("meal_plan.meal_plan") + f"?week={week_offset}")
 
 
+_PANTRY_STAPLES = {
+    "salt", "pepper", "black pepper", "white pepper", "sea salt", "kosher salt",
+    "flour", "all purpose flour", "bread flour", "whole wheat flour",
+    "sugar", "brown sugar", "powdered sugar", "white sugar", "granulated sugar",
+    "water", "cold water", "warm water", "hot water",
+    "milk", "whole milk", "skim milk",
+    "oil", "olive oil", "vegetable oil", "canola oil", "cooking oil",
+    "butter", "unsalted butter", "salted butter",
+    "baking soda", "baking powder", "cornstarch",
+    "vanilla", "vanilla extract",
+    "basil", "oregano", "thyme", "rosemary", "parsley", "cilantro",
+    "cumin", "paprika", "chili powder", "cayenne", "cayenne pepper",
+    "garlic powder", "onion powder", "cinnamon", "nutmeg",
+    "dried basil", "dried oregano", "dried thyme", "dried parsley", "dried rosemary",
+    "ground cumin", "ground cinnamon", "ground nutmeg", "smoked paprika",
+    "red pepper flakes", "italian seasoning",
+    "vinegar", "white vinegar", "apple cider vinegar",
+    "lemon juice", "lime juice",
+    "nonstick spray", "cooking spray",
+}
+
+
 def _normalize_ingredient_name(name: str) -> str:
     """Normalize ingredient text for lightweight overlap matching."""
     normalized = "".join(ch.lower() if ch.isalnum() or ch.isspace() else " " for ch in (name or ""))
     return " ".join(normalized.split())
+
+
+def _is_pantry_staple(normalized_name: str) -> bool:
+    """Return True if the ingredient is a common pantry staple to exclude from similarity scoring."""
+    if normalized_name in _PANTRY_STAPLES:
+        return True
+    for staple in _PANTRY_STAPLES:
+        if staple in normalized_name and len(staple) >= 4:
+            return True
+    return False
+
+
+def _build_week_ingredient_set(meal_entries: list) -> set:
+    """Return normalized non-staple ingredient names from a list of meal plan entries."""
+    result = set()
+    for entry in meal_entries:
+        if entry.recipe and entry.recipe.recipe_ingredients:
+            for ingredient in entry.recipe.recipe_ingredients:
+                normalized = _normalize_ingredient_name(ingredient.ingredient_name)
+                if normalized and not _is_pantry_staple(normalized):
+                    result.add(normalized)
+    return result
+
+
+def _score_recipe_match(recipe: Any, ingredient_set: set) -> dict | None:
+    """
+    Score a recipe against a set of ingredient names.
+
+    Returns a match dict if the recipe meets the 25% threshold, otherwise None.
+    Staple ingredients are excluded from scoring but included in the display payload.
+    """
+    ingredient_payload = []
+    matched_count = 0
+    scored_count = 0
+
+    for ingredient in recipe.recipe_ingredients:
+        ingredient_name = ingredient.ingredient_name or ""
+        normalized = _normalize_ingredient_name(ingredient_name)
+        is_staple = _is_pantry_staple(normalized) if normalized else False
+        is_matched = (not is_staple and normalized in ingredient_set) if normalized else False
+
+        if not is_staple:
+            scored_count += 1
+            if is_matched:
+                matched_count += 1
+
+        quantity_str = str(ingredient.quantity).rstrip("0").rstrip(".") if ingredient.quantity else ""
+        display_text = " ".join(p for p in [quantity_str, ingredient.measurement or "", ingredient_name] if p).strip()
+        ingredient_payload.append({"text": display_text or ingredient_name or "Unknown ingredient", "matched": is_matched})
+
+    if scored_count == 0:
+        return None
+
+    match_percentage = int(round((matched_count / scored_count) * 100))
+    if match_percentage < 25:
+        return None
+
+    return {
+        "id": recipe.id,
+        "name": recipe.name,
+        "match_percentage": match_percentage,
+        "ingredient_count": len(recipe.recipe_ingredients),
+        "ingredients": ingredient_payload,
+    }
 
 
 @meal_plan_bp.route("/meal-plan/similar-recipes", methods=["POST"])
@@ -903,13 +989,7 @@ def find_similar_recipes() -> Any:
     ).all()
 
     meal_plan_recipe_ids = {entry.recipe_id for entry in meal_entries if entry.recipe_id}
-    shopping_ingredient_set = set()
-    for entry in meal_entries:
-        if entry.recipe and entry.recipe.recipe_ingredients:
-            for ingredient in entry.recipe.recipe_ingredients:
-                normalized = _normalize_ingredient_name(ingredient.ingredient_name)
-                if normalized:
-                    shopping_ingredient_set.add(normalized)
+    shopping_ingredient_set = _build_week_ingredient_set(meal_entries)
 
     if not shopping_ingredient_set:
         return jsonify({"success": True, "matched_recipes": []})
@@ -922,44 +1002,9 @@ def find_similar_recipes() -> Any:
     for recipe in candidate_recipes:
         if recipe.id in meal_plan_recipe_ids or not recipe.recipe_ingredients:
             continue
-
-        ingredient_payload = []
-        matched_count = 0
-        for ingredient in recipe.recipe_ingredients:
-            ingredient_name = ingredient.ingredient_name or ""
-            normalized = _normalize_ingredient_name(ingredient_name)
-            is_matched = normalized in shopping_ingredient_set if normalized else False
-            if is_matched:
-                matched_count += 1
-
-            display_text = " ".join(
-                part
-                for part in [
-                    str(ingredient.quantity).rstrip("0").rstrip(".") if ingredient.quantity else "",
-                    ingredient.measurement or "",
-                    ingredient_name,
-                ]
-                if part
-            ).strip()
-            ingredient_payload.append(
-                {"text": display_text or ingredient_name or "Unknown ingredient", "matched": is_matched}
-            )
-
-        ingredient_count = len(recipe.recipe_ingredients)
-        if ingredient_count == 0:
-            continue
-
-        match_percentage = int(round((matched_count / ingredient_count) * 100))
-        if match_percentage >= 25:
-            matched_recipes.append(
-                {
-                    "id": recipe.id,
-                    "name": recipe.name,
-                    "match_percentage": match_percentage,
-                    "ingredient_count": ingredient_count,
-                    "ingredients": ingredient_payload,
-                }
-            )
+        match = _score_recipe_match(recipe, shopping_ingredient_set)
+        if match:
+            matched_recipes.append(match)
 
     matched_recipes.sort(key=lambda r: r["match_percentage"], reverse=True)
     return jsonify({"success": True, "matched_recipes": matched_recipes})
