@@ -87,6 +87,13 @@ def create_app(config_name=None):
 # Create app instance
 app = create_app()
 
+# Inject current year into all templates
+@app.context_processor
+def inject_year():
+    from datetime import datetime
+    return {"current_year": datetime.now().year}
+
+
 # Add custom Jinja2 filter for EST datetime formatting
 @app.template_filter("est_datetime")
 def est_datetime_filter(dt, format="%I:%M %p"):

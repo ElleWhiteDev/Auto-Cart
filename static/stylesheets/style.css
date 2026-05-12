@@ -1462,3 +1462,22 @@ nav {
 		display: none !important;
 	}
 }
+
+/* Footer */
+.site-footer {
+	text-align: center;
+	padding: 1.5rem 0;
+	margin-top: 3rem;
+	border-top: 1px solid var(--gray-200, #e5e7eb);
+	color: var(--gray-500, #6b7280);
+	font-size: 0.875rem;
+}
+
+.site-footer a {
+	color: var(--primary, #4f46e5);
+	text-decoration: none;
+}
+
+.site-footer a:hover {
+	text-decoration: underline;
+}
