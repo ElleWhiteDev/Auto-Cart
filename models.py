@@ -992,6 +992,12 @@ class Recipe(db.Model):
     recipe_ingredients = db.relationship(
         "RecipeIngredient", back_populates="recipe", cascade="all, delete-orphan"
     )
+    tags = db.relationship(
+        "RecipeTag",
+        secondary="recipe_tags_assoc",
+        backref="recipes",
+        lazy="subquery",
+    )
 
     @classmethod
     def clean_ingredients_with_openai(cls, ingredients_text):
@@ -1834,6 +1840,66 @@ Before answering, verify that every retained non-water input line is represented
             logger.error(f"OpenAI ingredient consolidation error: {e}", exc_info=True)
             logger.info("Falling back to deterministic consolidation")
             return _merge_ingredient_entries(ingredients_list)
+
+
+# Association table for recipe tags (many-to-many)
+recipe_tags_assoc = db.Table(
+    "recipe_tags_assoc",
+    db.Column(
+        "recipe_id",
+        db.Integer,
+        db.ForeignKey("recipes.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    db.Column(
+        "tag_id",
+        db.Integer,
+        db.ForeignKey("recipe_tags.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+)
+
+
+class RecipeTag(db.Model):
+    """Tag that can be applied to recipes within a household."""
+
+    __tablename__ = "recipe_tags"
+    __table_args__ = (
+        db.UniqueConstraint("household_id", "name", name="unique_household_tag"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    household_id = db.Column(
+        db.Integer, db.ForeignKey("households.id", ondelete="CASCADE"), nullable=False
+    )
+    name = db.Column(db.String(50), nullable=False)
+
+    household = db.relationship("Household", backref="tags")
+
+    def __repr__(self):
+        return f"<RecipeTag #{self.id}: {self.name}>"
+
+
+class PantryStaple(db.Model):
+    """Ingredient that the household always keeps stocked."""
+
+    __tablename__ = "pantry_staples"
+    __table_args__ = (
+        db.UniqueConstraint(
+            "household_id", "ingredient_name", name="unique_household_staple"
+        ),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    household_id = db.Column(
+        db.Integer, db.ForeignKey("households.id", ondelete="CASCADE"), nullable=False
+    )
+    ingredient_name = db.Column(db.String(100), nullable=False)
+
+    household = db.relationship("Household", backref="pantry_staples")
+
+    def __repr__(self):
+        return f"<PantryStaple #{self.id}: {self.ingredient_name}>"
 
 
 class MealPlanChange(db.Model):

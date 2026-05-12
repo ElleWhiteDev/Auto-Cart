@@ -55,6 +55,21 @@
 			<h3><i class="fas fa-book-open mr-2"></i>Recipe Box</h3>
 		</div>
 		<form method="POST" action="{{ url_for('grocery.update_grocery_list') }}" class="p-0" data-role="body">
+			<!-- Tag filters -->
+			{% if all_tags %}
+			<div class="px-3 pt-3 pb-1 d-flex flex-wrap gap-1" id="tag-filter-bar">
+				<button type="button" class="tag-filter-btn active" data-tag="all"
+					style="font-size:0.75rem;padding:3px 10px;border-radius:12px;border:1px solid #c2410c;background:#c2410c;color:#fff;cursor:pointer;">
+					All
+				</button>
+				{% for tag in all_tags %}
+				<button type="button" class="tag-filter-btn" data-tag="{{ tag.name }}"
+					style="font-size:0.75rem;padding:3px 10px;border-radius:12px;border:1px solid #c2410c;background:#fff;color:#c2410c;cursor:pointer;">
+					{{ tag.name }}
+				</button>
+				{% endfor %}
+			</div>
+			{% endif %}
 			<div class="recipe-list">
 				{% for recipe in recipes %}
 				<div class="recipe-item">
@@ -68,6 +83,16 @@
 					/>
 					<label for="recipe-{{ recipe.id }}" class="recipe-name">
 						{{ recipe.name }}
+						{% if recipe.tags %}
+						<span class="ms-1">
+							{% for tag in recipe.tags %}
+							<span class="recipe-tag-badge" data-tag="{{ tag.name }}"
+								style="font-size:0.68rem;padding:1px 7px;border-radius:10px;background:#fef3c7;color:#92400e;border:1px solid #fbbf24;display:inline-block;line-height:1.5;">
+								{{ tag.name }}
+							</span>
+							{% endfor %}
+						</span>
+						{% endif %}
 					</label>
 				</div>
 				{% endfor %}
@@ -162,6 +187,18 @@
 				<i class="fas fa-list-ul mr-2"></i>
 					Pantry
 			</h3>
+			<div class="d-flex align-items-center gap-1" style="margin-left:auto;">
+				<button type="button" id="sort-default-btn" onclick="sortPantryList('default')"
+					class="btn btn-sm btn-outline-secondary active-sort" title="Default order"
+					style="font-size:0.7rem;padding:2px 8px;">
+					<i class="fas fa-clock"></i>
+				</button>
+				<button type="button" id="sort-az-btn" onclick="sortPantryList('az')"
+					class="btn btn-sm btn-outline-secondary" title="Sort A–Z"
+					style="font-size:0.7rem;padding:2px 8px;">
+					A–Z
+				</button>
+			</div>
 		</div>
 
 		<div class="grocery-list-content" data-role="body">
@@ -301,9 +338,14 @@
 
 				<!-- Pantry Items -->
 			{% if g.grocery_list %}
-			<ul class="m-0">
+			<ul class="m-0" id="pantry-list">
 				{% for ingredient in g.grocery_list.recipe_ingredients %}
-				<li class="grocery-item" data-ingredient-id="{{ ingredient.id }}">
+				{% set is_staple = ingredient.ingredient_name | lower in staple_names %}
+				<li class="grocery-item" data-ingredient-id="{{ ingredient.id }}"
+					data-ingredient-name="{{ ingredient.ingredient_name | lower }}"
+					data-sort-name="{{ ingredient.ingredient_name | lower }}"
+					data-sort-order="{{ loop.index }}"
+					{% if is_staple %}style="opacity:0.55;"{% endif %}>
 					<div class="grocery-item-content">
 						<span class="grocery-item-text" onclick="editIngredient({{ ingredient.id }})">
 							{% if ingredient.quantity and ingredient.quantity > 0 and ingredient.measurement and not (ingredient.quantity == 1.0 and ingredient.measurement == 'unit') %}
@@ -325,6 +367,12 @@
 							</button>
 						</div>
 					</div>
+					<button type="button" class="grocery-item-remove"
+							onclick="toggleStaple(this, '{{ ingredient.ingredient_name | lower }}')"
+							title="{% if is_staple %}Remove from pantry staples{% else %}Mark as pantry staple{% endif %}"
+							style="color:{% if is_staple %}#f97316{% else %}#9ca3af{% endif %};background:none;border:none;padding:0 4px;font-size:0.85rem;">
+						<i class="{% if is_staple %}fas{% else %}far{% endif %} fa-star"></i>
+					</button>
 					<button type="button" class="grocery-item-remove delete-ingredient-btn"
 							data-ingredient-id="{{ ingredient.id }}"
 							onclick="deleteIngredient({{ ingredient.id }}, this)"
@@ -778,6 +826,76 @@
 
 {% block scripts %}
 <script>
+// ── Tag filtering ──────────────────────────────────────────────────────────
+function applyTagFilter(tag) {
+  document.querySelectorAll('.tag-filter-btn').forEach(b => {
+    b.style.background = '#fff';
+    b.style.color = '#c2410c';
+  });
+  const active = document.querySelector(`.tag-filter-btn[data-tag="${tag}"]`);
+  if (active) { active.style.background = '#c2410c'; active.style.color = '#fff'; }
+
+  document.querySelectorAll('.recipe-item').forEach(item => {
+    if (tag === 'all') { item.style.display = ''; return; }
+    const badges = item.querySelectorAll('.recipe-tag-badge');
+    const hasTag = Array.from(badges).some(b => b.dataset.tag === tag);
+    item.style.display = hasTag ? '' : 'none';
+  });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.tag-filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => applyTagFilter(btn.dataset.tag));
+  });
+});
+
+// ── Pantry list sort ───────────────────────────────────────────────────────
+function sortPantryList(mode) {
+  const list = document.getElementById('pantry-list');
+  if (!list) return;
+  const items = Array.from(list.querySelectorAll('li.grocery-item'));
+
+  if (mode === 'az') {
+    items.sort((a, b) => (a.dataset.sortName || '').localeCompare(b.dataset.sortName || ''));
+  } else {
+    items.sort((a, b) => Number.parseInt(a.dataset.sortOrder, 10) - Number.parseInt(b.dataset.sortOrder, 10));
+  }
+
+  items.forEach(item => list.appendChild(item));
+  document.getElementById('sort-default-btn').classList.toggle('active-sort', mode === 'default');
+  document.getElementById('sort-az-btn').classList.toggle('active-sort', mode === 'az');
+}
+
+// ── Pantry staple toggle ───────────────────────────────────────────────────
+async function toggleStaple(btn, ingredientName) {
+  const li = btn.closest('li');
+  const fd = new FormData();
+  fd.append('ingredient_name', ingredientName);
+
+  let data;
+  try {
+    const res = await fetch('/pantry-staples/toggle', { method: 'POST', body: fd });
+    data = await res.json();
+  } catch (err) {
+    console.error('Staple toggle failed:', err);
+    return;
+  }
+
+  if (!data.success) return;
+  const icon = btn.querySelector('i');
+  if (data.is_staple) {
+    icon.className = 'fas fa-star';
+    btn.style.color = '#f97316';
+    btn.title = 'Remove from pantry staples';
+    if (li) li.style.opacity = '0.55';
+  } else {
+    icon.className = 'far fa-star';
+    btn.style.color = '#9ca3af';
+    btn.title = 'Mark as pantry staple';
+    if (li) li.style.opacity = '';
+  }
+}
+
 // Mobile Accordion Functionality
 document.addEventListener('DOMContentLoaded', () => {
   const collapsibleSections = document.querySelectorAll('[data-collapsible="true"]');

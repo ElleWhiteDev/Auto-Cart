@@ -20,7 +20,7 @@ from werkzeug.wrappers import Response
 from flask_mail import Message
 
 from extensions import db, mail
-from models import User, Recipe, GroceryList, Household, HouseholdMember
+from models import User, Recipe, GroceryList, Household, HouseholdMember, PantryStaple, RecipeTag
 from forms import AddRecipeForm
 from utils import require_login, initialize_session_defaults
 from logging_config import logger
@@ -76,6 +76,16 @@ def homepage() -> Union[str, Response]:
         .all()
     )
 
+    staples = PantryStaple.query.filter_by(household_id=g.household.id).all()
+    staple_names = {s.ingredient_name for s in staples}
+
+    all_tags = (
+        RecipeTag.query
+        .filter_by(household_id=g.household.id)
+        .order_by(RecipeTag.name)
+        .all()
+    )
+
     open_modal = session.pop("open_modal", None)
     form = AddRecipeForm()
     return render_template(
@@ -88,6 +98,8 @@ def homepage() -> Union[str, Response]:
         kroger_email_recipient_count=len(kroger_email_recipients),
         all_grocery_lists=all_grocery_lists,
         open_modal=open_modal,
+        staple_names=staple_names,
+        all_tags=all_tags,
     )
 
 

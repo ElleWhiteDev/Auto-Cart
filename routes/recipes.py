@@ -18,7 +18,7 @@ from flask import (
 from werkzeug.wrappers import Response
 
 from extensions import db, limiter
-from models import Recipe, RecipeIngredient, GroceryList, GroceryListItem
+from models import Recipe, RecipeIngredient, GroceryList, GroceryListItem, RecipeTag, PantryStaple
 from forms import AddRecipeForm
 from utils import (
     require_login,
@@ -141,7 +141,30 @@ def view_recipe(recipe_id: int) -> Union[str, Response]:
             logger.error(f"Recipe update error: {error}", exc_info=True)
             flash("Error occurred. Please try again", "danger")
 
-    return render_template("recipe.html", recipe=recipe, form=form)
+    other_households = []
+    if g.user:
+        other_households = [
+            h for h in g.user.get_households()
+            if h.id != (g.household.id if g.household else None)
+        ]
+
+    household_tags = []
+    if g.household:
+        from models import RecipeTag
+        household_tags = RecipeTag.query.filter_by(
+            household_id=g.household.id
+        ).order_by(RecipeTag.name).all()
+
+    current_tag_names = ",".join(t.name for t in recipe.tags)
+
+    return render_template(
+        "recipe.html",
+        recipe=recipe,
+        form=form,
+        other_households=other_households,
+        household_tags=household_tags,
+        current_tag_names=current_tag_names,
+    )
 
 
 @recipes_bp.route("/recipe/<int:recipe_id>/delete", methods=["POST"])
@@ -384,6 +407,133 @@ def add_manual_ingredient() -> tuple[dict, int]:
             jsonify({"success": False, "error": "Error adding ingredient. Please try again."}),
             500,
         )
+
+@recipes_bp.route("/recipe/<int:recipe_id>/export", methods=["POST"])
+@require_login
+def export_recipe(recipe_id: int) -> Response:
+    """Copy a recipe to one or more of the user's other households."""
+    recipe = Recipe.query.get_or_404(recipe_id)
+
+    if not g.household.is_user_member(g.user.id):
+        flash("Unauthorized", "danger")
+        return redirect(url_for("main.homepage"))
+
+    household_ids = request.form.getlist("household_ids", type=int)
+    if not household_ids:
+        flash("Please select at least one household to export to.", "warning")
+        return redirect(url_for("recipes.view_recipe", recipe_id=recipe_id))
+
+    copied = 0
+    for hid in household_ids:
+        from models import HouseholdMember
+        membership = HouseholdMember.query.filter_by(
+            household_id=hid, user_id=g.user.id
+        ).first()
+        if not membership:
+            continue
+
+        existing = Recipe.query.filter_by(
+            household_id=hid, name=recipe.name
+        ).first()
+        if existing:
+            flash(f'"{recipe.name}" already exists in that household.', "warning")
+            continue
+
+        new_recipe = Recipe(
+            user_id=g.user.id,
+            household_id=hid,
+            name=recipe.name,
+            url=recipe.url,
+            notes=recipe.notes,
+            visibility="household",
+        )
+        for ri in recipe.recipe_ingredients:
+            new_recipe.recipe_ingredients.append(
+                RecipeIngredient(
+                    ingredient_name=ri.ingredient_name,
+                    quantity=ri.quantity,
+                    measurement=ri.measurement,
+                )
+            )
+        db.session.add(new_recipe)
+        copied += 1
+
+    if copied:
+        db.session.commit()
+        flash(f'Recipe exported to {copied} household{"s" if copied != 1 else ""}!', "success")
+    return redirect(url_for("recipes.view_recipe", recipe_id=recipe_id))
+
+
+@recipes_bp.route("/recipe/<int:recipe_id>/set-tags", methods=["POST"])
+@require_login
+def set_recipe_tags(recipe_id: int) -> Response:
+    """Update the tags for a recipe (AJAX or form POST)."""
+    recipe = Recipe.query.get_or_404(recipe_id)
+
+    if not g.household or recipe.household_id != g.household.id:
+        return jsonify({"success": False, "error": "Unauthorized"}), 403
+
+    raw = request.form.get("tags", "")
+    tag_names = [t.strip().lower() for t in raw.split(",") if t.strip()]
+
+    # Clear existing tags and rebuild
+    recipe.tags.clear()
+
+    for name in tag_names:
+        tag = RecipeTag.query.filter_by(
+            household_id=g.household.id, name=name
+        ).first()
+        if not tag:
+            tag = RecipeTag(household_id=g.household.id, name=name)
+            db.session.add(tag)
+            db.session.flush()
+        recipe.tags.append(tag)
+
+    try:
+        db.session.commit()
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return jsonify({"success": True, "tags": [t.name for t in recipe.tags]})
+        flash("Tags updated!", "success")
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error setting recipe tags: {e}", exc_info=True)
+        flash("Error updating tags.", "danger")
+
+    return redirect(url_for("recipes.view_recipe", recipe_id=recipe_id))
+
+
+@recipes_bp.route("/pantry-staples/toggle", methods=["POST"])
+@require_login
+def toggle_pantry_staple() -> tuple[dict, int]:
+    """Toggle an ingredient name as a household pantry staple."""
+    if not g.household:
+        return jsonify({"success": False, "error": "No household"}), 400
+
+    ingredient_name = request.form.get("ingredient_name", "").strip().lower()
+    if not ingredient_name:
+        return jsonify({"success": False, "error": "No ingredient name"}), 400
+
+    existing = PantryStaple.query.filter_by(
+        household_id=g.household.id, ingredient_name=ingredient_name
+    ).first()
+
+    try:
+        if existing:
+            db.session.delete(existing)
+            db.session.commit()
+            return jsonify({"success": True, "is_staple": False})
+        else:
+            staple = PantryStaple(
+                household_id=g.household.id, ingredient_name=ingredient_name
+            )
+            db.session.add(staple)
+            db.session.commit()
+            return jsonify({"success": True, "is_staple": True})
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error toggling pantry staple: {e}", exc_info=True)
+        return jsonify({"success": False, "error": "Database error"}), 500
+
 
 @recipes_bp.route("/delete_ingredient", methods=["POST"])
 @require_login

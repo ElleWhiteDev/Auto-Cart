@@ -32,7 +32,7 @@ from models import (
 )
 from utils import require_login, CURR_GROCERY_LIST_KEY, get_est_date
 from logging_config import logger
-from typing import Union, Dict, Any, Tuple
+from typing import Union, Dict, Any, Tuple, Optional
 
 meal_plan_bp = Blueprint("meal_plan", __name__)
 
@@ -922,7 +922,7 @@ def _build_week_ingredient_set(meal_entries: list) -> set:
     return result
 
 
-def _score_recipe_match(recipe: Any, ingredient_set: set) -> dict | None:
+def _score_recipe_match(recipe: Any, ingredient_set: set) -> Optional[dict]:
     """
     Score a recipe against a set of ingredient names.
 
