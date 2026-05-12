@@ -314,7 +314,9 @@ const RecipeManager = {
 
             if (result.success) {
                 listItem.remove();
-                UIUtils.showFlashMessage(result.message, 'success');
+                if (result.message) {
+                    UIUtils.showFlashMessage(result.message, 'success');
+                }
                 return true;
             } else {
                 UIUtils.showFlashMessage(result.error || 'Failed to remove ingredient', 'danger');
