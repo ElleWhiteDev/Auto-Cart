@@ -430,6 +430,15 @@ def shopping_mode() -> Union[str, Response]:
 
     grocery_list = g.grocery_list
     sync_state = _build_grocery_list_sync_state(grocery_list)
+
+    from models import PantryStaple
+    staple_names: set = set()
+    if g.household:
+        staple_names = {
+            s.ingredient_name
+            for s in PantryStaple.query.filter_by(household_id=g.household.id).all()
+        }
+
     household_members = []
     if g.household:
         household_members = sorted(
@@ -449,6 +458,7 @@ def shopping_mode() -> Union[str, Response]:
         total_items=sync_state["total_items"],
         checked_items=sync_state["checked_items"],
         household_members=household_members,
+        staple_names=staple_names,
     )
 
 

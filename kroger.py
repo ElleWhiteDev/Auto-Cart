@@ -284,11 +284,23 @@ class KrogerSessionManager:
 
     @staticmethod
     def get_ingredient_names_from_grocery_list():
-        """Get ingredient details from current pantry list and store in session."""
+        """Get ingredient details from current pantry list, skipping pantry staples."""
         if not session.get("ingredient_details"):
+            from models import PantryStaple
+            staple_names: set = set()
+            if g.household:
+                staple_names = {
+                    s.ingredient_name
+                    for s in PantryStaple.query.filter_by(
+                        household_id=g.household.id
+                    ).all()
+                }
+
             ingredient_details = []
             for item in g.grocery_list.items:
                 ingredient = item.recipe_ingredient
+                if ingredient.ingredient_name.lower() in staple_names:
+                    continue
                 ingredient_details.append(
                     {
                         "name": ingredient.ingredient_name,

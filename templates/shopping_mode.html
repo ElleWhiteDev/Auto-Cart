@@ -80,9 +80,12 @@
 		<div class="card-body p-0">
 			{% if items %}
 			<div class="list-group list-group-flush">
-				{% for item in items %}
+				{% for item in items | sort(attribute='recipe_ingredient.ingredient_name') %}
+				{% set ri = item.recipe_ingredient %}
+				{% set is_staple = ri.ingredient_name | lower in staple_names %}
 				<div class="list-group-item shopping-item {% if item.is_checked %}checked{% endif %}"
-					data-item-id="{{ item.id }}">
+					data-item-id="{{ item.id }}"
+					{% if is_staple %}style="opacity:0.45;"{% endif %}>
 					<div class="form-check d-flex align-items-center">
 						<input
 							class="form-check-input me-3 item-checkbox"
@@ -92,15 +95,17 @@
 							style="width: 30px; height: 30px; cursor: pointer;">
 						<label class="form-check-label flex-grow-1" for="item-{{ item.id }}" style="cursor: pointer; font-size: 1.1rem;">
 							<div>
-								{% set ri = item.recipe_ingredient %}
 								{% if ri.quantity and ri.quantity > 0 and ri.measurement and not (ri.quantity == 1.0 and ri.measurement == 'unit') %}
 								<strong>{% if ri.measurement != 'unit' %}{{ ri.quantity|round(2)|string|replace('.0','') }} {{ ri.measurement }}{% else %}{{ ri.quantity|round(2)|string|replace('.0','') }}{% endif %}</strong>
 								{% endif %}
 								{{ ri.ingredient_name }}
+								{% if is_staple %}
+								<span style="font-size:0.72rem;color:#9ca3af;font-style:italic;"> — have it</span>
+								{% endif %}
 							</div>
-							{% if item.recipe_ingredient.recipe %}
+							{% if ri.recipe %}
 							<small class="text-muted">
-								<i class="fas fa-utensils"></i> {{ item.recipe_ingredient.recipe.name }}
+								<i class="fas fa-utensils"></i> {{ ri.recipe.name }}
 							</small>
 							{% endif %}
 						</label>

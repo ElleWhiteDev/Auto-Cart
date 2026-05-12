@@ -1419,8 +1419,22 @@ class GroceryList(db.Model):
                 <ul class="ingredient-list">
 """
 
+            # Look up household staples so we can annotate them in the email
+            staple_names: set = set()
+            if grocery_list.household_id:
+                from models import PantryStaple
+                staple_names = {
+                    s.ingredient_name
+                    for s in PantryStaple.query.filter_by(
+                        household_id=grocery_list.household_id
+                    ).all()
+                }
+
             # Add pantry list items
             for recipe_ingredient in grocery_list.recipe_ingredients:
+                is_staple = recipe_ingredient.ingredient_name.lower() in staple_names
+                staple_note = ' <span style="color:#9ca3af;font-size:0.85em;">(have it)</span>' if is_staple else ""
+                item_style = ' style="color:#9ca3af;"' if is_staple else ""
                 if (
                     recipe_ingredient.quantity
                     and recipe_ingredient.quantity > 0
@@ -1430,9 +1444,9 @@ class GroceryList(db.Model):
                         and recipe_ingredient.measurement == "unit"
                     )
                 ):
-                    html_body += f"                    <li>✓ {recipe_ingredient.quantity} {recipe_ingredient.measurement} {recipe_ingredient.ingredient_name}</li>\n"
+                    html_body += f"                    <li{item_style}>✓ {recipe_ingredient.quantity} {recipe_ingredient.measurement} {recipe_ingredient.ingredient_name}{staple_note}</li>\n"
                 else:
-                    html_body += f"                    <li>✓ {recipe_ingredient.ingredient_name}</li>\n"
+                    html_body += f"                    <li{item_style}>✓ {recipe_ingredient.ingredient_name}{staple_note}</li>\n"
 
             html_body += """                </ul>
             </div>
@@ -1494,6 +1508,8 @@ class GroceryList(db.Model):
             text_body += "=" * 50 + "\n"
 
             for recipe_ingredient in grocery_list.recipe_ingredients:
+                is_staple = recipe_ingredient.ingredient_name.lower() in staple_names
+                staple_suffix = " (have it)" if is_staple else ""
                 if (
                     recipe_ingredient.quantity
                     and recipe_ingredient.quantity > 0
@@ -1503,9 +1519,9 @@ class GroceryList(db.Model):
                         and recipe_ingredient.measurement == "unit"
                     )
                 ):
-                    text_body += f"• {recipe_ingredient.quantity} {recipe_ingredient.measurement} {recipe_ingredient.ingredient_name}\n"
+                    text_body += f"• {recipe_ingredient.quantity} {recipe_ingredient.measurement} {recipe_ingredient.ingredient_name}{staple_suffix}\n"
                 else:
-                    text_body += f"• {recipe_ingredient.ingredient_name}\n"
+                    text_body += f"• {recipe_ingredient.ingredient_name}{staple_suffix}\n"
 
             if selected_recipe_ids:
                 recipes = Recipe.query.filter(Recipe.id.in_(selected_recipe_ids)).all()
