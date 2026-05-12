@@ -8,8 +8,10 @@ from typing import Tuple, Optional, Union
 from datetime import datetime
 import secrets
 import pytz
+import requests as http_requests
 from flask import (
     Blueprint,
+    current_app,
     render_template,
     request,
     flash,
@@ -47,20 +49,35 @@ from logging_config import logger
 auth_bp = Blueprint("auth", __name__)
 
 
+def _verify_hcaptcha(token: str) -> bool:
+    secret = current_app.config.get("HCAPTCHA_SECRET_KEY")
+    if not secret:
+        return True
+    try:
+        resp = http_requests.post(
+            "https://hcaptcha.com/siteverify",
+            data={"secret": secret, "response": token},
+            timeout=5,
+        )
+        return resp.json().get("success", False)
+    except Exception:
+        return False
+
+
 @auth_bp.route("/register", methods=["GET", "POST"])
 @limiter.limit("5 per hour")
 def register() -> Union[str, Response]:
-    """
-    Handle user registration.
-
-    Rate limited to 5 registrations per hour per IP to prevent abuse.
-
-    Returns:
-        Rendered registration template or redirect to household setup
-    """
     form = UserAddForm()
+    site_key = current_app.config.get("HCAPTCHA_SITE_KEY")
+
+    def _render_register():
+        return render_template("register.html", form=form, hcaptcha_site_key=site_key)
 
     if form.validate_on_submit():
+        if not _verify_hcaptcha(request.form.get("h-captcha-response", "")):
+            flash("Please complete the CAPTCHA.", "danger")
+            return _render_register()
+
         user = User.signup(
             username=form.username.data.strip().capitalize(),
             password=form.password.data,
@@ -78,13 +95,13 @@ def register() -> Union[str, Response]:
                 flash("Username already taken", "danger")
             else:
                 flash("An error occurred. Please try again.", "danger")
-            return render_template("register.html", form=form)
+            return _render_register()
 
         do_login(user)
         flash("Welcome! Please create or join a household to get started.", "info")
         return redirect(url_for("main.household_setup"))
 
-    return render_template("register.html", form=form)
+    return _render_register()
 
 
 @auth_bp.errorhandler(RateLimitExceeded)

@@ -81,7 +81,7 @@ def _normalize_measurement(measurement: Any) -> str:
 def _normalize_ingredient_name(ingredient_name: Any) -> str:
     """Normalize ingredient names while preserving purchase-critical distinctions."""
     normalized = re.sub(r"\s+", " ", str(ingredient_name or "").strip().lower())
-    normalized = re.sub(r"[^a-z0-9\s-]", "", normalized)
+    normalized = re.sub(r"[^a-z0-9\s.\-]", "", normalized)
     tokens = [
         token
         for token in normalized.split()

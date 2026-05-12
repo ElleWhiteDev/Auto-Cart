@@ -1,5 +1,13 @@
-{% extends 'base.html' %} {% block body_class %}Register{% endblock %} {% block
-content %}
+{% extends 'base.html' %} {% block body_class %}Register{% endblock %}
+
+{% block head_extra %}
+{% if hcaptcha_site_key %}
+<!-- hCaptcha updates its script frequently to counter bots; SRI hashes are not published by design. NOSONAR -->
+<script src="https://js.hcaptcha.com/1/api.js" async defer></script>
+{% endif %}
+{% endblock %}
+
+{% block content %}
 
 <style>
 	.bg-orange {
@@ -47,6 +55,12 @@ content %}
 						{% endfor %}
 					</div>
 					{% endfor %}
+
+					{% if hcaptcha_site_key %}
+					<div class="mb-3">
+						<div class="h-captcha" data-sitekey="{{ hcaptcha_site_key }}"></div>
+					</div>
+					{% endif %}
 
 					<div class="d-grid">
 						<button class="btn btn-primary btn-lg" type="submit" id="register-btn">

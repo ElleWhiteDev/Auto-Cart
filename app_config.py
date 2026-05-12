@@ -59,6 +59,10 @@ class Config:
             or "http://localhost:5000/callback"
         )
 
+    # hCaptcha configuration
+    HCAPTCHA_SITE_KEY = os.environ.get("HCAPTCHA_SITE_KEY")
+    HCAPTCHA_SECRET_KEY = os.environ.get("HCAPTCHA_SECRET_KEY")
+
     # Mail configuration
     MAIL_SERVER = os.environ.get("MAIL_SERVER", "smtp.gmail.com")
     MAIL_PORT = int(os.environ.get("MAIL_PORT") or 587)
