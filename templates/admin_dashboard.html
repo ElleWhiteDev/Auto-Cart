@@ -358,6 +358,63 @@
 	</div>
 </div>
 
+<!-- Recipe Tags Section -->
+<div class="card" id="tags-section" style="margin-top: var(--space-6);">
+	<div class="card-header" style="background-color: #c2410c; color: var(--white);">
+		<h3 style="margin: 0; font-size: var(--text-lg); font-weight: var(--font-semibold); color: var(--white);">
+			<i class="fas fa-tags"></i> Recipe Tags ({{ tag_stats|length }})
+		</h3>
+	</div>
+	<div class="card-body" style="padding: 0;">
+		{% if tag_stats %}
+		<div class="table-responsive">
+			<table class="table table-hover" style="margin-bottom: 0; width: 100%;">
+				<thead style="background-color: #fff7ed;">
+					<tr>
+						<th style="padding: var(--space-4); font-weight: var(--font-semibold); color: var(--gray-700);">Tag</th>
+						<th style="padding: var(--space-4); font-weight: var(--font-semibold); color: var(--gray-700);">Household</th>
+						<th style="padding: var(--space-4); font-weight: var(--font-semibold); color: var(--gray-700);">Used by</th>
+						<th style="padding: var(--space-4); font-weight: var(--font-semibold); color: var(--gray-700);">Actions</th>
+					</tr>
+				</thead>
+				<tbody>
+					{% for stat in tag_stats %}
+					<tr>
+						<td style="padding: var(--space-4);">
+							<span style="font-size:0.75rem;padding:3px 10px;border-radius:50rem;background:#c2410c;color:#fff;display:inline-block;line-height:1.5;">{{ stat.tag.name }}</span>
+						</td>
+						<td style="padding: var(--space-4);">
+							{% if stat.tag.household %}
+							{{ stat.tag.household.name }}
+							{% else %}
+							<span style="color: var(--gray-500);">—</span>
+							{% endif %}
+						</td>
+						<td style="padding: var(--space-4);">
+							<span style="color: var(--gray-600);">{{ stat.usage_count }} recipe{{ 's' if stat.usage_count != 1 }}</span>
+						</td>
+						<td style="padding: var(--space-4);">
+							<form method="POST" action="{{ url_for('admin.admin_delete_tag', tag_id=stat.tag.id) }}" style="display: inline;"
+							      onsubmit="return confirm('Delete tag {{ stat.tag.name }}? It will be removed from {{ stat.usage_count }} recipe{{ 's' if stat.usage_count != 1 }}. This cannot be undone.');">
+								<button type="submit" class="btn btn-sm btn-danger">
+									<i class="fas fa-trash"></i> Delete
+								</button>
+							</form>
+						</td>
+					</tr>
+					{% endfor %}
+				</tbody>
+			</table>
+		</div>
+		{% else %}
+		<div style="text-align: center; padding: var(--space-8); color: var(--gray-500);">
+			<i class="fas fa-tags" style="font-size: 2rem; margin-bottom: var(--space-3);"></i>
+			<p>No tags created yet</p>
+		</div>
+		{% endif %}
+	</div>
+</div>
+
 <!-- Stats Cards -->
 <div class="row" style="margin-top: var(--space-6);">
 	<div class="col-md-3">

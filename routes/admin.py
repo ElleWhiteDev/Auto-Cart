@@ -17,7 +17,7 @@ from flask import (
 from werkzeug.wrappers import Response
 
 from extensions import db, bcrypt, mail
-from models import User, HouseholdMember, Household, Recipe, GroceryList, MealPlanEntry
+from models import User, HouseholdMember, Household, Recipe, GroceryList, MealPlanEntry, RecipeTag
 from utils import require_admin, do_login
 from logging_config import logger
 from typing import Union, Tuple, Dict, Any
@@ -64,6 +64,15 @@ def admin_dashboard() -> str:
     users = User.query.order_by(User.last_activity.desc().nullslast()).all()
     households = Household.query.order_by(Household.created_at.desc()).all()
 
+    # Get all tags with usage counts
+    all_tags = RecipeTag.query.order_by(RecipeTag.household_id, RecipeTag.name).all()
+    tag_stats = []
+    for tag in all_tags:
+        tag_stats.append({
+            "tag": tag,
+            "usage_count": len(tag.recipes),
+        })
+
     # Get household stats
     household_stats = []
     for household in households:
@@ -91,7 +100,7 @@ def admin_dashboard() -> str:
         )
 
     return render_template(
-        "admin_dashboard.html", users=users, household_stats=household_stats
+        "admin_dashboard.html", users=users, household_stats=household_stats, tag_stats=tag_stats
     )
 
 
@@ -173,6 +182,24 @@ def admin_delete_household(household_id: int) -> Response:
         flash(f'❌ Error deleting household "{household_name}": {str(e)}', "danger")
 
     return redirect(url_for("admin.admin_dashboard"))
+
+
+@admin_bp.route("/delete-tag/<int:tag_id>", methods=["POST"])
+@require_admin
+def admin_delete_tag(tag_id: int) -> Response:
+    tag = RecipeTag.query.get_or_404(tag_id)
+    tag_name = tag.name
+    household_name = tag.household.name if tag.household else "unknown"
+    try:
+        db.session.delete(tag)
+        db.session.commit()
+        flash(f'Tag "{tag_name}" deleted from {household_name}', "success")
+        logger.info(f"Admin {g.user.username} deleted tag '{tag_name}' (ID: {tag_id})")
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error deleting tag {tag_id}: {e}", exc_info=True)
+        flash("Error deleting tag. Please try again.", "danger")
+    return redirect(url_for("admin.admin_dashboard") + "#tags-section")
 
 
 @admin_bp.route("/household/<int:household_id>/members", methods=["GET"])

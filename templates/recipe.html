@@ -60,9 +60,9 @@ block content %}
 			<button type="submit" class="btn btn-primary">Save</button>
 		</form>
 		{% if recipe.tags %}
-		<div class="mt-2 d-flex flex-wrap gap-1">
+		<div class="mt-2" style="display:flex;flex-wrap:wrap;gap:6px;">
 			{% for tag in recipe.tags %}
-			<span class="badge rounded-pill" style="background:#c2410c;color:#fff;font-size:0.78rem;padding:4px 10px;">{{ tag.name }}</span>
+			<span style="font-size:0.75rem;padding:3px 10px;border-radius:50rem;background:#c2410c;color:#fff;display:inline-block;line-height:1.5;">{{ tag.name }}</span>
 			{% endfor %}
 		</div>
 		{% endif %}
