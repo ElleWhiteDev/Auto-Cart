@@ -96,42 +96,38 @@
 <body>
     <div class="container">
         <div class="header">
-            <div class="icon">⚡</div>
-            <h1>Upgrade: Smarter Ingredients + Real-Time Plans</h1>
+            <div class="icon">🛒</div>
+            <h1>New: Tags, Staples & Recipe Sharing</h1>
         </div>
 
         <div class="content">
-            <h2>Hey there!</h2>
+            <h2>Hey {{ recipient_name }}!</h2>
 
-	            <p>This week’s update focuses on making pantry editing and recipe collaboration faster, smoother, and more insightful.</p>
+            <p>We’ve been busy — here’s what’s new in Auto-Cart this week.</p>
 
             <div class="feature-box">
-                <h3>🤖 AI manual ingredients</h3>
-                <p>Paste or type a single ingredient line anywhere on the dashboard. Auto-Cart will:</p>
-                <ul>
-                    <li>Parse it into quantity, measurement, and ingredient with the updated GPT flow</li>
-                    <li>Consolidate it intelligently against your current list</li>
-                    <li>Save it instantly without refreshing the page</li>
-                </ul>
+                <h3>⭐ Pantry Staples</h3>
+                <p>Mark any pantry list item as a staple — things like olive oil, garlic, or butter that you always have on hand. Staple items stay visible on your list but appear dimmed so you know you don’t need to buy them. Tap the star icon next to any ingredient to toggle it.</p>
             </div>
 
             <div class="feature-box">
-                <h3>🧪 Recipe scraping + prompt upgrades</h3>
-                <p>The recipe editor now shows an in-flight loading state and our improved AI prompt keeps parsed ingredients accurate before writing them, giving you fewer blank rows and a smoother edit/save experience.</p>
+                <h3>🏷️ Recipe Tags</h3>
+                <p>Organize your recipe box with tags like <strong>quick</strong>, <strong>vegetarian</strong>, or <strong>weeknight</strong>. Open any recipe to add tags, then use the filter bar above your recipe list to instantly narrow down what’s shown. Great for when the recipe box starts to grow.</p>
             </div>
 
             <div class="feature-box">
-                <h3>🌐 Real-time collaboration</h3>
-                <ul>
-	                    <li>Household members see updates to pantry lists and recipes faster</li>
-                    <li>Edited recipes synchronize across users so everyone plans from the same data</li>
-                    <li>Real-time feedback keeps teams coordinated when one person is editing and another is shopping</li>
-                </ul>
+                <h3>🔀 Recipe Sharing Between Households</h3>
+                <p>Belong to more than one household? Open any recipe and use the <strong>Export to Other Households</strong> section to copy it across — handy for sharing a family favourite from your home household to your vacation house or a roommate’s group.</p>
             </div>
 
-            <p>We hope these upgrades help you edit faster and collaborate better. Dive in and see them in action!</p>
+            <div class="feature-box">
+                <h3>🔤 A–Z Pantry Sort</h3>
+                <p>Use the new sort buttons in the pantry list header to switch between default order and alphabetical. No page reload — the list re-sorts instantly.</p>
+            </div>
+
+            <p>All of these are live now. Head over and give them a try!</p>
             <div style="text-align: center;">
-                <a href="{{ profile_url }}" class="cta-button">Open Recipe Editor</a>
+                <a href="{{ homepage_url }}" class="cta-button">Open Auto-Cart</a>
             </div>
 
             <p style="margin-top: 30px;">Happy cooking! 🍳</p>
