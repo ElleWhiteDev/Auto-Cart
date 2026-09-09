@@ -683,12 +683,14 @@ def parse_kroger_products(json_response: Dict) -> List[Dict[str, str]]:
             and 0 < promo_price < regular_price
         )
 
-        # Extract fulfillment information
+        # Extract fulfillment information. Kroger's fulfillment object has no
+        # "pickup" field - curbside is the pickup equivalent we add items with
+        # (see modality="PICKUP" in add_items_to_cart).
         fulfillment_info = items_info[0].get("fulfillment", {}) if items_info else {}
         # Only set availability if fulfillment data exists, otherwise None (unknown)
         pickup_available = None
-        if fulfillment_info and "pickup" in fulfillment_info:
-            pickup_available = fulfillment_info.get("pickup")
+        if fulfillment_info and "curbside" in fulfillment_info:
+            pickup_available = fulfillment_info.get("curbside")
 
         # Skip items confirmed unavailable for pickup; keep unknown-availability items
         if pickup_available is False:
