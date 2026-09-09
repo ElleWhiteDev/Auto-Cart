@@ -348,7 +348,15 @@ class KrogerSessionManager:
             if item["id"] == product_id:
                 # Store product with quantity
                 session["products_for_cart"].append(
-                    {"upc": item["id"], "quantity": quantity}
+                    {
+                        "upc": item["id"],
+                        "quantity": quantity,
+                        "name": item.get("name"),
+                        "price": item.get("price"),
+                        "promo_price": item.get("promo_price"),
+                        "on_sale": item.get("on_sale", False),
+                        "savings": item.get("savings"),
+                    }
                 )
                 session["items_to_choose_from"] = []
                 logger.info(
@@ -379,8 +387,17 @@ class KrogerSessionManager:
 
         for product_id, quantity in zip(product_ids, quantities):
             if product_id in items_dict:
+                item = items_dict[product_id]
                 session["products_for_cart"].append(
-                    {"upc": product_id, "quantity": quantity}
+                    {
+                        "upc": product_id,
+                        "quantity": quantity,
+                        "name": item.get("name"),
+                        "price": item.get("price"),
+                        "promo_price": item.get("promo_price"),
+                        "on_sale": item.get("on_sale", False),
+                        "savings": item.get("savings"),
+                    }
                 )
                 logger.info(f"Added {product_id} (qty: {quantity}) to cart")
 
@@ -398,6 +415,19 @@ class KrogerSessionManager:
         cart_products = session.get("products_for_cart", [])
         logger.debug(f"Getting cart products: {cart_products}")
         return cart_products
+
+    @staticmethod
+    def get_cart_savings() -> Tuple[List[Dict[str, Any]], float]:
+        """Get selected products currently on sale and the total savings across quantities."""
+        on_sale_items = [
+            item
+            for item in session.get("products_for_cart", [])
+            if isinstance(item, dict) and item.get("on_sale") and item.get("savings")
+        ]
+        total_savings = round(
+            sum(item["savings"] * item.get("quantity", 1) for item in on_sale_items), 2
+        )
+        return on_sale_items, total_savings
 
     @staticmethod
     def track_skipped_ingredient(
@@ -645,6 +675,13 @@ def parse_kroger_products(json_response: Dict) -> List[Dict[str, str]]:
     for product_data in products_data:
         items_info = product_data.get("items", [{}])
         price_info = items_info[0].get("price", {}) if items_info else {}
+        regular_price = price_info.get("regular")
+        promo_price = price_info.get("promo")
+        on_sale = (
+            isinstance(regular_price, (int, float))
+            and isinstance(promo_price, (int, float))
+            and 0 < promo_price < regular_price
+        )
 
         # Extract fulfillment information
         fulfillment_info = items_info[0].get("fulfillment", {}) if items_info else {}
@@ -683,7 +720,10 @@ def parse_kroger_products(json_response: Dict) -> List[Dict[str, str]]:
         product = {
             "name": product_data.get("description", "N/A"),
             "id": product_data.get("upc", "N/A"),
-            "price": price_info.get("regular", "N/A"),
+            "price": regular_price if regular_price is not None else "N/A",
+            "promo_price": promo_price if on_sale else None,
+            "on_sale": on_sale,
+            "savings": round(regular_price - promo_price, 2) if on_sale else None,
             "image_url": image_url,
             "brand": product_data.get("brand", ""),
             "size": items_info[0].get("size", "") if items_info else "",

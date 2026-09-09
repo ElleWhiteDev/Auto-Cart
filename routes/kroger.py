@@ -546,7 +546,7 @@ def item_choice() -> Response:
     if kroger_session_manager.has_more_ingredients():
         return redirect(url_for("kroger.kroger_product_search"))
     else:
-        return redirect(url_for("kroger.kroger_send_to_cart"))
+        return _modal_redirect(url_for("main.homepage") + "#modal-coupons")
 
 
 @kroger_bp.route("/send-to-cart", methods=["POST", "GET"])
@@ -661,4 +661,4 @@ def skip_ingredient() -> Response:
     if kroger_session_manager.has_more_ingredients():
         return redirect(url_for("kroger.kroger_product_search"))
     else:
-        return redirect(url_for("kroger.kroger_send_to_cart"))
+        return _modal_redirect(url_for("main.homepage") + "#modal-coupons")

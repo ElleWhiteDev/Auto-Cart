@@ -499,6 +499,10 @@
 				<div class="ingredient-name">
 					{{ session['current_ingredient_detail']['quantity'] }} {{ session['current_ingredient_detail']['measurement'] }} {{ session['current_ingredient_detail']['name'] }}
 				</div>
+				<a class="coupon-search-link" target="_blank" rel="noopener"
+				   href="https://www.kroger.com/savings/coupons?query={{ session['current_ingredient_detail']['name']|urlencode }}">
+					<i class="fas fa-tags mr-1"></i>Check Kroger.com for coupons on this item
+				</a>
 			</div>
 			<p class="modal-description">
 				Select the item you'd like to add to your cart, or search for a different product below
@@ -593,6 +597,55 @@
 			</form>
 			<form method="POST" action="{{ url_for('kroger.skip_ingredient') }}" id="skip-form" style="display: none;">
 			</form>
+		</div>
+	</div>
+</div>
+
+<!-- Kroger Savings & Coupons Modal -->
+<div class="modal-container" id="modal-coupons">
+	<div class="my-modal">
+		<div class="modal-header">
+			<h2 class="modal-title">
+				<i class="fas fa-tags text-primary mr-2"></i>
+				Savings &amp; Coupons
+			</h2>
+			<p class="modal-description">
+				{% if cart_savings_items %}
+				Here's what's currently on sale among the items you selected.
+				{% else %}
+				None of your selected items have an active store sale price right now.
+				{% endif %}
+			</p>
+		</div>
+		<div class="modal-body">
+			{% if cart_savings_items %}
+			<div class="savings-total-banner">
+				<i class="fas fa-piggy-bank mr-2"></i>
+				You're saving <strong>${{ "%.2f"|format(cart_total_savings) }}</strong> on {{ cart_savings_items|length }} item{{ "s" if cart_savings_items|length != 1 else "" }}
+			</div>
+			<div class="savings-list">
+				{% for item in cart_savings_items %}
+				<div class="savings-item">
+					<div class="savings-item-name">{{ item.name or "Item" }}</div>
+					<div class="savings-item-prices">
+						<span class="savings-price-regular">${{ "%.2f"|format(item.price) }}</span>
+						<span class="savings-price-promo">${{ "%.2f"|format(item.promo_price) }}</span>
+						<span class="savings-badge">Save ${{ "%.2f"|format(item.savings) }}</span>
+					</div>
+				</div>
+				{% endfor %}
+			</div>
+			{% endif %}
+			<p class="coupon-disclaimer">
+				<i class="fas fa-info-circle mr-1"></i>
+				Prices reflect the current in-store sale at your selected location. Kroger also runs digital coupons that aren't shown here.
+				<a href="https://www.kroger.com/savings/coupons" target="_blank" rel="noopener">Browse Kroger coupons</a> to clip any that apply before checkout.
+			</p>
+			<div class="modal-actions">
+				<a href="{{ url_for('kroger.kroger_send_to_cart') }}" class="btn btn-primary">
+					Continue <i class="fas fa-arrow-right ml-2"></i>
+				</a>
+			</div>
 		</div>
 	</div>
 </div>

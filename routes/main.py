@@ -15,6 +15,7 @@ from flask import (
     g,
     session,
     jsonify,
+    current_app,
 )
 from werkzeug.wrappers import Response
 from flask_mail import Message
@@ -87,6 +88,12 @@ def homepage() -> Union[str, Response]:
     )
 
     open_modal = session.pop("open_modal", None)
+
+    kroger_session_manager = current_app.config.get("kroger_session_manager")
+    cart_savings_items, cart_total_savings = (
+        kroger_session_manager.get_cart_savings() if kroger_session_manager else ([], 0)
+    )
+
     form = AddRecipeForm()
     return render_template(
         "index.html",
@@ -100,6 +107,8 @@ def homepage() -> Union[str, Response]:
         open_modal=open_modal,
         staple_names=staple_names,
         all_tags=all_tags,
+        cart_savings_items=cart_savings_items,
+        cart_total_savings=cart_total_savings,
     )
 
 
