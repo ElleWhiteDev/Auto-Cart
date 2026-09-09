@@ -568,11 +568,7 @@
 										{% else %}
 										<div class="text-lg font-bold text-primary">${{ item['price'] }}</div>
 										{% endif %}
-										{% if item.get('available') == True %}
-										<span class="availability-badge available">
-											<i class="fas fa-check-circle mr-1"></i>Available
-										</span>
-										{% else %}
+										{% if item.get('available') is none %}
 										<span class="availability-badge unknown">
 											<i class="fas fa-question-circle mr-1"></i>Availability unknown
 										</span>

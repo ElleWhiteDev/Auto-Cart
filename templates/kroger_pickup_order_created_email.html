@@ -50,14 +50,6 @@
             margin-top: 0;
             font-size: 20px;
         }
-        .callout {
-            background-color: #eef6ff;
-            border: 1px solid #90caf9;
-            color: #0d47a1;
-            border-radius: 6px;
-            padding: 15px;
-            margin: 20px 0;
-        }
         .grocery-section {
             background-color: white;
             padding: 20px;
@@ -129,10 +121,6 @@
                 <p><strong>Pantry List:</strong> {{ grocery_list_name }}</p>
                 <p><strong>Created By:</strong> {{ created_by_name }}</p>
                 <p><strong>List Status:</strong> {{ grocery_list_status }}</p>
-            </div>
-
-            <div class="callout">
-                Your household can keep coordinating in Auto-Cart while this Kroger pickup order is being finalized.
             </div>
 
             {% if skipped_items %}
