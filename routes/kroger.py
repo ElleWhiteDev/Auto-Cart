@@ -81,7 +81,6 @@ def _get_household_notification_recipients(selected_user_ids) -> list[User]:
         if (
             not user
             or not user.email
-            or user.id == g.user.id
             or user.id not in selected_id_set
         ):
             continue
@@ -178,7 +177,9 @@ def _send_household_kroger_order_created_emails(
         )
         msg = Message(
             subject=subject,
+            sender=("Auto-Cart", response_email),
             recipients=[recipient.email],
+            reply_to=response_email,
             body=text_body,
             html=html_body,
         )
@@ -607,17 +608,34 @@ def kroger_send_to_cart() -> Response:
             )
         if selected_recipient_ids:
             try:
-                _send_household_kroger_order_created_emails(
+                sent_count = _send_household_kroger_order_created_emails(
                     recipient_ids=selected_recipient_ids,
                     removed_exported_items=should_remove_added,
                     include_grocery_list=include_grocery_list,
                     grocery_list_items=grocery_list_items,
                     skipped_items=skipped,
                 )
+                if sent_count:
+                    flash(
+                        f"Sent the Kroger order update to {sent_count} "
+                        f"household member{'s' if sent_count != 1 else ''}.",
+                        "success",
+                    )
+                else:
+                    flash(
+                        "No order update email was sent — the selected recipients "
+                        "couldn't be found.",
+                        "warning",
+                    )
             except Exception as e:
                 logger.error(
                     f"Failed to send Kroger household notification emails: {e}",
                     exc_info=True,
+                )
+                flash(
+                    "Your cart was sent to Kroger, but the order update email "
+                    "couldn't be sent. Check the mail server configuration.",
+                    "danger",
                 )
         _clear_kroger_flow_session(kroger_session_manager)
         return redirect("https://www.kroger.com/cart")

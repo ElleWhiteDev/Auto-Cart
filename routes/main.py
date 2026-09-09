@@ -67,7 +67,7 @@ def homepage() -> Union[str, Response]:
     kroger_email_recipients = [
         member.user
         for member in household_members
-        if member.user and member.user.email and member.user_id != g.user.id
+        if member.user and member.user.email
     ]
 
     # Get all household pantry lists

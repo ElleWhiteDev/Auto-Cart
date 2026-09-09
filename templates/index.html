@@ -721,7 +721,7 @@
 								<label style="display: flex; align-items: flex-start; gap: 10px; color: #1f2937; cursor: pointer; padding: 10px 12px; border: 1px solid #e5e7eb; border-radius: 8px; background-color: #f9fafb;">
 									<input type="checkbox" name="email_recipient_ids" value="{{ recipient.id }}" style="margin-top: 4px;" />
 									<span>
-										<strong>{{ recipient.username }}</strong><br />
+										<strong>{{ recipient.username }}{% if recipient.id == g.user.id %} (You){% endif %}</strong><br />
 										<span style="font-size: 14px; color: #666;">{{ recipient.email }}</span>
 									</span>
 								</label>
