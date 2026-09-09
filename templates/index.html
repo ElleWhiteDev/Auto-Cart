@@ -499,10 +499,6 @@
 				<div class="ingredient-name">
 					{{ session['current_ingredient_detail']['quantity'] }} {{ session['current_ingredient_detail']['measurement'] }} {{ session['current_ingredient_detail']['name'] }}
 				</div>
-				<a class="coupon-search-link" target="_blank" rel="noopener"
-				   href="https://www.kroger.com/savings/coupons?query={{ session['current_ingredient_detail']['name']|urlencode }}">
-					<i class="fas fa-tags mr-1"></i>Check Kroger.com for coupons on this item
-				</a>
 			</div>
 			<p class="modal-description">
 				Select the item you'd like to add to your cart, or search for a different product below
@@ -533,6 +529,12 @@
 
 			<form method="POST" action="{{ url_for('kroger.item_choice') }}" id="ingredient-selection-form" onsubmit="return validateIngredientSelection()">
 				<div class="selection-options">
+					{% if not session['items_to_choose_from'] %}
+					<p class="modal-description">
+						<i class="fas fa-exclamation-circle mr-1"></i>
+						No items currently available for pickup at your store. Try searching for a different product above, or skip this item.
+					</p>
+					{% endif %}
 					{% for item in session['items_to_choose_from'] %}
 					<div class="selection-option">
 						<input type="checkbox" name="product_id" value="{{ item['id'] }}" id="product-{{ loop.index }}" class="selection-checkbox" />
@@ -559,14 +561,20 @@
 									</div>
 									{% endif %}
 									<div class="flex items-center gap-2">
+										{% if item.get('on_sale') %}
+										<div class="text-sm text-gray-500" style="text-decoration: line-through;">${{ "%.2f"|format(item['price']) }}</div>
+										<div class="text-lg font-bold text-primary">${{ "%.2f"|format(item['promo_price']) }}</div>
+										<span class="savings-badge">Save ${{ "%.2f"|format(item['savings']) }}</span>
+										{% else %}
 										<div class="text-lg font-bold text-primary">${{ item['price'] }}</div>
-										{% if item.get('available') == False %}
-										<span class="availability-badge unavailable">
-											<i class="fas fa-exclamation-circle mr-1"></i>Unavailable
-										</span>
-										{% elif item.get('available') == True %}
+										{% endif %}
+										{% if item.get('available') == True %}
 										<span class="availability-badge available">
 											<i class="fas fa-check-circle mr-1"></i>Available
+										</span>
+										{% else %}
+										<span class="availability-badge unknown">
+											<i class="fas fa-question-circle mr-1"></i>Availability unknown
 										</span>
 										{% endif %}
 									</div>
@@ -639,7 +647,7 @@
 			<p class="coupon-disclaimer">
 				<i class="fas fa-info-circle mr-1"></i>
 				Prices reflect the current in-store sale at your selected location. Kroger also runs digital coupons that aren't shown here.
-				<a href="https://www.kroger.com/savings/coupons" target="_blank" rel="noopener">Browse Kroger coupons</a> to clip any that apply before checkout.
+				<a href="https://www.kroger.com/savings/cl/coupons/" target="_blank" rel="noopener">Browse digital coupons</a> to clip any that apply before checkout.
 			</p>
 			<div class="modal-actions">
 				<a href="{{ url_for('kroger.kroger_send_to_cart') }}" class="btn btn-primary">

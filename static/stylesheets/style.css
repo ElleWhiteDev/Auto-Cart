@@ -175,6 +175,11 @@ body {
 	color: #991b1b;
 }
 
+.availability-badge.unknown {
+	background-color: var(--gray-100, #f1f5f9);
+	color: var(--gray-600, #666);
+}
+
 /* Savings & Coupons Modal */
 .savings-total-banner {
 	background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
@@ -246,20 +251,6 @@ body {
 .coupon-disclaimer a {
 	color: var(--primary-blue, #007bff);
 	font-weight: var(--font-medium, 500);
-}
-
-.coupon-search-link {
-	display: inline-flex;
-	align-items: center;
-	margin-top: var(--space-2, 8px);
-	font-size: var(--text-sm, 14px);
-	color: var(--primary-blue, #007bff);
-	font-weight: var(--font-medium, 500);
-	text-decoration: none;
-}
-
-.coupon-search-link:hover {
-	text-decoration: underline;
 }
 
 /* Quantity Container - Right aligned with fixed width */
@@ -453,9 +444,7 @@ a {
 /* Shared radio/checkbox styling */
 .product-radio,
 .store-radio,
-.email-radio,
-.selection-radio,
-.selection-checkbox {
+.email-radio {
 	width: 20px;
 	height: 20px;
 	margin: 0;

@@ -690,6 +690,10 @@ def parse_kroger_products(json_response: Dict) -> List[Dict[str, str]]:
         if fulfillment_info and "pickup" in fulfillment_info:
             pickup_available = fulfillment_info.get("pickup")
 
+        # Skip items confirmed unavailable for pickup; keep unknown-availability items
+        if pickup_available is False:
+            continue
+
         # Extract aisle location if available
         aisle_locations = product_data.get("aisleLocations", [])
         aisle = aisle_locations[0].get("description", "") if aisle_locations else ""
