@@ -74,28 +74,38 @@
 					{% endif %}
 				</div>
 				<div class="card-body scrollable-list">
-					<ul class="list-group list-group-flush">
-						{% if g.household %}
+					{% if g.household %}
+						{% if g.household.recipes %}
+						<ul class="recipe-box-list">
 							{% for recipe in g.household.recipes|sort(attribute='name') %}
-							<li class="list-group-item d-flex justify-content-between align-items-center">
-								<a href="{{url_for('recipes.view_recipe', recipe_id=recipe.id)}}"
-									>{{recipe.name}}</a
-								>
-								<small class="text-muted">by {{ recipe.user.username }}</small>
+							<li class="recipe-box-item">
+								<a href="{{url_for('recipes.view_recipe', recipe_id=recipe.id)}}" class="recipe-box-link">
+									<div class="recipe-box-item-top">
+										<span class="recipe-box-name">{{recipe.name}}</span>
+										<small class="text-muted">by {{ recipe.user.username }}</small>
+									</div>
+									{% if recipe.tags %}
+									<div class="recipe-box-tags">
+										{% for tag in recipe.tags %}
+										<span class="recipe-tag-badge">{{ tag.name }}</span>
+										{% endfor %}
+									</div>
+									{% endif %}
+								</a>
 							</li>
 							{% endfor %}
-							{% if not g.household.recipes %}
-							<li class="list-group-item text-center text-muted">
-								<i class="fas fa-utensils mb-2"></i>
-								<p>No recipes yet. Add your first recipe!</p>
-							</li>
-							{% endif %}
+						</ul>
 						{% else %}
-							<li class="list-group-item text-center text-muted">
-								<p>Join or create a household to see recipes</p>
-							</li>
+						<div class="recipe-box-empty">
+							<i class="fas fa-utensils mb-2"></i>
+							<p>No recipes yet. Add your first recipe!</p>
+						</div>
 						{% endif %}
-					</ul>
+					{% else %}
+						<div class="recipe-box-empty">
+							<p>Join or create a household to see recipes</p>
+						</div>
+					{% endif %}
 				</div>
 			</div>
 		</div>

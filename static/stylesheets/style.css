@@ -1104,6 +1104,85 @@ nav {
 	border-bottom: none;
 }
 
+/* Recipe box (household recipe list on profile page) */
+.recipe-box-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-2, 8px);
+}
+
+.recipe-box-item {
+	border-radius: var(--radius-lg, 8px);
+	overflow: hidden;
+}
+
+.recipe-box-link {
+	display: block;
+	padding: var(--space-3, 10px) var(--space-3, 12px);
+	background-color: var(--gray-50, #f8fafc);
+	border: 1px solid var(--gray-200, #e2e8f0);
+	border-radius: var(--radius-lg, 8px);
+	text-decoration: none;
+	color: inherit;
+	transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+
+.recipe-box-link:hover,
+.recipe-box-link:focus {
+	background-color: #fdece4;
+	border-color: var(--accent-orange, #ff6600);
+	transform: translateY(-1px);
+	text-decoration: none;
+	color: inherit;
+}
+
+.recipe-box-item-top {
+	display: flex;
+	justify-content: space-between;
+	align-items: baseline;
+	gap: var(--space-2, 8px);
+	flex-wrap: wrap;
+}
+
+.recipe-box-name {
+	font-weight: var(--font-semibold, 600);
+	color: var(--primary-blue, #004c91);
+}
+
+.recipe-box-tags {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-top: 6px;
+}
+
+.recipe-tag-badge {
+	font-size: 0.7rem;
+	font-weight: var(--font-medium, 500);
+	letter-spacing: 0.02em;
+	padding: 3px 10px;
+	border-radius: 50rem;
+	background: #c2410c;
+	color: #fff;
+	display: inline-block;
+	line-height: 1.5;
+}
+
+.recipe-box-empty {
+	text-align: center;
+	color: var(--gray-500, #64748b);
+	padding: var(--space-4, 16px) var(--space-2, 8px);
+}
+
+.recipe-box-empty i {
+	font-size: 1.5rem;
+	display: block;
+	margin-bottom: var(--space-2, 8px);
+}
+
 /* Mobile: Stack user page sections */
 @media (max-width: 768px) {
 	.user-page {
