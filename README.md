@@ -26,6 +26,10 @@ Auto-Cart is a sophisticated web application that streamlines meal planning and 
 - **[Security Policy](SECURITY.md)** - Security features and vulnerability reporting
 - **[Changelog](CHANGELOG.md)** - Version history and release notes
 - **[Multi-Household Guide](MULTI_HOUSEHOLD_GUIDE.md)** - Guide to multi-household features
+- **[Database Migration Guide](MIGRATION_GUIDE.md)** - Working with Flask-Migrate/Alembic
+- **[Meal Plan Notifications](MEAL_PLAN_NOTIFICATIONS_README.md)** - Daily summary email feature and setup
+- **[Heroku Scheduler Setup](HEROKU_SCHEDULER_SETUP.md)** - Scheduling the daily summary job in production
+- **[Scripts Directory](scripts/README.md)** - One-off migration and admin utility scripts
 
 ### Key Highlights
 
@@ -187,8 +191,6 @@ Auto-Cart/
 ├── requirements.txt       # Python dependencies
 ├── .env.example           # Environment variable template
 ├── LICENSE                # MIT License
-├── CONTRIBUTING.md        # Contribution guidelines
-├── CODE_OF_CONDUCT.md     # Code of conduct
 ├── CHANGELOG.md           # Version history
 └── API_DOCUMENTATION.md   # API endpoint reference
 ```
