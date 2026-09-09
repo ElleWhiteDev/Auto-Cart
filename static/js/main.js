@@ -9,12 +9,14 @@
 
 const ModalManager = {
     /**
-     * Open a modal by ID
+     * Open a modal by ID. Closes any other open modal first so only one
+     * is ever visible at a time, regardless of how it was triggered.
      * @param {string} modalId - The ID of the modal to open
      */
     open(modalId) {
         const modal = document.getElementById(modalId);
         if (modal) {
+            this.closeAll();
             modal.style.display = 'flex';
             modal.style.alignItems = 'center';
             modal.style.justifyContent = 'center';
@@ -38,27 +40,67 @@ const ModalManager = {
     },
 
     /**
+     * Close every modal. Used for "Cancel"/"Go Back" links and any
+     * other action meant to leave no modal open.
+     */
+    closeAll() {
+        document.querySelectorAll('.modal-container').forEach((modal) => {
+            modal.style.display = 'none';
+            modal.setAttribute('aria-hidden', 'true');
+        });
+    },
+
+    /**
      * Initialize modal event listeners
      */
     init() {
-        // Close modal when clicking outside
+        // Route every in-page modal-opening link through JS instead of
+        // letting the browser jump the URL hash. Previously these links
+        // only worked via CSS `:target`, which never closed a modal that
+        // had been opened by the server-driven flow (ModalManager.open on
+        // page load) - leaving it stuck visible until the backdrop was
+        // clicked. Modal ids in this codebase go both ways ("modal-store"
+        // and "email-modal"), so match on the target actually being a
+        // modal rather than assuming a "#modal-" prefix.
         document.addEventListener('click', (e) => {
+            const link = e.target.closest('a[href^="#"]');
+            if (link) {
+                const targetId = link.getAttribute('href').slice(1);
+                const target = document.getElementById(targetId);
+                if (target && target.classList.contains('modal-container')) {
+                    e.preventDefault();
+                    this.open(targetId);
+                    return;
+                }
+                if (!target && targetId.startsWith('modal-')) {
+                    // e.g. "#modal-closed" - a sentinel id that doesn't exist,
+                    // used purely to mean "close everything".
+                    e.preventDefault();
+                    this.closeAll();
+                    return;
+                }
+            }
+
+            // Close modal when clicking outside
             if (e.target.classList.contains('modal-container')) {
-                e.target.style.display = 'none';
-                e.target.setAttribute('aria-hidden', 'true');
+                this.close(e.target.id);
             }
         });
 
         // Close modal on Escape key
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
-                const openModals = document.querySelectorAll('.modal-container[aria-hidden="false"]');
-                openModals.forEach(modal => {
-                    modal.style.display = 'none';
-                    modal.setAttribute('aria-hidden', 'true');
-                });
+                this.closeAll();
             }
         });
+
+        // Support landing directly on a URL with a #modal-x fragment
+        if (window.location.hash) {
+            const targetId = window.location.hash.slice(1);
+            if (document.getElementById(targetId)) {
+                this.open(targetId);
+            }
+        }
     }
 };
 
