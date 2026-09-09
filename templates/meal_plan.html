@@ -285,36 +285,6 @@
 		font-size: 0.8rem;
 	}
 
-	/* Mobile drag-and-drop visual feedback */
-	.mobile-view .meal-card {
-		transition: transform 0.15s ease, box-shadow 0.15s ease;
-		position: relative;
-	}
-
-	.mobile-view .meal-card.dragging {
-		opacity: 0.55;
-		transform: scale(0.98);
-		box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
-	}
-
-	.mobile-view .meal-card.drag-over {
-		background-color: #eff6ff !important;
-		outline: 2px dashed #60a5fa;
-		outline-offset: -2px;
-	}
-
-	.mobile-drag-handle {
-		cursor: grab;
-		touch-action: none;
-		padding: 8px;
-		margin: -8px;
-		margin-right: 4px;
-	}
-
-	.mobile-drag-handle:active {
-		cursor: grabbing;
-	}
-
 	.meal-plan-actions {
 		display: flex;
 		gap: 0.5rem;
@@ -645,14 +615,8 @@
 							data-entry-id="{{ entry.id }}"
 							data-date="{{ date.strftime('%Y-%m-%d') }}"
 							data-meal-type="{{ meal_type }}"
-							draggable="false"
 							style="border-left: 3px solid #0d6efd !important;">
 							<div class="card-body p-2" style="display: flex; align-items: flex-start;">
-								<!-- Drag Handle -->
-								<div class="mobile-drag-handle" style="color: #9ca3af; font-size: 1rem; flex-shrink: 0; margin-right: 8px;">
-									<i class="fas fa-grip-vertical"></i>
-								</div>
-
 								<!-- Card Content -->
 								<div style="flex-grow: 1; min-width: 0;">
 									<!-- Recipe Title Row -->
@@ -1260,93 +1224,6 @@ document.addEventListener('DOMContentLoaded', function() {
 					showPlannerSuccess(`Meal moved to ${destinationLabel}.`);
 				} catch (err) {
 					alert(err.message || 'Could not move meal. Please try again.');
-				}
-			});
-		});
-	} else {
-		// Mobile: Pure touch-based drag-and-drop (HTML5 DnD doesn't fire from touch events)
-		let draggingCard = null;
-		let draggedOverCard = null;
-
-		function clearMobileDragState() {
-			if (draggingCard) draggingCard.classList.remove('dragging');
-			if (draggedOverCard) draggedOverCard.classList.remove('drag-over');
-			draggingCard = null;
-			draggedOverCard = null;
-		}
-
-		document.querySelectorAll('.mobile-view .mobile-drag-handle').forEach(handle => {
-			const card = handle.closest('.meal-card');
-
-			handle.addEventListener('touchstart', function(e) {
-				if (card.classList.contains('editing')) return;
-				e.preventDefault(); // prevent scroll while dragging from handle
-				draggingCard = card;
-				if (navigator.vibrate) navigator.vibrate(50);
-				card.classList.add('dragging');
-			}, { passive: false });
-
-			handle.addEventListener('touchmove', function(e) {
-				if (!draggingCard) return;
-				e.preventDefault();
-				const touch = e.touches[0];
-
-				// Temporarily hide dragging card so elementFromPoint finds what's beneath
-				draggingCard.style.pointerEvents = 'none';
-				const el = document.elementFromPoint(touch.clientX, touch.clientY);
-				draggingCard.style.pointerEvents = '';
-
-				const targetCard = el ? el.closest('.mobile-view .meal-card') : null;
-
-				if (targetCard && targetCard !== draggingCard) {
-					if (draggedOverCard !== targetCard) {
-						if (draggedOverCard) draggedOverCard.classList.remove('drag-over');
-						draggedOverCard = targetCard;
-						draggedOverCard.classList.add('drag-over');
-					}
-				} else {
-					if (draggedOverCard) {
-						draggedOverCard.classList.remove('drag-over');
-						draggedOverCard = null;
-					}
-				}
-			}, { passive: false });
-
-			handle.addEventListener('touchend', async function(e) {
-				if (!draggingCard) return;
-
-				const movedCard = draggingCard;
-				const targetCard = draggedOverCard;
-				clearMobileDragState();
-
-				if (!targetCard || !movedCard.dataset.entryId || !targetCard.dataset.entryId) return;
-
-				const movedEntryId = movedCard.dataset.entryId;
-				const targetEntryId = targetCard.dataset.entryId;
-				const targetDate = targetCard.dataset.date;
-				const targetMealType = targetCard.dataset.mealType;
-
-				try {
-					const response = await fetch(`/meal-plan/move/${movedEntryId}`, {
-						method: 'POST',
-						headers: {
-							'Content-Type': 'application/json',
-							'X-Requested-With': 'XMLHttpRequest'
-						},
-						body: JSON.stringify({
-							date: targetDate,
-							meal_type: targetMealType,
-							target_entry_id: targetEntryId,
-							week_offset: weekOffset
-						})
-					});
-					const result = await response.json();
-					if (!response.ok || !result.success) {
-						throw new Error((result && result.error) || 'Failed to swap meals');
-					}
-					window.location.reload();
-				} catch (err) {
-					alert(err.message || 'Could not swap meals. Please try again.');
 				}
 			});
 		});
