@@ -65,7 +65,7 @@ def _verify_hcaptcha(token: str) -> bool:
 
 
 @auth_bp.route("/register", methods=["GET", "POST"])
-@limiter.limit("5 per hour")
+@limiter.limit("5 per hour", methods=["POST"])
 def register() -> Union[str, Response]:
     form = UserAddForm()
     site_key = current_app.config.get("HCAPTCHA_SITE_KEY")
@@ -121,7 +121,7 @@ def handle_rate_limit(error: RateLimitExceeded) -> Response:
 
 
 @auth_bp.route("/login", methods=["GET", "POST"])
-@limiter.limit("10 per minute")
+@limiter.limit("10 per minute", methods=["POST"])
 def login() -> Union[str, Response]:
     """
     Handle user login.
@@ -343,7 +343,7 @@ def update_username() -> Union[str, Response]:
 
 
 @auth_bp.route("/forgot-password", methods=["GET", "POST"])
-@limiter.limit("3 per hour")
+@limiter.limit("3 per hour", methods=["POST"])
 def forgot_password() -> Union[str, Response]:
     """
     Handle password reset request.
@@ -391,7 +391,7 @@ def forgot_password() -> Union[str, Response]:
 
 
 @auth_bp.route("/reset-password/<token>", methods=["GET", "POST"])
-@limiter.limit("5 per hour")
+@limiter.limit("5 per hour", methods=["POST"])
 def reset_password(token: str) -> Union[str, Response]:
     """
     Handle password reset with token.
