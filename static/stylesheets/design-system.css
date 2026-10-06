@@ -12,6 +12,10 @@
   --accent-orange: #ff6600;
   --accent-orange-light: #ff8533;
   --accent-orange-dark: #cc5200;
+  /* Deep orange passes WCAG AA for small white text (tags, chips) */
+  --accent-orange-deep: #c2410c;
+  --accent-orange-tint: #fff4ec;
+  --primary-blue-tint: #e8f0f8;
 
   /* Legacy aliases for backward compatibility */
   --primary-green: var(--primary-blue);
@@ -35,7 +39,7 @@
   --success: #10b981;
   --warning: #f59e0b;
   --error: #ef4444;
-  --info: #3b82f6;
+  --info: var(--primary-blue-light);
 
   /* Typography */
   --font-family-primary: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -89,9 +93,6 @@
   --transition-slow: 350ms ease-in-out;
 }
 
-/* Import Google Fonts */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@400;500;600;700&display=swap');
-
 /* Reset and Base Styles */
 * {
   box-sizing: border-box;
@@ -126,6 +127,36 @@ h6 { font-size: var(--text-base); }
 p {
   margin: 0 0 var(--space-4) 0;
   color: var(--gray-700);
+}
+
+/* Native checkboxes, radios and range inputs in brand blue */
+input,
+progress {
+  accent-color: var(--primary-blue);
+}
+
+a {
+  color: var(--primary-blue);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+a:hover {
+  color: var(--accent-orange-deep);
+}
+
+.lead {
+  font-size: var(--text-lg);
+  color: var(--gray-600);
+}
+
+.display-3 {
+  font-size: var(--text-4xl);
+}
+
+small,
+.small {
+  font-size: var(--text-sm);
 }
 
 /* Button System */
@@ -194,6 +225,55 @@ p {
   border-color: var(--accent-orange-dark);
   transform: translateY(-1px);
   box-shadow: var(--shadow-md);
+}
+
+/* Positive actions ("connect", "add all") use the brand orange */
+.btn-success {
+  background-color: var(--accent-orange);
+  color: var(--white);
+  border-color: var(--accent-orange);
+}
+
+.btn-success:hover:not(:disabled) {
+  background-color: var(--accent-orange-dark);
+  border-color: var(--accent-orange-dark);
+  color: var(--white);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-light {
+  background-color: var(--white);
+  color: var(--primary-blue);
+  border-color: var(--white);
+}
+
+.btn-light:hover:not(:disabled) {
+  background-color: var(--primary-blue-tint);
+  border-color: var(--primary-blue-tint);
+}
+
+.btn-dark {
+  background-color: var(--primary-blue-dark);
+  color: var(--white);
+  border-color: var(--primary-blue-dark);
+}
+
+.btn-dark:hover:not(:disabled) {
+  background-color: var(--gray-900);
+  border-color: var(--gray-900);
+  color: var(--white);
+}
+
+.btn-warning {
+  background-color: var(--warning);
+  color: var(--gray-900);
+  border-color: var(--warning);
+}
+
+.btn-warning:hover:not(:disabled) {
+  background-color: #d97706;
+  border-color: #d97706;
 }
 
 .btn-outline {
@@ -473,6 +553,108 @@ p {
 .bg-white { background-color: var(--white); }
 .bg-gray-50 { background-color: var(--gray-50); }
 .bg-gray-100 { background-color: var(--gray-100); }
+
+/* Bootstrap-style names used across templates, mapped to brand tokens */
+.text-muted { color: var(--gray-500); }
+.text-danger { color: var(--error); }
+.text-success { color: var(--success); }
+.text-warning { color: var(--warning); }
+.text-info { color: var(--primary-blue-light); }
+.text-white { color: var(--white); }
+.text-white :is(h1, h2, h3, h4, h5, h6),
+.bg-primary :is(h1, h2, h3, h4, h5, h6),
+.bg-dark :is(h1, h2, h3, h4, h5, h6) { color: inherit; }
+.mr-1 { margin-right: var(--space-1); }
+.text-dark { color: var(--gray-900); }
+
+.bg-light { background-color: var(--gray-50); }
+.bg-dark { background-color: var(--primary-blue-dark); color: var(--white); }
+.bg-orange { background-color: var(--accent-orange); color: var(--white); }
+.bg-success { background-color: var(--accent-orange); color: var(--white); }
+.bg-warning { background-color: var(--accent-orange-tint); }
+.bg-info { background-color: var(--primary-blue-tint); }
+.bg-opacity-10 { --bs-bg-opacity: 0.1; }
+.rounded { border-radius: var(--radius-lg); }
+.float-end { float: right; }
+.ml-1 { margin-left: var(--space-1); }
+.ml-2 { margin-left: var(--space-2); }
+
+/* Badges */
+.badge {
+  display: inline-block;
+  padding: 2px var(--space-2);
+  font-size: var(--text-xs);
+  font-weight: var(--font-semibold);
+  line-height: 1.5;
+  border-radius: 50rem;
+  background-color: var(--gray-200);
+  color: var(--gray-700);
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.badge-primary { background-color: var(--primary-blue); color: var(--white); }
+.badge-secondary { background-color: var(--gray-200); color: var(--gray-700); }
+.badge-success { background-color: var(--accent-orange-deep); color: var(--white); }
+.badge-warning { background-color: var(--accent-orange-tint); color: var(--accent-orange-deep); }
+.badge-info { background-color: var(--primary-blue-tint); color: var(--primary-blue); }
+.badge-light { background-color: var(--white); color: var(--primary-blue); }
+
+/* Progress bar */
+.progress {
+  height: 0.75rem;
+  background-color: var(--gray-200);
+  border-radius: 50rem;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  background-color: var(--accent-orange);
+  transition: width var(--transition-normal);
+}
+
+/* Recipe tags: one look everywhere (recipe lists, profile, admin) */
+.recipe-tag-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  font-size: 0.7rem;
+  font-weight: var(--font-medium);
+  letter-spacing: 0.02em;
+  line-height: 1.5;
+  border-radius: 50rem;
+  background-color: var(--accent-orange-deep);
+  color: var(--white);
+}
+
+.tag-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tag-filter-btn {
+  font-family: var(--font-family-primary);
+  font-size: var(--text-xs);
+  font-weight: var(--font-medium);
+  line-height: 1.5;
+  padding: 3px 10px;
+  border-radius: 50rem;
+  border: 1px solid var(--accent-orange-deep);
+  background-color: var(--white);
+  color: var(--accent-orange-deep);
+  cursor: pointer;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.tag-filter-btn:hover {
+  background-color: var(--accent-orange-tint);
+}
+
+.tag-filter-btn.active {
+  background-color: var(--accent-orange-deep);
+  color: var(--white);
+}
 
 /* Width Utilities */
 .w-100 { width: 100%; }

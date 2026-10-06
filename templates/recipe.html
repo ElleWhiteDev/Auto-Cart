@@ -45,7 +45,7 @@ block content %}
 		</p>
 
 		<div class="recipe-actions">
-			<button class="button-56" type="submit" id="update-recipe-btn">Update</button>
+			<button class="btn btn-primary" type="submit" id="update-recipe-btn">Update</button>
 		</div>
 	</form>
 
@@ -64,7 +64,7 @@ block content %}
 	<!-- Separate delete form -->
 	<form method="POST" action="{{ url_for('recipes.delete_recipe', recipe_id=recipe.id) }}">
 		<div class="recipe-actions">
-			<button type="submit" class="button-56-red">Delete Recipe</button>
+			<button type="submit" class="btn btn-danger">Delete Recipe</button>
 		</div>
 	</form>
 
@@ -102,7 +102,7 @@ block content %}
 						{% endfor %}
 					</div>
 					<div class="recipe-actions">
-						<button type="submit" class="button-56" id="export-recipe-btn">
+						<button type="submit" class="btn btn-primary" id="export-recipe-btn">
 							<i class="fas fa-share-alt mr-2"></i>Export Recipe
 						</button>
 					</div>
@@ -130,17 +130,17 @@ block content %}
 		align-items: center;
 		cursor: pointer;
 		padding: 12px 20px;
-		border: 2px solid #e0e0e0;
+		border: 2px solid var(--gray-200);
 		border-radius: 8px;
-		background-color: #fff;
+		background-color: var(--white);
 		transition: all 0.3s ease;
 		min-width: 280px;
 		max-width: 400px;
 	}
 
 	.custom-checkbox-label:hover {
-		border-color: #004c91;
-		background-color: #f8f9fa;
+		border-color: var(--primary-blue);
+		background-color: var(--gray-50);
 		transform: translateY(-2px);
 		box-shadow: 0 4px 8px rgba(0, 76, 145, 0.1);
 	}
@@ -151,24 +151,24 @@ block content %}
 		justify-content: center;
 		width: 24px;
 		height: 24px;
-		border: 2px solid #d0d0d0;
+		border: 2px solid var(--gray-300);
 		border-radius: 6px;
 		margin-right: 12px;
-		background-color: #fff;
+		background-color: var(--white);
 		transition: all 0.3s ease;
 		flex-shrink: 0;
 	}
 
 	.checkbox-icon {
-		color: #fff;
+		color: var(--white);
 		font-size: 12px;
 		opacity: 0;
 		transition: opacity 0.2s ease;
 	}
 
 	.custom-checkbox-input:checked + .custom-checkbox-label .checkbox-box {
-		background-color: #004c91;
-		border-color: #004c91;
+		background-color: var(--primary-blue);
+		border-color: var(--primary-blue);
 	}
 
 	.custom-checkbox-input:checked + .custom-checkbox-label .checkbox-icon {
@@ -176,18 +176,18 @@ block content %}
 	}
 
 	.custom-checkbox-input:checked + .custom-checkbox-label {
-		border-color: #004c91;
-		background-color: #e8f4fd;
+		border-color: var(--primary-blue);
+		background-color: var(--primary-blue-tint);
 	}
 
 	.checkbox-text {
 		font-size: 1rem;
-		color: #333;
+		color: var(--gray-700);
 		font-weight: 500;
 	}
 
 	.custom-checkbox-input:checked + .custom-checkbox-label .checkbox-text {
-		color: #004c91;
+		color: var(--primary-blue);
 	}
 	</style>
 </div>

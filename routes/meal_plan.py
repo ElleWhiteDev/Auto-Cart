@@ -72,7 +72,7 @@ def send_chef_assigned_to_meal_email(
         .header {{ background-color: #27AE60; color: white; padding: 20px; text-align: center; }}
         .content {{ background-color: #f9f9f9; padding: 20px; }}
         .meal-details {{ background-color: white; padding: 15px; margin: 15px 0; border-left: 4px solid #27AE60; }}
-        .button {{ display: inline-block; padding: 12px 24px; background-color: #4A90E2; color: white !important; text-decoration: none; border-radius: 4px; margin: 15px 0; }}
+        .button {{ display: inline-block; padding: 12px 24px; background-color: #004c91; color: white !important; text-decoration: none; border-radius: 4px; margin: 15px 0; }}
         .footer {{ text-align: center; padding: 20px; color: #666; font-size: 12px; }}
     </style>
 </head>
@@ -165,10 +165,10 @@ def send_chef_removed_from_meal_email(
     <style>
         body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
         .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-        .header {{ background-color: #4A90E2; color: white; padding: 20px; text-align: center; }}
+        .header {{ background-color: #004c91; color: white; padding: 20px; text-align: center; }}
         .content {{ background-color: #f9f9f9; padding: 20px; }}
-        .meal-details {{ background-color: white; padding: 15px; margin: 15px 0; border-left: 4px solid #4A90E2; }}
-        .button {{ display: inline-block; padding: 12px 24px; background-color: #4A90E2; color: white !important; text-decoration: none; border-radius: 4px; margin: 15px 0; }}
+        .meal-details {{ background-color: white; padding: 15px; margin: 15px 0; border-left: 4px solid #004c91; }}
+        .button {{ display: inline-block; padding: 12px 24px; background-color: #004c91; color: white !important; text-decoration: none; border-radius: 4px; margin: 15px 0; }}
         .footer {{ text-align: center; padding: 20px; color: #666; font-size: 12px; }}
     </style>
 </head>
@@ -264,7 +264,7 @@ def send_meal_deleted_email(
         .header {{ background-color: #E74C3C; color: white; padding: 20px; text-align: center; }}
         .content {{ background-color: #f9f9f9; padding: 20px; }}
         .meal-details {{ background-color: white; padding: 15px; margin: 15px 0; border-left: 4px solid #E74C3C; }}
-        .button {{ display: inline-block; padding: 12px 24px; background-color: #4A90E2; color: white !important; text-decoration: none; border-radius: 4px; margin: 15px 0; }}
+        .button {{ display: inline-block; padding: 12px 24px; background-color: #004c91; color: white !important; text-decoration: none; border-radius: 4px; margin: 15px 0; }}
         .footer {{ text-align: center; padding: 20px; color: #666; font-size: 12px; }}
     </style>
 </head>
@@ -1268,15 +1268,15 @@ def _send_meal_plan_summary_email(
     <style>
         body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
         .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-        .header {{ background-color: #4A90E2; color: white; padding: 20px; text-align: center; }}
+        .header {{ background-color: #004c91; color: white; padding: 20px; text-align: center; }}
         .content {{ background-color: #f9f9f9; padding: 20px; }}
         .section {{ margin: 20px 0; }}
-        .section-title {{ font-size: 18px; font-weight: bold; color: #4A90E2; margin-bottom: 10px; }}
-        .change-item {{ background-color: white; padding: 12px; margin: 8px 0; border-left: 4px solid #4A90E2; }}
+        .section-title {{ font-size: 18px; font-weight: bold; color: #004c91; margin-bottom: 10px; }}
+        .change-item {{ background-color: white; padding: 12px; margin: 8px 0; border-left: 4px solid #004c91; }}
         .change-added {{ border-left-color: #27AE60; }}
         .change-updated {{ border-left-color: #F39C12; }}
         .change-deleted {{ border-left-color: #E74C3C; }}
-        .button {{ display: inline-block; padding: 12px 24px; background-color: #4A90E2; color: white !important; text-decoration: none; border-radius: 4px; margin: 15px 0; }}
+        .button {{ display: inline-block; padding: 12px 24px; background-color: #004c91; color: white !important; text-decoration: none; border-radius: 4px; margin: 15px 0; }}
         .footer {{ text-align: center; padding: 20px; color: #666; font-size: 12px; }}
     </style>
 </head>

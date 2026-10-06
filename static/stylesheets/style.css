@@ -17,41 +17,6 @@ body {
 	-ms-text-size-adjust: 100%;
 }
 
-/* ===================================
-   LEGACY BUTTON COMPATIBILITY
-   =================================== */
-
-.button-54-smaller,
-.button-56,
-.button-56-red {
-	background-color: var(--primary-blue, #004c91);
-	color: var(--white, #ffffff);
-	border: 2px solid var(--primary-blue, #004c91);
-	border-radius: var(--radius-md, 6px);
-	padding: var(--space-3, 12px) var(--space-5, 20px);
-	font-weight: var(--font-semibold, 600);
-	transition: all var(--transition-fast, 150ms ease-in-out);
-	text-decoration: none;
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	gap: var(--space-2, 8px);
-	/* Mobile-friendly touch target */
-	min-height: 44px;
-}
-
-.button-56-red {
-	background-color: var(--error, #ef4444);
-	border-color: var(--error, #ef4444);
-}
-
-.button-54-smaller:hover,
-.button-56:hover,
-.button-56-red:hover {
-	transform: translateY(-1px);
-	box-shadow: var(--shadow-md, 0 4px 6px -1px rgb(0 0 0 / 0.1));
-}
-
 /* Profile Actions Layout */
 .profile-actions {
 	display: flex;
@@ -60,8 +25,7 @@ body {
 	margin-bottom: var(--space-5, 20px);
 }
 
-.profile-actions .button-56,
-.profile-actions .button-56-red {
+.profile-actions .btn {
 	width: 100%;
 }
 
@@ -72,8 +36,7 @@ body {
 	margin-top: var(--space-3, 12px);
 }
 
-.recipe-actions .button-56,
-.recipe-actions .button-56-red {
+.recipe-actions .btn {
 	width: 100%;
 	max-width: 400px;
 }
@@ -81,7 +44,7 @@ body {
 /* Ingredient Highlight in Modal */
 .ingredient-highlight {
 	background: linear-gradient(135deg, #f0f8ff 0%, #e6f3ff 100%);
-	border-left: 4px solid var(--primary-blue, #007bff);
+	border-left: 4px solid var(--primary-blue, #004c91);
 	padding: var(--space-4, 16px);
 	margin: var(--space-4, 16px) 0;
 	border-radius: var(--radius-md, 6px);
@@ -249,7 +212,7 @@ body {
 }
 
 .coupon-disclaimer a {
-	color: var(--primary-blue, #007bff);
+	color: var(--primary-blue, #004c91);
 	font-weight: var(--font-medium, 500);
 }
 
@@ -299,7 +262,7 @@ body {
 
 .quantity-input:focus {
 	outline: none;
-	border-color: var(--primary-blue, #007bff);
+	border-color: var(--primary-blue, #004c91);
 }
 
 /* ===================================
@@ -437,8 +400,8 @@ a {
 .product-option:hover,
 .store-option:hover,
 .email-option:hover {
-	border-color: var(--primary-blue, #007bff);
-	box-shadow: var(--shadow-sm, 0 2px 8px rgba(0, 123, 255, 0.1));
+	border-color: var(--primary-blue, #004c91);
+	box-shadow: var(--shadow-sm, 0 2px 8px rgb(0 76 145 / 0.15));
 }
 
 /* Shared radio/checkbox styling */
@@ -449,7 +412,7 @@ a {
 	height: 20px;
 	margin: 0;
 	cursor: pointer;
-	accent-color: var(--primary-blue, #007bff);
+	accent-color: var(--primary-blue, #004c91);
 	flex-shrink: 0;
 	/* Mobile-friendly touch target */
 	min-width: 20px;
@@ -533,7 +496,7 @@ a {
 .product-price {
 	font-size: var(--text-lg, 18px);
 	font-weight: var(--font-bold, 700);
-	color: var(--primary-blue, #007bff);
+	color: var(--primary-blue, #004c91);
 	margin-top: var(--space-1, 5px);
 }
 
@@ -548,7 +511,7 @@ a {
 .product-option:has(input:checked),
 .store-option:has(input:checked),
 .email-option:has(input:checked) {
-	border-color: var(--primary-blue, #007bff);
+	border-color: var(--primary-blue, #004c91);
 	background-color: #f0f8ff;
 }
 
@@ -700,8 +663,8 @@ input:focus,
 textarea:focus,
 select:focus {
 	outline: none;
-	border-color: var(--primary-blue, #007bff);
-	box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+	border-color: var(--primary-blue, #004c91);
+	box-shadow: 0 0 0 3px rgb(0 76 145 / 0.15);
 }
 
 /* Number inputs - mobile friendly */
@@ -741,7 +704,7 @@ input[type="number"]::-webkit-outer-spin-button {
 }
 
 .email-modal-content .modal-header {
-	background: linear-gradient(135deg, var(--primary-blue, #007bff) 0%, #0056b3 100%);
+	background: linear-gradient(135deg, var(--primary-blue, #004c91) 0%, #003366 100%);
 	color: white;
 	padding: var(--space-6, 24px);
 	border-radius: var(--radius-lg, 8px) var(--radius-lg, 8px) 0 0;
@@ -849,7 +812,7 @@ input[type="number"]::-webkit-outer-spin-button {
 	height: 20px;
 	margin: 0;
 	cursor: pointer;
-	accent-color: var(--primary-blue, #007bff);
+	accent-color: var(--primary-blue, #004c91);
 	flex-shrink: 0;
 }
 
@@ -864,7 +827,7 @@ input[type="number"]::-webkit-outer-spin-button {
 
 .recipe-checkbox:checked + .recipe-checkbox-label {
 	font-weight: var(--font-semibold, 600);
-	color: var(--primary-blue, #007bff);
+	color: var(--primary-blue, #004c91);
 }
 
 /* Mobile: Larger checkboxes */
@@ -895,10 +858,10 @@ form {
 
 form label {
 	font-size: var(--text-sm, 0.9rem);
-	font-weight: var(--font-bold, 700);
-	display: inline-block;
-	text-align: right;
-	margin-right: var(--space-2, 5px);
+	font-weight: var(--font-semibold, 600);
+	color: var(--gray-700, #334155);
+	display: block;
+	text-align: left;
 	margin-bottom: var(--space-1, 4px);
 }
 
@@ -915,8 +878,8 @@ form input {
 
 form input:focus {
 	outline: none;
-	border-color: var(--primary-blue, #007bff);
-	box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+	border-color: var(--primary-blue, #004c91);
+	box-shadow: 0 0 0 3px rgb(0 76 145 / 0.15);
 }
 
 form > button:hover {
@@ -979,9 +942,6 @@ nav {
 	align-items: center;
 	justify-content: space-between;
 	padding: var(--space-3, 10px) var(--space-5, 20px);
-	border-radius: var(--radius-md, 5px);
-	background: linear-gradient(to right, #fee6e3, var(--primary-blue, #007bff));
-	box-shadow: var(--shadow-md, 0 4px 8px 0 rgba(0, 0, 0, 0.2));
 	flex-wrap: wrap;
 	gap: var(--space-2, 8px);
 }
@@ -995,9 +955,12 @@ nav {
 
 .nav-link {
 	font-size: var(--text-sm, 0.85rem);
-	margin: 0 var(--space-3, 10px);
-	color: #000;
+	margin: 0 var(--space-1, 4px);
+	color: var(--white, #ffffff);
 	text-transform: uppercase;
+	letter-spacing: 0.03em;
+	font-weight: var(--font-medium, 500);
+	gap: var(--space-2, 8px);
 	text-decoration: none;
 	padding: var(--space-2, 8px);
 	border-radius: var(--radius-sm, 4px);
@@ -1009,7 +972,7 @@ nav {
 }
 
 .nav-link:hover {
-	color: #ffd700;
+	color: var(--accent-orange-light, #ff8533);
 	background-color: rgba(255, 255, 255, 0.1);
 	text-decoration: none;
 }
@@ -1200,46 +1163,9 @@ nav {
 	margin-top: 6px;
 }
 
-.recipe-tag-badge {
-	font-size: 0.7rem;
-	font-weight: var(--font-medium, 500);
-	letter-spacing: 0.02em;
-	padding: 3px 10px;
-	border-radius: 50rem;
-	background: #c2410c;
-	color: #fff;
-	display: inline-block;
-	line-height: 1.5;
-}
-
 .recipe-box-filters {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 6px;
 	padding: var(--space-3, 12px) var(--space-4, 16px) var(--space-2, 8px);
 	border-bottom: 1px solid var(--gray-200, #e2e8f0);
-}
-
-.recipe-filter-btn {
-	font-size: 0.75rem;
-	font-weight: var(--font-medium, 500);
-	padding: 3px 10px;
-	border-radius: 50rem;
-	border: 1px solid #c2410c;
-	background: #fff;
-	color: #c2410c;
-	cursor: pointer;
-	line-height: 1.5;
-	transition: background-color 0.15s ease, color 0.15s ease;
-}
-
-.recipe-filter-btn:hover {
-	background: #fdece4;
-}
-
-.recipe-filter-btn.active {
-	background: #c2410c;
-	color: #fff;
 }
 
 .recipe-box-item[hidden] {
@@ -1347,8 +1273,8 @@ nav {
 /* Primary button - using design system variables */
 .btn-primary {
 	align-items: center;
-	background-color: var(--primary-blue, #007bff);
-	border: 2px solid var(--primary-blue-dark, #0056b3);
+	background-color: var(--primary-blue, #004c91);
+	border: 2px solid var(--primary-blue-dark, #003366);
 	border-radius: var(--radius-lg, 8px);
 	box-sizing: border-box;
 	color: var(--white, white);
@@ -1371,15 +1297,15 @@ nav {
 }
 
 .btn-primary:hover:not(:disabled) {
-	background-color: var(--primary-blue-dark, #0056b3);
+	background-color: var(--primary-blue-dark, #003366);
 	border-color: #004085;
 	transform: translateY(-1px);
-	box-shadow: var(--shadow-md, 0 4px 8px rgba(0, 123, 255, 0.3));
+	box-shadow: var(--shadow-md, 0 4px 8px rgb(0 76 145 / 0.3));
 }
 
 .btn-primary:active {
 	transform: translateY(0);
-	box-shadow: 0 2px 4px rgba(0, 123, 255, 0.3);
+	box-shadow: 0 2px 4px rgb(0 76 145 / 0.3);
 }
 
 /* Outline variants */
@@ -1411,15 +1337,15 @@ nav {
 }
 
 .btn-outline-primary {
-	border-color: var(--primary-blue, #007bff);
-	color: var(--primary-blue, #007bff);
+	border-color: var(--primary-blue, #004c91);
+	color: var(--primary-blue, #004c91);
 }
 
 .btn-outline-primary:hover:not(:disabled) {
-	background-color: var(--primary-blue, #007bff);
+	background-color: var(--primary-blue, #004c91);
 	color: var(--white, white);
 	transform: translateY(-1px);
-	box-shadow: var(--shadow-md, 0 4px 8px rgba(0, 123, 255, 0.3));
+	box-shadow: var(--shadow-md, 0 4px 8px rgb(0 76 145 / 0.3));
 }
 
 .btn-outline-secondary:hover:not(:disabled) {
@@ -1611,7 +1537,7 @@ nav {
 
 .grocery-item-edit input:focus {
 	outline: none;
-	border-color: var(--primary-blue, #007bff);
+	border-color: var(--primary-blue, #004c91);
 }
 
 .grocery-item-edit .edit-quantity {
@@ -1704,7 +1630,7 @@ nav {
 }
 
 .site-footer a {
-	color: var(--primary, #4f46e5);
+	color: var(--primary-blue, #004c91);
 	text-decoration: none;
 }
 

@@ -17,18 +17,18 @@
 		letter-spacing: 0.5px;
 		font-size: 0.7rem;
 		padding: 10px 8px !important;
-		background: #f97316 !important;
+		background: var(--accent-orange) !important;
 		border: none !important;
 		color: white !important;
 	}
 
 	.meal-plan-table tbody tr {
-		border-bottom: 1px solid #e5e7eb;
+		border-bottom: 1px solid var(--gray-200);
 		transition: background-color 0.15s ease;
 	}
 
 	.meal-plan-table tbody tr:hover {
-		background-color: #f9fafb;
+		background-color: var(--gray-50);
 	}
 
 	.meal-plan-table tbody td {
@@ -39,8 +39,8 @@
 	.meal-card {
 		transition: all 0.15s ease;
 		border-radius: 6px !important;
-		border: 1px solid #e5e7eb !important;
-		border-left: 2px solid #3b82f6 !important;
+		border: 1px solid var(--gray-200) !important;
+		border-left: 2px solid var(--primary-blue-light) !important;
 		margin-bottom: 6px !important;
 	}
 
@@ -58,8 +58,8 @@
 	}
 
 	.desktop-view .meal-drop-zone.drag-over {
-		background-color: #eff6ff !important;
-		outline: 2px dashed #60a5fa;
+		background-color: var(--primary-blue-tint) !important;
+		outline: 2px dashed var(--primary-blue-light);
 		outline-offset: -2px;
 	}
 
@@ -92,7 +92,7 @@
 		border-style: solid;
 		border-radius: 4px !important;
 		box-sizing: border-box;
-		background: #ffffff;
+		background: var(--white);
 		cursor: pointer;
 		appearance: none;
 		-webkit-appearance: none;
@@ -100,13 +100,13 @@
 	}
 
 	.desktop-action-btn-edit {
-		border-color: #d1d5db;
-		color: #6b7280;
+		border-color: var(--gray-300);
+		color: var(--gray-500);
 	}
 
 	.desktop-action-btn-delete {
 		border-color: #fecaca;
-		color: #dc2626;
+		color: var(--error);
 	}
 
 	.desktop-action-btn i {
@@ -122,16 +122,16 @@
 	.meal-card:hover {
 		transform: translateY(-1px);
 		box-shadow: 0 2px 8px rgba(0,0,0,0.08) !important;
-		border-left-color: #2563eb !important;
+		border-left-color: var(--primary-blue) !important;
 	}
 
 	.meal-link {
-		color: #1e40af;
+		color: var(--primary-blue);
 		transition: color 0.15s ease;
 	}
 
 	.meal-link:hover {
-		color: #1e3a8a !important;
+		color: var(--primary-blue-dark) !important;
 		text-decoration: none !important;
 	}
 
@@ -142,7 +142,7 @@
 	}
 
 	.clickable-day-header:hover {
-		background-color: #ea580c !important;
+		background-color: var(--accent-orange-dark) !important;
 		transform: translateY(-1px);
 	}
 
@@ -184,7 +184,7 @@
 	/* Multi-select styling */
 	#assigned_cook_ids {
 		background-color: white;
-		border: 1px solid #ced4da;
+		border: 1px solid var(--gray-300);
 	}
 
 	#assigned_cook_ids option {
@@ -194,7 +194,7 @@
 	}
 
 	#assigned_cook_ids option:checked {
-		background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);
+		background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-blue-dark) 100%);
 		color: white;
 		font-weight: 500;
 	}
@@ -223,7 +223,7 @@
 	}
 
 	.edit-cook-select option:checked {
-		background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);
+		background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-blue-dark) 100%);
 		color: white;
 		font-weight: 500;
 	}
@@ -258,20 +258,20 @@
 		border-style: solid;
 		border-radius: 6px !important;
 		box-sizing: border-box;
-		background: #ffffff;
+		background: var(--white);
 		cursor: pointer;
 		appearance: none;
 		-webkit-appearance: none;
 	}
 
 	.mobile-action-btn-edit {
-		border-color: #93c5fd;
-		color: #1d4ed8;
+		border-color: var(--primary-blue-light);
+		color: var(--primary-blue);
 	}
 
 	.mobile-action-btn-delete {
 		border-color: #fecaca;
-		color: #dc2626;
+		color: var(--error);
 	}
 
 	.mobile-action-btn i {
@@ -400,7 +400,7 @@
 		.mobile-meal-type-header {
 			font-size: 0.85rem;
 			font-weight: 600;
-			color: #0d6efd;
+			color: var(--primary-blue);
 			margin-bottom: 0.5rem;
 			text-transform: uppercase;
 		}
@@ -479,16 +479,16 @@
 					<tbody>
 						{% for meal_type in ['breakfast', 'lunch', 'dinner'] %}
 						<tr>
-							<td class="clickable-meal-type" style="font-weight: 600; font-size: 0.8rem; color: #1f2937;">
-								{% if meal_type == 'breakfast' %}🍳 Breakfast{% endif %}
-								{% if meal_type == 'lunch' %}🥗 Lunch{% endif %}
-								{% if meal_type == 'dinner' %}🍽️ Dinner{% endif %}
+							<td class="clickable-meal-type" style="font-weight: 600; font-size: 0.8rem; color: var(--gray-800);">
+								{% if meal_type == 'breakfast' %}<i class="fas fa-mug-hot text-primary mr-1"></i>Breakfast{% endif %}
+								{% if meal_type == 'lunch' %}<i class="fas fa-bowl-food text-primary mr-1"></i>Lunch{% endif %}
+								{% if meal_type == 'dinner' %}<i class="fas fa-utensils text-primary mr-1"></i>Dinner{% endif %}
 							</td>
 							{% for date, meals in meal_plan.items() %}
 							<td class="meal-drop-zone"
 								data-date="{{ date.strftime('%Y-%m-%d') }}"
 								data-meal-type="{{ meal_type }}"
-								style="background-color: #f9fafb; {% if not loop.last %}border-right: 1px solid #e5e7eb;{% endif %}">
+								style="background-color: var(--gray-50); {% if not loop.last %}border-right: 1px solid var(--gray-200);{% endif %}">
 								{% for entry in meals[meal_type] %}
 								<div class="meal-card"
 									id="meal-card-{{ entry.id }}"
@@ -498,13 +498,13 @@
 									<div style="padding: 8px;">
 										<!-- Recipe Title Row -->
 										{% if entry.recipe and entry.recipe.url %}
-										<div class="mb-1" style="font-size: 0.8rem; font-weight: 600; color: #111827; line-height: 1.3;">
+										<div class="mb-1" style="font-size: 0.8rem; font-weight: 600; color: var(--gray-900); line-height: 1.3;">
 											<a href="{{ entry.recipe.url }}" target="_blank" class="meal-link text-decoration-none" title="View recipe">
 												{{ entry.meal_name }} <i class="fas fa-external-link-alt" style="font-size: 0.6rem; opacity: 0.5;"></i>
 											</a>
 										</div>
 										{% else %}
-										<div class="mb-1" style="font-size: 0.8rem; font-weight: 600; color: #1e40af; line-height: 1.3;">{{ entry.meal_name }}</div>
+										<div class="mb-1" style="font-size: 0.8rem; font-weight: 600; color: var(--primary-blue); line-height: 1.3;">{{ entry.meal_name }}</div>
 										{% endif %}
 
 										<!-- Chef Display Mode (default) -->
@@ -512,20 +512,20 @@
 											<div class="d-flex justify-content-between align-items-start">
 												<div class="flex-grow-1" style="min-width: 0;">
 													{% if entry.assigned_cooks.count() > 0 %}
-													<div style="font-size: 0.7rem; color: #6b7280; margin-bottom: 2px;">
+													<div style="font-size: 0.7rem; color: var(--gray-500); margin-bottom: 2px;">
 														<i class="fas fa-utensils" style="width: 11px; opacity: 0.6; font-size: 0.65rem; margin-right: 4px;"></i>
 														<span style="font-weight: 500;">
 															{% for cook in entry.assigned_cooks %}{{ cook.username }}{% if not loop.last %}, {% endif %}{% endfor %}
 														</span>
 													</div>
 													{% elif entry.assigned_cook %}
-													<div style="font-size: 0.7rem; color: #6b7280; margin-bottom: 2px;">
+													<div style="font-size: 0.7rem; color: var(--gray-500); margin-bottom: 2px;">
 														<i class="fas fa-utensils" style="width: 11px; opacity: 0.6; font-size: 0.65rem; margin-right: 4px;"></i>
 														<span style="font-weight: 500;">{{ entry.assigned_cook.username }}</span>
 													</div>
 													{% endif %}
 													{% if entry.notes %}
-													<div style="font-size: 0.65rem; color: #059669; background-color: #d1fae5; padding: 2px 6px; border-radius: 3px; display: inline-block; margin-top: 2px;">
+													<div style="font-size: 0.65rem; color: var(--accent-orange-deep); background-color: var(--accent-orange-tint); padding: 2px 6px; border-radius: 3px; display: inline-block; margin-top: 2px;">
 														<i class="fas fa-sticky-note" style="font-size: 0.6rem;"></i> {{ entry.notes }}
 													</div>
 													{% endif %}
@@ -599,7 +599,7 @@
 							<span class="fw-bold" style="font-size: 1rem;">{{ date.strftime('%A') }}</span>
 							<span class="text-muted ms-2" style="font-size: 0.85rem; font-weight: 500;">{{ date.strftime('%b %d') }}</span>
 						</div>
-						<i class="fas fa-plus-circle text-success" style="font-size: 1.2rem;"></i>
+						<i class="fas fa-plus-circle text-accent" style="font-size: 1.2rem;"></i>
 					</div>
 				</div>
 				<div class="card-body">
@@ -615,7 +615,7 @@
 							data-entry-id="{{ entry.id }}"
 							data-date="{{ date.strftime('%Y-%m-%d') }}"
 							data-meal-type="{{ meal_type }}"
-							style="border-left: 3px solid #0d6efd !important;">
+							style="border-left: 3px solid var(--primary-blue) !important;">
 							<div class="card-body p-2" style="display: flex; align-items: flex-start;">
 								<!-- Card Content -->
 								<div style="flex-grow: 1; min-width: 0;">
@@ -717,7 +717,7 @@
 
 	<!-- Add Meal Form -->
 	<div class="card shadow">
-		<div class="card-header bg-success text-white">
+		<div class="card-header bg-primary text-white">
 			<h5 class="mb-0"><i class="fas fa-plus"></i> Add Meal to Plan</h5>
 		</div>
 		<div class="card-body">
@@ -801,7 +801,7 @@
 
 .modal-content {
 	position: relative;
-	background-color: #fff;
+	background-color: var(--white);
 	border: 1px solid rgba(0,0,0,.2);
 	border-radius: 0.3rem;
 	box-shadow: 0 0.5rem 1rem rgba(0,0,0,.5);
@@ -812,7 +812,7 @@
 	align-items: center;
 	justify-content: space-between;
 	padding: 1rem;
-	border-bottom: 1px solid #dee2e6;
+	border-bottom: 1px solid var(--gray-200);
 }
 
 .modal-title {
@@ -833,7 +833,7 @@
 	align-items: center;
 	justify-content: flex-end;
 	padding: 1rem;
-	border-top: 1px solid #dee2e6;
+	border-top: 1px solid var(--gray-200);
 	gap: 0.5rem;
 }
 
@@ -843,7 +843,7 @@
 	font-size: 1.5rem;
 	font-weight: 700;
 	line-height: 1;
-	color: #000;
+	color: var(--gray-900);
 	opacity: .5;
 	cursor: pointer;
 }
@@ -859,7 +859,7 @@
 	z-index: 1040;
 	width: 100vw;
 	height: 100vh;
-	background-color: #000;
+	background-color: var(--gray-900);
 	opacity: 0.5;
 }
 
@@ -878,10 +878,6 @@
 	width: 1rem;
 	height: 1rem;
 	border-width: 0.2em;
-}
-
-.text-primary {
-	color: #f97316 !important;
 }
 
 @keyframes spinner-border {
@@ -904,18 +900,18 @@
 					<div class="spinner-border text-primary" role="status">
 						<span class="visually-hidden">Loading...</span>
 					</div>
-					<p style="margin-top: 1rem; color: #6c757d;">Finding recipes that match your shopping list...</p>
+					<p style="margin-top: 1rem; color: var(--gray-500);">Finding recipes that match your shopping list...</p>
 				</div>
 
 				<!-- Warning message -->
-				<div id="similar-recipes-warning" class="alert alert-info" style="display: none; padding: 1rem; background-color: #d1ecf1; border: 1px solid #bee5eb; border-radius: 0.25rem; color: #0c5460;">
+				<div id="similar-recipes-warning" class="alert alert-info" style="display: none; padding: 1rem; background-color: var(--primary-blue-tint); border: 1px solid var(--primary-blue-light); border-radius: 0.25rem; color: var(--primary-blue-dark);">
 					<i class="fas fa-info-circle"></i> <strong>Note:</strong> Any recipes added this way will have ingredients automatically added to the pantry list.
 				</div>
 
 				<!-- No results message -->
 				<div id="similar-recipes-empty" class="text-center py-5" style="display: none;">
-					<i class="fas fa-search" style="font-size: 3rem; color: #6c757d;"></i>
-					<p style="margin-top: 1rem; color: #6c757d;">No matching recipes found. Try adding more meals to your plan first!</p>
+					<i class="fas fa-search" style="font-size: 3rem; color: var(--gray-500);"></i>
+					<p style="margin-top: 1rem; color: var(--gray-500);">No matching recipes found. Try adding more meals to your plan first!</p>
 				</div>
 
 				<!-- Results container -->
@@ -1373,7 +1369,7 @@ function createRecipeAccordionItem(recipe, index, weekOffset, householdUsers) {
 	const item = document.createElement('div');
 	item.className = 'accordion-item';
 	item.style.marginBottom = '1rem';
-	item.style.border = '1px solid #dee2e6';
+	item.style.border = '1px solid var(--gray-200)';
 	item.style.borderRadius = '0.25rem';
 
 	// Build household users options
@@ -1383,25 +1379,25 @@ function createRecipeAccordionItem(recipe, index, weekOffset, householdUsers) {
 
 	// Build ingredients list with match indicators
 	const ingredientsList = recipe.ingredients && recipe.ingredients.length > 0
-		? `<div style="margin-bottom: 1rem; padding: 0.75rem; background: #f8f9fa; border-radius: 0.25rem;">
+		? `<div style="margin-bottom: 1rem; padding: 0.75rem; background: var(--gray-50); border-radius: 0.25rem;">
 				<strong style="display: block; margin-bottom: 0.5rem;">Ingredients:</strong>
 				<ul style="margin: 0; padding-left: 1.5rem; font-size: 0.9rem; list-style: none;">
 					${recipe.ingredients.map(ing => {
 						const icon = ing.matched
-							? '<i class="fas fa-check-circle" style="color: #f97316; margin-right: 0.5rem;" title="Already on shopping list"></i>'
-							: '<i class="far fa-circle" style="color: #6c757d; margin-right: 0.5rem;"></i>';
-						const style = ing.matched ? 'color: #f97316; font-weight: 500;' : '';
+							? '<i class="fas fa-check-circle" style="color: var(--accent-orange); margin-right: 0.5rem;" title="Already on shopping list"></i>'
+							: '<i class="far fa-circle" style="color: var(--gray-500); margin-right: 0.5rem;"></i>';
+						const style = ing.matched ? 'color: var(--accent-orange); font-weight: 500;' : '';
 						return `<li style="${style}">${icon}${ing.text}</li>`;
 					}).join('')}
 				</ul>
-				<small style="color: #6c757d; display: block; margin-top: 0.5rem;">
-					<i class="fas fa-check-circle" style="color: #f97316;"></i> = Already on your shopping list
+				<small style="color: var(--gray-500); display: block; margin-top: 0.5rem;">
+					<i class="fas fa-check-circle" style="color: var(--accent-orange);"></i> = Already on your shopping list
 				</small>
 			</div>`
 		: '';
 
 	item.innerHTML = `
-		<div class="accordion-header" id="heading${index}" style="background: #f8f9fa; border-bottom: 1px solid #dee2e6;">
+		<div class="accordion-header" id="heading${index}" style="background: var(--gray-50); border-bottom: 1px solid var(--gray-200);">
 			<div style="padding: 0.75rem 1rem; display: flex; align-items: center; cursor: pointer;" onclick="toggleRecipeAccordionHeader(${index})">
 				<div style="margin-right: 1rem;" onclick="event.stopPropagation();">
 					<input type="checkbox" class="recipe-checkbox" value="${recipe.id}"
@@ -1410,8 +1406,8 @@ function createRecipeAccordionItem(recipe, index, weekOffset, householdUsers) {
 				</div>
 				<div style="flex-grow: 1;">
 					<strong>${recipe.name}</strong>
-					<span style="background: #f97316; color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.875rem; margin-left: 0.5rem;">${recipe.match_percentage}% match</span>
-					<small style="color: #6c757d; margin-left: 0.5rem;">(${recipe.ingredient_count} ingredients)</small>
+					<span style="background: var(--accent-orange); color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.875rem; margin-left: 0.5rem;">${recipe.match_percentage}% match</span>
+					<small style="color: var(--gray-500); margin-left: 0.5rem;">(${recipe.ingredient_count} ingredients)</small>
 				</div>
 				<i class="fas fa-chevron-down" id="chevron${index}" style="transition: transform 0.3s;"></i>
 			</div>
@@ -1421,11 +1417,11 @@ function createRecipeAccordionItem(recipe, index, weekOffset, householdUsers) {
 			<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
 				<div>
 					<label for="date${recipe.id}" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Date</label>
-					<input type="date" class="form-control recipe-date" id="date${recipe.id}" required style="width: 100%; padding: 0.5rem; border: 1px solid #ced4da; border-radius: 0.25rem;">
+					<input type="date" class="form-control recipe-date" id="date${recipe.id}" required style="width: 100%; padding: 0.5rem; border: 1px solid var(--gray-300); border-radius: 0.25rem;">
 				</div>
 				<div>
 					<label for="meal_type${recipe.id}" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Meal Type</label>
-					<select class="form-control recipe-meal-type" id="meal_type${recipe.id}" required style="width: 100%; padding: 0.5rem; border: 1px solid #ced4da; border-radius: 0.25rem;">
+					<select class="form-control recipe-meal-type" id="meal_type${recipe.id}" required style="width: 100%; padding: 0.5rem; border: 1px solid var(--gray-300); border-radius: 0.25rem;">
 						<option value="">Select meal type...</option>
 						<option value="breakfast">Breakfast</option>
 						<option value="lunch">Lunch</option>
@@ -1434,13 +1430,13 @@ function createRecipeAccordionItem(recipe, index, weekOffset, householdUsers) {
 				</div>
 				<div>
 					<label for="cooks${recipe.id}" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Assigned Cooks (Optional)</label>
-					<select class="form-control recipe-cooks" id="cooks${recipe.id}" multiple style="width: 100%; padding: 0.5rem; border: 1px solid #ced4da; border-radius: 0.25rem;">
+					<select class="form-control recipe-cooks" id="cooks${recipe.id}" multiple style="width: 100%; padding: 0.5rem; border: 1px solid var(--gray-300); border-radius: 0.25rem;">
 						${userOptions}
 					</select>
 				</div>
 				<div>
 					<label for="notes${recipe.id}" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Notes (Optional)</label>
-					<textarea class="form-control recipe-notes" id="notes${recipe.id}" rows="2" style="width: 100%; padding: 0.5rem; border: 1px solid #ced4da; border-radius: 0.25rem;"></textarea>
+					<textarea class="form-control recipe-notes" id="notes${recipe.id}" rows="2" style="width: 100%; padding: 0.5rem; border: 1px solid var(--gray-300); border-radius: 0.25rem;"></textarea>
 				</div>
 			</div>
 		</div>

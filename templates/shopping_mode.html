@@ -32,7 +32,7 @@
 		<div class="card-body">
 			<div class="d-flex justify-content-between align-items-center mb-2">
 				<strong>Progress</strong>
-				<span class="badge" style="background-color: #ff6600; color: white; font-size: 1rem; padding: 0.5rem 0.75rem;">{{ checked_items }} / {{ total_items }}</span>
+				<span class="badge" style="background-color: var(--accent-orange); color: white; font-size: 1rem; padding: 0.5rem 0.75rem;">{{ checked_items }} / {{ total_items }}</span>
 			</div>
 			<div class="progress" style="height: 25px;">
 				<div class="progress-bar bg-success" role="progressbar"
@@ -74,7 +74,7 @@
 
 	<!-- Items List -->
 	<div class="card shadow mb-4">
-		<div class="card-header text-white" style="background: linear-gradient(135deg, #ff6600 0%, #FF8C42 100%);">
+		<div class="card-header text-white" style="background: linear-gradient(135deg, var(--accent-orange) 0%, var(--accent-orange-light) 100%);">
 			<h5 class="mb-0" style="font-weight: 600;">Items</h5>
 		</div>
 		<div class="card-body p-0">
@@ -100,7 +100,7 @@
 								{% endif %}
 								{{ ri.ingredient_name }}
 								{% if is_staple %}
-								<span style="font-size:0.72rem;color:#9ca3af;font-style:italic;"> — have it</span>
+								<span style="font-size:0.72rem;color:var(--gray-400);font-style:italic;"> — have it</span>
 								{% endif %}
 							</div>
 							{% if ri.recipe %}
@@ -196,18 +196,18 @@
 }
 
 .shopping-item.checked {
-	background-color: #f0f0f0;
+	background-color: var(--gray-100);
 	opacity: 0.7;
 }
 
 .shopping-item.checked label {
 	text-decoration: line-through;
-	color: #6c757d;
+	color: var(--gray-500);
 }
 
 .form-check-input:checked {
-	background-color: #28a745;
-	border-color: #28a745;
+	background-color: var(--success);
+	border-color: var(--success);
 }
 </style>
 

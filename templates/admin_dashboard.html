@@ -174,7 +174,7 @@
 </div>
 
 <div class="card">
-	<div class="card-header" style="background-color: var(--gray-800); color: var(--white);">
+	<div class="card-header" style="background-color: var(--primary-blue-dark); color: var(--white);">
 		<h3 style="margin: 0; font-size: var(--text-lg); font-weight: var(--font-semibold); color: var(--white);">
 			<i class="fas fa-users"></i> All Users ({{ users|length }})
 		</h3>
@@ -360,7 +360,7 @@
 
 <!-- Recipe Tags Section -->
 <div class="card" id="tags-section" style="margin-top: var(--space-6);">
-	<div class="card-header" style="background-color: #c2410c; color: var(--white);">
+	<div class="card-header" style="background-color: var(--accent-orange-deep); color: var(--white);">
 		<h3 style="margin: 0; font-size: var(--text-lg); font-weight: var(--font-semibold); color: var(--white);">
 			<i class="fas fa-tags"></i> Recipe Tags ({{ tag_stats|length }})
 		</h3>
@@ -369,7 +369,7 @@
 		{% if tag_stats %}
 		<div class="table-responsive">
 			<table class="table table-hover" style="margin-bottom: 0; width: 100%;">
-				<thead style="background-color: #fff7ed;">
+				<thead style="background-color: var(--accent-orange-tint);">
 					<tr>
 						<th style="padding: var(--space-4); font-weight: var(--font-semibold); color: var(--gray-700);">Tag</th>
 						<th style="padding: var(--space-4); font-weight: var(--font-semibold); color: var(--gray-700);">Household</th>
@@ -381,7 +381,7 @@
 					{% for stat in tag_stats %}
 					<tr>
 						<td style="padding: var(--space-4);">
-							<span style="font-size:0.75rem;padding:3px 10px;border-radius:50rem;background:#c2410c;color:#fff;display:inline-block;line-height:1.5;">{{ stat.tag.name }}</span>
+							<span style="font-size:0.75rem;padding:3px 10px;border-radius:50rem;background:var(--accent-orange-deep);color:var(--white);display:inline-block;line-height:1.5;">{{ stat.tag.name }}</span>
 						</td>
 						<td style="padding: var(--space-4);">
 							{% if stat.tag.household %}
@@ -428,7 +428,7 @@
 	<div class="col-md-3">
 		<div class="card">
 			<div class="card-body" style="text-align: center; padding: var(--space-6);">
-				<h4 style="color: var(--success); font-size: var(--text-2xl); font-weight: var(--font-bold); margin-bottom: var(--space-2);">{{ users|selectattr('is_admin')|list|length }}</h4>
+				<h4 style="color: var(--accent-orange-deep); font-size: var(--text-2xl); font-weight: var(--font-bold); margin-bottom: var(--space-2);">{{ users|selectattr('is_admin')|list|length }}</h4>
 				<p style="color: var(--gray-600); margin: 0; font-size: var(--text-sm);">Admin Users</p>
 			</div>
 		</div>
@@ -436,7 +436,7 @@
 	<div class="col-md-3">
 		<div class="card">
 			<div class="card-body" style="text-align: center; padding: var(--space-6);">
-				<h4 style="color: var(--info); font-size: var(--text-2xl); font-weight: var(--font-bold); margin-bottom: var(--space-2);">{{ users|selectattr('oauth_token')|list|length }}</h4>
+				<h4 style="color: var(--primary-blue); font-size: var(--text-2xl); font-weight: var(--font-bold); margin-bottom: var(--space-2);">{{ users|selectattr('oauth_token')|list|length }}</h4>
 				<p style="color: var(--gray-600); margin: 0; font-size: var(--text-sm);">Kroger Connected</p>
 			</div>
 		</div>
@@ -444,7 +444,7 @@
 	<div class="col-md-3">
 		<div class="card">
 			<div class="card-body" style="text-align: center; padding: var(--space-6);">
-				<h4 style="color: var(--warning); font-size: var(--text-2xl); font-weight: var(--font-bold); margin-bottom: var(--space-2);">{{ household_stats|length }}</h4>
+				<h4 style="color: var(--accent-orange-deep); font-size: var(--text-2xl); font-weight: var(--font-bold); margin-bottom: var(--space-2);">{{ household_stats|length }}</h4>
 				<p style="color: var(--gray-600); margin: 0; font-size: var(--text-sm);">Total Households</p>
 			</div>
 		</div>
