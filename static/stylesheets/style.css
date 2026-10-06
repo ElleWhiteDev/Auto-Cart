@@ -1212,6 +1212,40 @@ nav {
 	line-height: 1.5;
 }
 
+.recipe-box-filters {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	padding: var(--space-3, 12px) var(--space-4, 16px) var(--space-2, 8px);
+	border-bottom: 1px solid var(--gray-200, #e2e8f0);
+}
+
+.recipe-filter-btn {
+	font-size: 0.75rem;
+	font-weight: var(--font-medium, 500);
+	padding: 3px 10px;
+	border-radius: 50rem;
+	border: 1px solid #c2410c;
+	background: #fff;
+	color: #c2410c;
+	cursor: pointer;
+	line-height: 1.5;
+	transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.recipe-filter-btn:hover {
+	background: #fdece4;
+}
+
+.recipe-filter-btn.active {
+	background: #c2410c;
+	color: #fff;
+}
+
+.recipe-box-item[hidden] {
+	display: none;
+}
+
 .recipe-box-empty {
 	text-align: center;
 	color: var(--gray-500, #64748b);

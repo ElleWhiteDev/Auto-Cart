@@ -73,12 +73,30 @@
 					<small class="text-muted">({{ g.household.name }})</small>
 					{% endif %}
 				</div>
+				{% if g.household and g.household.recipes %}
+				{% set tag_ns = namespace(names=[]) %}
+				{% for recipe in g.household.recipes %}
+					{% for tag in recipe.tags %}
+						{% if tag.name not in tag_ns.names %}
+							{% set tag_ns.names = tag_ns.names + [tag.name] %}
+						{% endif %}
+					{% endfor %}
+				{% endfor %}
+				{% if tag_ns.names %}
+				<div class="recipe-box-filters" id="recipe-box-filters">
+					<button type="button" class="recipe-filter-btn active" data-tag="all" aria-pressed="true">All</button>
+					{% for name in tag_ns.names|sort %}
+					<button type="button" class="recipe-filter-btn" data-tag="{{ name }}" aria-pressed="false">{{ name }}</button>
+					{% endfor %}
+				</div>
+				{% endif %}
+				{% endif %}
 				<div class="card-body scrollable-list">
 					{% if g.household %}
 						{% if g.household.recipes %}
 						<ul class="recipe-box-list">
 							{% for recipe in g.household.recipes|sort(attribute='name') %}
-							<li class="recipe-box-item">
+							<li class="recipe-box-item" data-tags="{{ recipe.tags|map(attribute='name')|join('\n') }}">
 								<a href="{{url_for('recipes.view_recipe', recipe_id=recipe.id)}}" class="recipe-box-link">
 									<div class="recipe-box-item-top">
 										<span class="recipe-box-name">{{recipe.name}}</span>
@@ -134,6 +152,29 @@
     var saved = localStorage.getItem('defaultLandingPage') || 'home';
     var select = document.getElementById('defaultLandingPage');
     if (select) select.value = saved;
+})();
+
+// Filter household recipe box by tag
+(function() {
+    var bar = document.getElementById('recipe-box-filters');
+    if (!bar) return;
+    var buttons = bar.querySelectorAll('.recipe-filter-btn');
+    var items = document.querySelectorAll('.recipe-box-item');
+
+    buttons.forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var tag = btn.dataset.tag;
+            buttons.forEach(function(b) {
+                var isActive = b === btn;
+                b.classList.toggle('active', isActive);
+                b.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+            });
+            items.forEach(function(item) {
+                var tags = item.dataset.tags ? item.dataset.tags.split('\n') : [];
+                item.hidden = tag !== 'all' && !tags.includes(tag);
+            });
+        });
+    });
 })();
 
 function saveLandingPage() {
