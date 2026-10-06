@@ -484,10 +484,10 @@ class MealPlanEntry(db.Model):
     <div class="container">
         <div class="header">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="logo">
-                <circle cx="50" cy="50" r="48" fill="#FF8C42"/>
+                <circle cx="50" cy="50" r="48" fill="#ff6600"/>
                 <g transform="translate(50, 52)">
-                    <path d="M -26 -20 L -20 8 L 20 8 L 24 -20 Z" fill="#007bff" stroke="#004c91" stroke-width="2.5"/>
-                    <path d="M -28 -20 L -32 -32 L -20 -32" fill="none" stroke="#007bff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M -26 -20 L -20 8 L 20 8 L 24 -20 Z" fill="#1e6bb8" stroke="#004c91" stroke-width="2.5"/>
+                    <path d="M -28 -20 L -32 -32 L -20 -32" fill="none" stroke="#1e6bb8" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
                     <circle cx="-10" cy="16" r="5" fill="#004c91"/>
                     <circle cx="10" cy="16" r="5" fill="#004c91"/>
                     <line x1="-16" y1="-14" x2="-16" y2="5" stroke="white" stroke-width="2"/>
@@ -1399,10 +1399,10 @@ class GroceryList(db.Model):
     <div class="container">
         <div class="header">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="logo">
-                <circle cx="50" cy="50" r="48" fill="#FF8C42"/>
+                <circle cx="50" cy="50" r="48" fill="#ff6600"/>
                 <g transform="translate(50, 52)">
-                    <path d="M -26 -20 L -20 8 L 20 8 L 24 -20 Z" fill="#007bff" stroke="#004c91" stroke-width="2.5"/>
-                    <path d="M -28 -20 L -32 -32 L -20 -32" fill="none" stroke="#007bff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M -26 -20 L -20 8 L 20 8 L 24 -20 Z" fill="#1e6bb8" stroke="#004c91" stroke-width="2.5"/>
+                    <path d="M -28 -20 L -32 -32 L -20 -32" fill="none" stroke="#1e6bb8" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
                     <circle cx="-10" cy="16" r="5" fill="#004c91"/>
                     <circle cx="10" cy="16" r="5" fill="#004c91"/>
                     <line x1="-16" y1="-14" x2="-16" y2="5" stroke="white" stroke-width="2"/>
@@ -1599,10 +1599,10 @@ class GroceryList(db.Model):
     <div class="container">
         <div class="header">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="logo">
-                <circle cx="50" cy="50" r="48" fill="#FF8C42"/>
+                <circle cx="50" cy="50" r="48" fill="#ff6600"/>
                 <g transform="translate(50, 52)">
-                    <path d="M -26 -20 L -20 8 L 20 8 L 24 -20 Z" fill="#007bff" stroke="#004c91" stroke-width="2.5"/>
-                    <path d="M -28 -20 L -32 -32 L -20 -32" fill="none" stroke="#007bff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M -26 -20 L -20 8 L 20 8 L 24 -20 Z" fill="#1e6bb8" stroke="#004c91" stroke-width="2.5"/>
+                    <path d="M -28 -20 L -32 -32 L -20 -32" fill="none" stroke="#1e6bb8" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
                     <circle cx="-10" cy="16" r="5" fill="#004c91"/>
                     <circle cx="10" cy="16" r="5" fill="#004c91"/>
                     <line x1="-16" y1="-14" x2="-16" y2="5" stroke="white" stroke-width="2"/>
