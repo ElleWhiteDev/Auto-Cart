@@ -370,4 +370,4 @@ CORS is not currently enabled. The API is designed for same-origin requests only
 
 ---
 
-For more information, see the main [README.md](README.md) and [ARCHITECTURE.md](ARCHITECTURE.md).
+For more information, see the main [README.md](../README.md) and [ARCHITECTURE.md](ARCHITECTURE.md).

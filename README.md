@@ -20,15 +20,15 @@ Auto-Cart is a sophisticated web application that streamlines meal planning and 
 
 ## 📚 Documentation
 
-- **[Setup Guide](SETUP.md)** - Detailed installation and configuration instructions
-- **[Architecture](ARCHITECTURE.md)** - System design and architectural patterns
-- **[API Documentation](API_DOCUMENTATION.md)** - HTTP endpoints and request/response formats
+- **[Setup Guide](docs/SETUP.md)** - Detailed installation and configuration instructions
+- **[Architecture](docs/ARCHITECTURE.md)** - System design and architectural patterns
+- **[API Documentation](docs/API_DOCUMENTATION.md)** - HTTP endpoints and request/response formats
 - **[Security Policy](SECURITY.md)** - Security features and vulnerability reporting
 - **[Changelog](CHANGELOG.md)** - Version history and release notes
-- **[Multi-Household Guide](MULTI_HOUSEHOLD_GUIDE.md)** - Guide to multi-household features
-- **[Database Migration Guide](MIGRATION_GUIDE.md)** - Working with Flask-Migrate/Alembic
-- **[Meal Plan Notifications](MEAL_PLAN_NOTIFICATIONS_README.md)** - Daily summary email feature and setup
-- **[Heroku Scheduler Setup](HEROKU_SCHEDULER_SETUP.md)** - Scheduling the daily summary job in production
+- **[Multi-Household Guide](docs/MULTI_HOUSEHOLD_GUIDE.md)** - Guide to multi-household features
+- **[Database Migration Guide](docs/MIGRATION_GUIDE.md)** - Working with Flask-Migrate/Alembic
+- **[Meal Plan Notifications](docs/MEAL_PLAN_NOTIFICATIONS_README.md)** - Daily summary email feature and setup
+- **[Heroku Scheduler Setup](docs/HEROKU_SCHEDULER_SETUP.md)** - Scheduling the daily summary job in production
 - **[Scripts Directory](scripts/README.md)** - One-off migration and admin utility scripts
 
 ### Key Highlights
@@ -192,7 +192,7 @@ Auto-Cart/
 ├── .env.example           # Environment variable template
 ├── LICENSE                # MIT License
 ├── CHANGELOG.md           # Version history
-└── API_DOCUMENTATION.md   # API endpoint reference
+└── docs/                  # Setup, architecture, API and feature guides
 ```
 
 ### Database Schema

@@ -153,3 +153,6 @@ Thumbs.db
 # Augment files
 .augment/
 .claude/
+
+# Database dumps
+*.dump
