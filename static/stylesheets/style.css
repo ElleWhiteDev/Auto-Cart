@@ -359,9 +359,18 @@ a {
 
 /* Mobile: Stack layout */
 @media (max-width: 768px) {
+	/* Keep auto side margins: .container is width:100%, so any side margin
+	   pushes it past the viewport. Side padding must cover Bootstrap's
+	   negative .row margins (12px). */
 	.container {
-		margin: var(--space-1, 4px);
-		padding: var(--space-1, 4px);
+		margin: var(--space-1, 4px) auto;
+		padding: var(--space-1, 4px) var(--space-3, 12px);
+	}
+
+	/* Nested containers already sit inside the outer gutter */
+	.container .container {
+		padding-left: 0;
+		padding-right: 0;
 	}
 
 	.export-btn {

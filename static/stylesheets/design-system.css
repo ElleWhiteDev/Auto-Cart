@@ -1295,6 +1295,11 @@ small,
     transform: translateY(-50%) rotate(180deg);
   }
 
+  /* Leave room for the chevron so header controls (pantry sort) don't sit under it */
+  .grocery-list[data-collapsible="true"] [data-role="header"] {
+    padding-right: calc(var(--space-6) + var(--space-6));
+  }
+
   /* Shrink hero on mobile for less scrolling */
   .homepage .text-center.mb-6 h1 {
     font-size: var(--text-2xl);
