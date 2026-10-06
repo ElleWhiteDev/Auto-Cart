@@ -24,7 +24,7 @@
 
 		<!-- Our Design System -->
 		<link rel="stylesheet" href="/static/stylesheets/design-system.css?v=5" />
-		<link rel="stylesheet" href="/static/stylesheets/style.css?v=5" />
+		<link rel="stylesheet" href="/static/stylesheets/style.css?v=6" />
 
 		<!-- JavaScript -->
 		<script src="/static/js/main.js?v=5" defer></script>
@@ -48,11 +48,14 @@
 		<!-- Navigation -->
 		<nav class="navbar">
 			<div class="container">
-				<div class="flex justify-between items-center w-100">
+				<div class="navbar-row flex justify-between items-center w-100">
 					<a href="{{url_for('main.homepage')}}" class="navbar-brand">
 						<i class="fas fa-shopping-cart mr-2"></i>Auto Cart
 					</a>
-					<div class="nav-right">
+					<button type="button" class="nav-toggle" id="nav-toggle" aria-label="Toggle navigation" aria-controls="nav-menu" aria-expanded="false">
+						<i class="fas fa-bars"></i>
+					</button>
+					<div class="nav-right" id="nav-menu">
 						{% if g.user is none %}
 						<a class="nav-link" href="{{url_for('auth.login')}}">
 							<i class="fas fa-sign-in-alt"></i> Login
@@ -161,6 +164,26 @@
 		{% block scripts %}{% endblock %}
 
 		<script>
+		// Mobile hamburger menu toggle
+		document.addEventListener('DOMContentLoaded', function() {
+			const navToggle = document.getElementById('nav-toggle');
+			const navMenu = document.getElementById('nav-menu');
+			if (!navToggle || !navMenu) return;
+
+			function setNavOpen(open) {
+				navMenu.classList.toggle('open', open);
+				navToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+				navToggle.querySelector('i').className = open ? 'fas fa-times' : 'fas fa-bars';
+			}
+
+			navToggle.addEventListener('click', function() {
+				setNavOpen(!navMenu.classList.contains('open'));
+			});
+			navMenu.querySelectorAll('.nav-link').forEach(function(link) {
+				link.addEventListener('click', function() { setNavOpen(false); });
+			});
+		});
+
 		// Handle feedback form submission loading state
 		document.addEventListener('DOMContentLoaded', function() {
 			const feedbackForm = document.getElementById('feedback-form');
