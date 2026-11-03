@@ -376,7 +376,78 @@ class TestGroceryListModel:
             in system_prompt
         )
         assert "Preserve input order based on the first retained line." in system_prompt
-        assert (
-            "Never omit a non-water ingredient unless it has been merged"
-            in system_prompt
+        assert "Never invent new ingredients or omit non-water ingredients." in system_prompt
+
+    def test_consolidate_unit_line_adds_once_to_repeated_real_unit_lines(
+        self, monkeypatch
+    ):
+        """A "unit" line folds into the real measurement once, not once per line."""
+        response = _mock_openai_response(
+            "1 lb ground beef\n1 lb ground beef\n1 unit ground beef"
         )
+        monkeypatch.setattr(
+            "models.openai_client.chat.completions.create",
+            lambda **kwargs: response,
+        )
+
+        consolidated = GroceryList.consolidate_ingredients_with_openai(
+            [{"quantity": "1", "measurement": "lb", "ingredient_name": "ground beef"}]
+        )
+
+        assert consolidated == [
+            {"quantity": "3", "measurement": "lb", "ingredient_name": "ground beef"}
+        ]
+
+    def test_consolidate_keeps_unit_line_when_real_units_are_ambiguous(
+        self, monkeypatch
+    ):
+        """A "unit" line is kept rather than dropped when it can't be folded."""
+        response = _mock_openai_response(
+            "1 unit butter\n1 tbsp butter\n1 cup butter"
+        )
+        monkeypatch.setattr(
+            "models.openai_client.chat.completions.create",
+            lambda **kwargs: response,
+        )
+
+        consolidated = GroceryList.consolidate_ingredients_with_openai(
+            [{"quantity": "1", "measurement": "unit", "ingredient_name": "butter"}]
+        )
+
+        assert consolidated == [
+            {"quantity": "1", "measurement": "unit", "ingredient_name": "butter"},
+            {"quantity": "1", "measurement": "tbsp", "ingredient_name": "butter"},
+            {"quantity": "1", "measurement": "cup", "ingredient_name": "butter"},
+        ]
+
+    def test_consolidate_unit_line_counts_as_known_package_size(self, monkeypatch):
+        """Any ingredient with one known package size treats a unit as one package."""
+        response = _mock_openai_response("15 oz black beans\n1 unit black beans")
+        monkeypatch.setattr(
+            "models.openai_client.chat.completions.create",
+            lambda **kwargs: response,
+        )
+
+        consolidated = GroceryList.consolidate_ingredients_with_openai(
+            [{"quantity": "15", "measurement": "oz", "ingredient_name": "black beans"}]
+        )
+
+        assert consolidated == [
+            {"quantity": "30", "measurement": "oz", "ingredient_name": "black beans"}
+        ]
+
+    def test_consolidate_sums_mixed_number_quantities(self, monkeypatch):
+        """Mixed numbers like "2 1/2" from the model are summed, not dropped."""
+        response = _mock_openai_response("2 1/2 cup flour\n1 cup flour")
+        monkeypatch.setattr(
+            "models.openai_client.chat.completions.create",
+            lambda **kwargs: response,
+        )
+
+        consolidated = GroceryList.consolidate_ingredients_with_openai(
+            [{"quantity": "1", "measurement": "cup", "ingredient_name": "flour"}]
+        )
+
+        assert consolidated == [
+            {"quantity": "3.5", "measurement": "cup", "ingredient_name": "flour"}
+        ]

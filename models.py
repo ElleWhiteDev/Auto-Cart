@@ -113,6 +113,29 @@ def _is_water_ingredient(ingredient_name: str) -> bool:
     )
 
 
+_CONSOLIDATED_LINE_RE = re.compile(r"^(\d+(?:\s+\d+/\d+|\.\d+|/\d+)?)\s+(\S+)\s+(.*)")
+
+
+def _parse_consolidated_line(line: str) -> Dict[str, str]:
+    """Parse a "quantity measurement ingredient_name" line from the consolidation model.
+
+    Quantities may be whole ("2"), decimal ("1.5"), fractional ("1/2") or mixed ("2 1/2").
+    Lines that don't fit are kept as "1 unit <line>" so nothing is silently dropped.
+    """
+    line = line.strip()
+    match = _CONSOLIDATED_LINE_RE.match(line)
+    if not match:
+        logger.warning(f"Could not parse consolidated ingredient: {line}")
+        return {"quantity": "1", "measurement": "unit", "ingredient_name": line}
+
+    quantity, measurement, ingredient_name = match.groups()
+    return {
+        "quantity": quantity.strip(),
+        "measurement": measurement.strip(),
+        "ingredient_name": ingredient_name.strip(),
+    }
+
+
 def _normalize_ingredient_entry(ingredient: Dict[str, Any]) -> Dict[str, str]:
     """Normalize a parsed ingredient entry."""
     return {
@@ -124,100 +147,69 @@ def _normalize_ingredient_entry(ingredient: Dict[str, Any]) -> Dict[str, str]:
     }
 
 
+def _resolve_unit_rows(rows: List[Dict[str, Any]]) -> None:
+    """Rewrite one ingredient's vague "unit" rows into its real measurement, in place.
+
+    Only applies when the ingredient's other rows all share one real measurement;
+    otherwise the "unit" rows are left as-is rather than guessed at.
+    - Package measurements (oz, g, ml, ...) count each unit as one package, and
+      only when every sized row agrees on the package size:
+      "14.5 oz tomatoes" + "1 unit tomatoes" -> 29 oz tomatoes
+    - Any other measurement counts each unit as one of that measurement:
+      "1 lb ground beef" + "1 unit ground beef" -> 2 lb ground beef
+    """
+    unit_rows = [
+        r for r in rows if r["measurement"] == "unit" and r["_quantity_value"] is not None
+    ]
+    real_rows = [r for r in rows if r["measurement"] != "unit"]
+    real_measurements = {r["measurement"] for r in real_rows}
+    if not unit_rows or len(real_measurements) != 1:
+        return
+
+    measurement = next(iter(real_measurements))
+    size_per_unit = 1.0
+    if measurement in _PACKAGE_SIZE_MEASUREMENTS:
+        package_sizes = {r["_quantity_value"] for r in real_rows}
+        if len(package_sizes) != 1 or None in package_sizes:
+            return
+        size_per_unit = next(iter(package_sizes))
+
+    for row in unit_rows:
+        row["measurement"] = measurement
+        row["_quantity_value"] *= size_per_unit
+        row["quantity"] = _format_quantity(row["_quantity_value"])
+
+
 def _merge_ingredient_entries(
     ingredients_list: List[Dict[str, Any]],
 ) -> List[Dict[str, str]]:
-    """Deterministically normalize and merge grocery ingredients."""
-    normalized_rows = []
-    for ingredient in ingredients_list:
-        normalized = _normalize_ingredient_entry(ingredient)
-        if _is_water_ingredient(normalized["ingredient_name"]):
-            continue
+    """Deterministically normalize and merge grocery ingredients.
 
-        quantity_value = parse_quantity_string(normalized["quantity"])
-        normalized_rows.append({**normalized, "_quantity_value": quantity_value})
+    1. Normalize every row and drop plain water.
+    2. Per ingredient, fold vague "unit" rows into its real measurement.
+    3. Sum rows sharing (ingredient_name, measurement), keeping first-seen order.
+    """
+    rows = []
+    for ingredient in ingredients_list:
+        row = _normalize_ingredient_entry(ingredient)
+        if _is_water_ingredient(row["ingredient_name"]):
+            continue
+        row["_quantity_value"] = parse_quantity_string(row["quantity"])
+        rows.append(row)
 
     rows_by_name = defaultdict(list)
-    for row in normalized_rows:
+    for row in rows:
         rows_by_name[row["ingredient_name"]].append(row)
-
-    for ingredient_name, rows in rows_by_name.items():
-        if "tomato" not in ingredient_name or any(
-            token in _TOMATO_PRODUCT_WORDS for token in ingredient_name.split()
-        ):
-            continue
-
-        explicit_measurements = {
-            row["measurement"]
-            for row in rows
-            if row["measurement"] in _PACKAGE_SIZE_MEASUREMENTS
-            and row["_quantity_value"] is not None
-        }
-        if len(explicit_measurements) != 1:
-            continue
-
-        explicit_measurement = next(iter(explicit_measurements))
-        package_sizes = {
-            row["_quantity_value"]
-            for row in rows
-            if row["measurement"] == explicit_measurement
-            and row["_quantity_value"] is not None
-        }
-        if len(package_sizes) != 1:
-            continue
-
-        package_size = next(iter(package_sizes))
-        for row in rows:
-            if row["measurement"] == "unit" and row["_quantity_value"] is not None:
-                row["measurement"] = explicit_measurement
-                row["_quantity_value"] *= package_size
-                row["quantity"] = _format_quantity(row["_quantity_value"])
-
-    # When an ingredient has both "unit" rows and real-unit rows, fold the "unit"
-    # quantities into the real-unit rows (treating 1 unit = 1 of that real unit)
-    # then drop the "unit" rows.
-    # e.g. "1 unit ground beef" + "1 lb ground beef" → "2 lb ground beef"
-    for ingredient_name, rows in rows_by_name.items():
-        real_unit_rows = [r for r in rows if r["measurement"] != "unit"]
-        unit_rows = [r for r in rows if r["measurement"] == "unit"]
-        if not real_unit_rows or not unit_rows:
-            continue
-        # All real-unit rows share the same measurement (already ensured by the merge
-        # key later); pick the first real unit to absorb into.
-        real_measurements = {r["measurement"] for r in real_unit_rows}
-        if len(real_measurements) != 1:
-            continue
-        unit_total = sum(r["_quantity_value"] or 0 for r in unit_rows)
-        for r in real_unit_rows:
-            if r["_quantity_value"] is not None:
-                r["_quantity_value"] += unit_total
-                r["quantity"] = _format_quantity(r["_quantity_value"])
-    names_with_real_unit = {
-        name
-        for name, rows in rows_by_name.items()
-        if any(r["measurement"] != "unit" for r in rows)
-    }
-    normalized_rows = [
-        r for r in normalized_rows
-        if not (r["ingredient_name"] in names_with_real_unit and r["measurement"] == "unit")
-    ]
+    for name_rows in rows_by_name.values():
+        _resolve_unit_rows(name_rows)
 
     merged = {}
-    ordered_keys = []
-    for row in normalized_rows:
+    for row in rows:
         key = (row["ingredient_name"], row["measurement"])
-        if key not in merged:
-            merged[key] = {
-                "quantity": row["quantity"],
-                "measurement": row["measurement"],
-                "ingredient_name": row["ingredient_name"],
-                "_quantity_value": row["_quantity_value"],
-            }
-            ordered_keys.append(key)
-            continue
-
-        existing = merged[key]
-        if (
+        existing = merged.get(key)
+        if existing is None:
+            merged[key] = row
+        elif (
             existing["_quantity_value"] is not None
             and row["_quantity_value"] is not None
         ):
@@ -226,11 +218,11 @@ def _merge_ingredient_entries(
 
     return [
         {
-            "quantity": merged[key]["quantity"],
-            "measurement": merged[key]["measurement"],
-            "ingredient_name": merged[key]["ingredient_name"],
+            "quantity": row["quantity"],
+            "measurement": row["measurement"],
+            "ingredient_name": row["ingredient_name"],
         }
-        for key in ordered_keys
+        for row in merged.values()
     ]
 
 
@@ -1819,37 +1811,11 @@ Before answering, verify that every retained non-water input line is represented
 
             consolidated_text = response.choices[0].message.content.strip()
 
-            # Parse the consolidated ingredients back into the expected format
-            consolidated_ingredients = []
-            for line in consolidated_text.split("\n"):
-                line = line.strip()
-                if not line:
-                    continue
-
-                # Parse the consolidated ingredient - improved regex to handle mixed numbers and decimals
-                # Matches: "2 cups flour", "1/2 cup sugar", "1.5 lb beef", "2 1/2 tbsp salt"
-                match = re.match(
-                    r"^(\d+(?:\s+\d+/\d+|\.\d+|/\d+)?)\s+(\S+)\s+(.*)", line
-                )
-                if match:
-                    quantity, measurement, ingredient_name = match.groups()
-                    consolidated_ingredients.append(
-                        {
-                            "quantity": quantity.strip(),
-                            "measurement": measurement.strip(),
-                            "ingredient_name": ingredient_name.strip(),
-                        }
-                    )
-                else:
-                    # Fallback: if parsing fails, keep the ingredient with default values
-                    logger.warning(f"Could not parse consolidated ingredient: {line}")
-                    consolidated_ingredients.append(
-                        {
-                            "quantity": "1",
-                            "measurement": "unit",
-                            "ingredient_name": line,
-                        }
-                    )
+            consolidated_ingredients = [
+                _parse_consolidated_line(line)
+                for line in consolidated_text.split("\n")
+                if line.strip()
+            ]
 
             return _merge_ingredient_entries(consolidated_ingredients)
 

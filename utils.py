@@ -122,7 +122,8 @@ def validate_required_fields(**kwargs) -> List[str]:
 def parse_quantity_string(quantity_string: str) -> Optional[float]:
     """
     Parse a quantity string into a float value.
-    Handles fractions (e.g., "1/2", "3/4") and decimal numbers.
+    Handles fractions (e.g., "1/2", "3/4"), mixed numbers (e.g., "2 1/2")
+    and decimal numbers.
 
     Args:
         quantity_string: String representation of a quantity
@@ -136,6 +137,10 @@ def parse_quantity_string(quantity_string: str) -> Optional[float]:
     quantity_string = str(quantity_string).strip()
 
     try:
+        # Handle mixed numbers like "2 1/2"
+        parts = quantity_string.split()
+        if len(parts) == 2 and "/" in parts[1]:
+            return float(Fraction(parts[0]) + Fraction(parts[1]))
         # Handle fractions
         if "/" in quantity_string:
             return float(Fraction(quantity_string))
