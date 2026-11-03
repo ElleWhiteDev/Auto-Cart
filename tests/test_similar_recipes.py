@@ -133,3 +133,13 @@ class TestFindSimilarRecipesRoute:
         assert data["matched_recipes"][1]["new_item_count"] == 1
         # Garlic is a household staple, so Chili is scored on 3 ingredients, not 4.
         assert data["matched_recipes"][1]["match_percentage"] == 67
+
+
+def test_format_quantity():
+    from utils import format_quantity
+
+    assert format_quantity(10.0) == "10"
+    assert format_quantity(21.5) == "21.5"
+    assert format_quantity(21.05) == "21.05"
+    assert format_quantity(1 / 3) == "0.33"
+    assert format_quantity(None) == ""

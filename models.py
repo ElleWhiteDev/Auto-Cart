@@ -1,3 +1,4 @@
+import json
 import re
 import os
 from collections import defaultdict
@@ -6,7 +7,12 @@ from typing import List, Optional, Dict, Any, Tuple
 from flask import g
 from flask_mail import Message
 from openai import OpenAI
-from utils import parse_quantity_string, is_valid_float, get_est_now
+from utils import (
+    parse_quantity_string,
+    parse_simple_ingredient,
+    is_valid_float,
+    get_est_now,
+)
 from logging_config import logger
 
 # Import db and bcrypt from extensions to avoid circular imports
@@ -53,6 +59,7 @@ _MEASUREMENT_ALIASES = {
     "can": "unit",
     "cans": "unit",
 }
+_CANONICAL_MEASUREMENTS = set(_MEASUREMENT_ALIASES.values())
 _PREP_WORDS = {"chopped", "minced", "diced", "sliced", "cubed"}
 _NON_PURCHASE_NOTE_WORDS = {"optional", "divided"}
 _WORD_NORMALIZATIONS = {
@@ -1030,6 +1037,7 @@ Cleaning rules:
 5) Preserve shopping-relevant descriptors and helpful prep wording:
    - keep descriptors like yellow, red, unsalted, whole, fresh, frozen, ground, boneless, skinless
    - keep prep words like diced, minced, chopped, grated, crushed when they help the user review the ingredient text
+   - keep package sizes: "1 (14.5 oz) can diced tomatoes" stays as written
 6) Drop obviously non-purchase notes when they are not part of the core ingredient:
    - optional, divided, plus more for serving, for garnish, as needed
 7) Never invent missing ingredients, quantities, or units.
@@ -1093,6 +1101,7 @@ Field rules:
    - Allowed canonical values: cup, tbsp, tsp, lb, oz, g, kg, ml, l, unit.
    - Normalize plurals and aliases to those singular canonical forms.
    - If the source uses an unsupported or extra-specific unit (for example: clove, can, stick, bunch, sprig, pinch, dash, package, slice), use "unit" instead of inventing a new measurement.
+   - Exception: when a can or package states its size, use that size times the count: "2 (15 oz) cans black beans" -> quantity "30", measurement "oz".
 3) Ingredient name:
    - Keep the shoppable ingredient or product name.
    - Remove prep-only descriptors wherever they appear: chopped, minced, diced, sliced, cubed.
@@ -1106,6 +1115,7 @@ Examples:
 "1/4 tsp salt" -> {"quantity":"1/4","measurement":"tsp","ingredient_name":"salt"}
 "3-4 lb chicken thighs" -> {"quantity":"3","measurement":"lb","ingredient_name":"chicken thighs"}
 "14.5 oz diced tomatoes" -> {"quantity":"14.5","measurement":"oz","ingredient_name":"tomatoes"}
+"1 (14.5 oz) can diced tomatoes" -> {"quantity":"14.5","measurement":"oz","ingredient_name":"tomatoes"}
 "1 cup yellow onion, diced" -> {"quantity":"1","measurement":"cup","ingredient_name":"yellow onion"}
 "milk" -> {"quantity":"1","measurement":"unit","ingredient_name":"milk"}
 "salt and pepper to taste" -> {"quantity":"1","measurement":"unit","ingredient_name":"salt and pepper to taste"}
@@ -1125,9 +1135,10 @@ Before answering, verify that the response is valid JSON and that every object u
                 max_tokens=1000,
             )
 
-            import json
-
-            parsed_ingredients = json.loads(response.choices[0].message.content.strip())
+            content = response.choices[0].message.content.strip()
+            # Tolerate the model wrapping its JSON in a markdown code fence
+            content = re.sub(r"^```(?:json)?\s*|\s*```$", "", content)
+            parsed_ingredients = json.loads(content)
             return [
                 _normalize_ingredient_entry(ingredient)
                 for ingredient in parsed_ingredients
@@ -1137,21 +1148,21 @@ Before answering, verify that the response is valid JSON and that every object u
             logger.error(f"OpenAI ingredient parsing error: {e}", exc_info=True)
             logger.info("Falling back to simple parsing")
 
-            # Fallback: simple parsing
-            ingredients = ingredients_text.split("\n")
             parsed_ingredients = []
-            for ingredient in ingredients:
-                ingredient = ingredient.strip()
-                if ingredient:
-                    parsed_ingredients.append(
-                        _normalize_ingredient_entry(
-                            {
-                                "quantity": "1",
-                                "measurement": "unit",
-                                "ingredient_name": ingredient[:40],
-                            }
-                        )
-                    )
+            for line in ingredients_text.split("\n"):
+                for ingredient in parse_simple_ingredient(line):
+                    # "3 large eggs" parses "large" as the measurement; fold it back
+                    # into the name unless it's a unit we recognise.
+                    if (
+                        _normalize_measurement(ingredient["measurement"])
+                        not in _CANONICAL_MEASUREMENTS
+                    ):
+                        ingredient = {
+                            "quantity": ingredient["quantity"],
+                            "measurement": "unit",
+                            "ingredient_name": f"{ingredient['measurement']} {ingredient['ingredient_name']}",
+                        }
+                    parsed_ingredients.append(_normalize_ingredient_entry(ingredient))
             return parsed_ingredients
 
     @classmethod
@@ -1165,7 +1176,7 @@ Before answering, verify that the response is valid JSON and that every object u
         household_id=None,
         visibility="private",
     ):
-        """Takes ingredients text and creates a recipe object"""
+        """Create a recipe object with its ingredients parsed from text."""
 
         recipe = cls(
             url=url,
@@ -1176,19 +1187,28 @@ Before answering, verify that the response is valid JSON and that every object u
             visibility=visibility,
         )
 
-        # Just split ingredients by lines and store them as-is
-        ingredients = ingredients_text.split("\n")
-        for ingredient in ingredients:
-            ingredient = ingredient.strip()
-            if ingredient:
-                recipe_ingredient = RecipeIngredient(
-                    quantity=1.0,  # Default quantity
-                    measurement="unit",  # Default measurement
-                    ingredient_name=ingredient[:40],  # Store the full ingredient text
-                )
-                recipe.recipe_ingredients.append(recipe_ingredient)
-
+        recipe.recipe_ingredients.extend(cls.build_ingredients(ingredients_text))
         return recipe
+
+    @classmethod
+    def build_ingredients(cls, ingredients_text):
+        """Parse ingredient text into RecipeIngredient rows ready to attach to a recipe."""
+        ingredients = []
+        for ingredient_data in cls.parse_ingredients(ingredients_text):
+            ingredient_name = (ingredient_data.get("ingredient_name") or "").strip()
+            if not ingredient_name:
+                continue
+
+            quantity = parse_quantity_string(str(ingredient_data.get("quantity") or ""))
+            ingredients.append(
+                RecipeIngredient(
+                    quantity=1.0 if quantity is None else quantity,
+                    measurement=ingredient_data.get("measurement") or "unit",
+                    # ingredient_name is a String(40) column
+                    ingredient_name=ingredient_name[:40],
+                )
+            )
+        return ingredients
 
 
 class GroceryListItem(db.Model):

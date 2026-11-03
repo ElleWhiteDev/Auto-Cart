@@ -161,6 +161,57 @@ class TestRecipeModel:
             {"quantity": "14.5", "measurement": "oz", "ingredient_name": "tomatoes"}
         ]
 
+    def test_parse_ingredients_accepts_fenced_json(self, monkeypatch):
+        """JSON wrapped in a markdown code fence should still parse."""
+        response = _mock_openai_response(
+            '```json\n[{"quantity":"2","measurement":"cup","ingredient_name":"flour"}]\n```'
+        )
+        monkeypatch.setattr(
+            "models.openai_client.chat.completions.create",
+            lambda **kwargs: response,
+        )
+
+        assert Recipe.parse_ingredients("2 cups flour") == [
+            {"quantity": "2", "measurement": "cup", "ingredient_name": "flour"}
+        ]
+
+    def test_parse_ingredients_fallback_keeps_quantities(self, monkeypatch):
+        """If the model call fails, simple parsing should keep explicit quantities."""
+
+        def _fail(**kwargs):
+            raise RuntimeError("OpenAI unavailable")
+
+        monkeypatch.setattr("models.openai_client.chat.completions.create", _fail)
+
+        assert Recipe.parse_ingredients("2 1/2 cups flour\n3 large eggs\nsalt") == [
+            {"quantity": "2 1/2", "measurement": "cup", "ingredient_name": "flour"},
+            {"quantity": "3", "measurement": "unit", "ingredient_name": "large eggs"},
+            {"quantity": "1", "measurement": "unit", "ingredient_name": "salt"},
+        ]
+
+    def test_create_recipe_stores_parsed_ingredients(self, monkeypatch):
+        """New recipes should store parsed quantities, not raw lines as names."""
+        response = _mock_openai_response(
+            '[{"quantity":"14.5","measurement":"oz","ingredient_name":"diced tomatoes"},'
+            '{"quantity":"1/2","measurement":"cup","ingredient_name":"a very long ingredient name that exceeds the column"}]'
+        )
+        monkeypatch.setattr(
+            "models.openai_client.chat.completions.create",
+            lambda **kwargs: response,
+        )
+
+        recipe = Recipe.create_recipe(
+            "1 (14.5 oz) can diced tomatoes\n1/2 cup something", None, 1, "Soup", None
+        )
+
+        assert [
+            (i.quantity, i.measurement, i.ingredient_name)
+            for i in recipe.recipe_ingredients
+        ] == [
+            (14.5, "oz", "tomatoes"),
+            (0.5, "cup", "a very long ingredient name that exceeds"),
+        ]
+
     def test_clean_ingredients_prompt_mentions_line_order_and_no_invention(
         self, monkeypatch
     ):

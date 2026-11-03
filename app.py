@@ -16,7 +16,7 @@ from logging_config import logger
 
 from models import User, Household, HouseholdMember, GroceryList
 from app_config import config
-from utils import CURR_USER_KEY, CURR_GROCERY_LIST_KEY, get_est_now
+from utils import CURR_USER_KEY, CURR_GROCERY_LIST_KEY, format_quantity, get_est_now
 from kroger import KrogerAPIService, KrogerSessionManager, KrogerWorkflow
 
 # Import extensions
@@ -105,6 +105,9 @@ def est_datetime_filter(dt, format="%I:%M %p"):
     if dt is None:
         return ""
     return dt.strftime(format)
+
+
+app.add_template_filter(format_quantity, "format_quantity")
 
 
 # Special admin routes (no auth required for emergency access)

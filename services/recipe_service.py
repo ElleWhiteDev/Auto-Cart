@@ -3,8 +3,7 @@ Recipe service layer for business logic related to recipes.
 """
 
 from typing import List, Dict, Any, Optional, Tuple
-from models import db, Recipe, RecipeIngredient, Household
-from utils import parse_quantity_string
+from models import db, Recipe, Household
 from logging_config import logger
 from services.base_service import BaseService
 from constants import ErrorMessages
@@ -73,7 +72,7 @@ class RecipeService(BaseService):
         recipe: Recipe, ingredients_text: str
     ) -> Tuple[bool, Optional[str]]:
         """
-        Parse ingredients text and add to recipe.
+        Parse ingredients text and set it as the recipe's ingredients.
 
         Args:
             recipe: Recipe object to add ingredients to
@@ -83,21 +82,8 @@ class RecipeService(BaseService):
             Tuple of (success, error_message)
         """
         try:
-            ingredients = Recipe.parse_ingredients(ingredients_text)
-
-            for ingredient_data in ingredients:
-                quantity_value = parse_quantity_string(str(ingredient_data["quantity"]))
-                if quantity_value is None:
-                    quantity_value = 1.0
-
-                ingredient = RecipeIngredient(
-                    recipe_id=recipe.id,
-                    ingredient_name=ingredient_data["ingredient_name"],
-                    quantity=quantity_value,
-                    measurement=ingredient_data["measurement"],
-                )
-                db.session.add(ingredient)
-
+            # Replaces any existing ingredients; delete-orphan cascade removes old rows
+            recipe.recipe_ingredients = Recipe.build_ingredients(ingredients_text)
             return True, None
 
         except Exception as e:
@@ -134,10 +120,6 @@ class RecipeService(BaseService):
                 recipe.notes = notes.strip() if notes else None
 
             if ingredients_text is not None:
-                # Remove old ingredients
-                RecipeIngredient.query.filter_by(recipe_id=recipe.id).delete()
-
-                # Add new ingredients
                 success, error = RecipeService._add_ingredients_to_recipe(
                     recipe, ingredients_text
                 )

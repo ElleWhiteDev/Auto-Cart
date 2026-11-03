@@ -150,6 +150,13 @@ def parse_quantity_string(quantity_string: str) -> Optional[float]:
         return None
 
 
+def format_quantity(quantity: Optional[float]) -> str:
+    """Format a quantity for display: 2.0 -> "2", 21.5 -> "21.5", 1/3 -> "0.33"."""
+    if quantity is None:
+        return ""
+    return f"{float(quantity):.2f}".rstrip("0").rstrip(".")
+
+
 def parse_simple_ingredient(ingredient_text: str) -> List[Dict[str, str]]:
     """
     Basic ingredient parser used for manual ingredient entry fallbacks.
@@ -163,7 +170,7 @@ def parse_simple_ingredient(ingredient_text: str) -> List[Dict[str, str]]:
     if not ingredient_text:
         return []
 
-    pattern = r"^(\d+(?:/\d+)?(?:\.\d+)?)\s+(\w+)\s+(.*)"
+    pattern = r"^(\d+(?:\s+\d+/\d+|/\d+|\.\d+)?)\s+(\w+)\s+(.*)"
     match = re.match(pattern, ingredient_text)
     if match:
         quantity, measurement, ingredient_name = match.groups()

@@ -24,6 +24,7 @@ from utils import (
     require_login,
     CURR_GROCERY_LIST_KEY,
     parse_quantity_string,
+    format_quantity,
     get_est_now,
     parse_simple_ingredient,
 )
@@ -95,7 +96,7 @@ def view_recipe(recipe_id: int) -> Union[str, Response]:
     recipe = Recipe.query.get_or_404(recipe_id)
 
     ingredients_text = "\n".join(
-        f"{ingr.quantity} {ingr.measurement} {ingr.ingredient_name}"
+        f"{format_quantity(ingr.quantity)} {ingr.measurement} {ingr.ingredient_name}"
         for ingr in recipe.recipe_ingredients
     )
 
@@ -106,31 +107,8 @@ def view_recipe(recipe_id: int) -> Union[str, Response]:
         recipe.url = form.url.data
         recipe.notes = form.notes.data
 
-        # Delete existing ingredients
-        for ingredient in recipe.recipe_ingredients:
-            db.session.delete(ingredient)
-
-        # Parse and add new ingredients
-        ingredients_text = form.ingredients_text.data
-        parsed_ingredients = Recipe.parse_ingredients(ingredients_text)
-
-        for ingredient_data in parsed_ingredients:
-            ingredient_name = (
-                ingredient_data.get("ingredient_name")
-                or ingredient_data.get("name")
-                or ""
-            ).strip()
-            if not ingredient_name:
-                # Skip invalid model output instead of violating NOT NULL constraint.
-                continue
-
-            ingredient = RecipeIngredient(
-                recipe_id=recipe.id,
-                quantity=ingredient_data.get("quantity"),
-                measurement=ingredient_data.get("measurement"),
-                ingredient_name=ingredient_name[:40],
-            )
-            db.session.add(ingredient)
+        # Replace ingredients; delete-orphan cascade removes the old rows
+        recipe.recipe_ingredients = Recipe.build_ingredients(form.ingredients_text.data)
 
         try:
             db.session.commit()

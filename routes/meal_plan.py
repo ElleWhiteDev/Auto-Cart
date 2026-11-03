@@ -32,7 +32,7 @@ from models import (
     PantryStaple,
 )
 from sqlalchemy.orm import selectinload
-from utils import require_login, CURR_GROCERY_LIST_KEY, get_est_date, get_est_now
+from utils import require_login, CURR_GROCERY_LIST_KEY, format_quantity, get_est_date, get_est_now
 from logging_config import logger
 from typing import Union, Dict, Any, Tuple, Optional
 
@@ -1040,7 +1040,7 @@ def _score_recipe_match(recipe: Any, ingredient_set: set, staples: frozenset = _
             if score < 1:
                 new_item_count += 1
 
-        quantity_str = str(ingredient.quantity).rstrip("0").rstrip(".") if ingredient.quantity else ""
+        quantity_str = format_quantity(ingredient.quantity) if ingredient.quantity else ""
         display_text = " ".join(p for p in [quantity_str, ingredient.measurement or "", ingredient_name] if p).strip()
         ingredient_payload.append(
             {

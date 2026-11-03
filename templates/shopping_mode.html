@@ -96,7 +96,7 @@
 						<label class="form-check-label flex-grow-1" for="item-{{ item.id }}" style="cursor: pointer; font-size: 1.1rem;">
 							<div>
 								{% if ri.quantity and ri.quantity > 0 and ri.measurement and not (ri.quantity == 1.0 and ri.measurement == 'unit') %}
-								<strong>{% if ri.measurement != 'unit' %}{{ ri.quantity|round(2)|string|replace('.0','') }} {{ ri.measurement }}{% else %}{{ ri.quantity|round(2)|string|replace('.0','') }}{% endif %}</strong>
+								<strong>{{ ri.quantity|format_quantity }}{% if ri.measurement != 'unit' %} {{ ri.measurement }}{% endif %}</strong>
 								{% endif %}
 								{{ ri.ingredient_name }}
 								{% if is_staple %}
