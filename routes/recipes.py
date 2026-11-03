@@ -195,9 +195,9 @@ def extract_recipe_form() -> tuple[dict, int]:
             }
         ), 400
     elif recipe_data.get("name") or recipe_data.get("ingredients"):
-        # Clean ingredients with OpenAI before populating form
+        # Clean ingredients with Claude before populating form
         raw_ingredients_text = "\n".join(recipe_data.get("ingredients", []))
-        cleaned_ingredients_text = Recipe.clean_ingredients_with_openai(
+        cleaned_ingredients_text = Recipe.clean_ingredients_with_ai(
             raw_ingredients_text
         )
 
@@ -222,7 +222,7 @@ def extract_recipe_form() -> tuple[dict, int]:
 @require_login
 def standardize_ingredients() -> tuple[dict, int]:
     """
-    Standardize ingredients using OpenAI.
+    Standardize ingredients using Claude.
 
     Returns:
         JSON response with standardized ingredients
@@ -233,7 +233,7 @@ def standardize_ingredients() -> tuple[dict, int]:
         return jsonify({"success": False, "error": "Ingredients text is required"}), 400
 
     try:
-        standardized_ingredients = Recipe.clean_ingredients_with_openai(
+        standardized_ingredients = Recipe.clean_ingredients_with_ai(
             ingredients_text
         )
 

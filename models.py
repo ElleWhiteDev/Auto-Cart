@@ -1,12 +1,11 @@
 import json
 import re
-import os
 from collections import defaultdict
 from datetime import datetime
 from typing import List, Optional, Dict, Any, Tuple
 from flask import g
 from flask_mail import Message
-from openai import OpenAI
+import anthropic
 from utils import (
     parse_quantity_string,
     parse_simple_ingredient,
@@ -18,8 +17,56 @@ from logging_config import logger
 # Import db and bcrypt from extensions to avoid circular imports
 from extensions import db, bcrypt
 
-# Initialize OpenAI client using environment variable
-openai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+# Reads ANTHROPIC_API_KEY from the environment
+ai_client = anthropic.Anthropic()
+AI_MODEL = "claude-opus-5-5"
+
+# JSON shape Recipe.parse_ingredients asks Claude for
+_PARSED_INGREDIENTS_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "ingredients": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "quantity": {"type": "string"},
+                    "measurement": {"type": "string"},
+                    "ingredient_name": {"type": "string"},
+                },
+                "required": ["quantity", "measurement", "ingredient_name"],
+                "additionalProperties": False,
+            },
+        }
+    },
+    "required": ["ingredients"],
+    "additionalProperties": False,
+}
+
+
+def _ask_claude(system_prompt: str, user_content: str, json_schema=None) -> str:
+    """Send one prompt to Claude and return its text reply.
+
+    With json_schema, the reply is guaranteed to be JSON matching that schema.
+    Raises on API errors or a refusal so callers can fall back.
+    """
+    output_config = {"effort": "low"}
+    if json_schema is not None:
+        output_config["format"] = {"type": "json_schema", "schema": json_schema}
+
+    response = ai_client.beta.messages.create(
+        model=AI_MODEL,
+        max_tokens=16000,
+        system=system_prompt,
+        messages=[{"role": "user", "content": user_content}],
+        output_config=output_config,
+        # On a safety refusal, re-run on a fallback model chosen by the API
+        betas=["server-side-fallback-2026-07-01"],
+        fallbacks="default",
+    )
+    if response.stop_reason == "refusal":
+        raise RuntimeError("Claude declined the request")
+    return next(block.text for block in response.content if block.type == "text").strip()
 
 
 _MEASUREMENT_ALIASES = {
@@ -1000,8 +1047,8 @@ class Recipe(db.Model):
     )
 
     @classmethod
-    def clean_ingredients_with_openai(cls, ingredients_text):
-        """Clean and standardize scraped ingredients using OpenAI."""
+    def clean_ingredients_with_ai(cls, ingredients_text):
+        """Clean and standardize scraped ingredients using Claude."""
         try:
             system_prompt = """You clean raw recipe ingredient text for a grocery and meal-planning app.
 
@@ -1049,30 +1096,22 @@ Output contract:
 - Return one cleaned ingredient per line.
 - Do not add any explanation before or after the cleaned lines."""
 
-            response = openai_client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {
-                        "role": "user",
-                        "content": f"Clean these ingredients:\n\n{ingredients_text}",
-                    },
-                ],
-                temperature=0.1,
-                max_tokens=1000,
+            return _ask_claude(
+                system_prompt, f"Clean these ingredients:\n\n{ingredients_text}"
             )
 
-            cleaned_text = response.choices[0].message.content.strip()
-            return cleaned_text
-
         except Exception as e:
-            logger.error(f"OpenAI ingredient cleaning error: {e}", exc_info=True)
+            logger.error(f"AI ingredient cleaning error: {e}", exc_info=True)
             logger.info("Falling back to original ingredients text")
             return ingredients_text
 
     @classmethod
-    def parse_ingredients(cls, ingredients_text):
-        """Parse ingredient text into individual objects using OpenAI"""
+    def parse_ingredients(cls, ingredients_text, allow_fallback=True):
+        """Parse ingredient text into individual objects using Claude.
+
+        If the Claude call fails, falls back to simple regex parsing, or re-raises
+        when allow_fallback is False.
+        """
 
         try:
             system_prompt = """You parse recipe ingredient lines into structured objects for a grocery and meal-planning app.
@@ -1084,12 +1123,7 @@ Processing rules:
 - Ignore blank lines and lines that are clearly section headers or other non-ingredient text.
 
 Return format:
-- Return ONLY a valid JSON array.
-- Each array element must be an object with EXACTLY these string keys:
-  - "quantity"
-  - "measurement"
-  - "ingredient_name"
-- No markdown, no prose, no comments, no code fences, no trailing commas, and no extra keys.
+- Return a JSON object whose "ingredients" array holds one object per ingredient line, with string keys "quantity", "measurement" and "ingredient_name".
 
 Field rules:
 1) Quantity:
@@ -1118,34 +1152,23 @@ Examples:
 "1 (14.5 oz) can diced tomatoes" -> {"quantity":"14.5","measurement":"oz","ingredient_name":"tomatoes"}
 "1 cup yellow onion, diced" -> {"quantity":"1","measurement":"cup","ingredient_name":"yellow onion"}
 "milk" -> {"quantity":"1","measurement":"unit","ingredient_name":"milk"}
-"salt and pepper to taste" -> {"quantity":"1","measurement":"unit","ingredient_name":"salt and pepper to taste"}
+"salt and pepper to taste" -> {"quantity":"1","measurement":"unit","ingredient_name":"salt and pepper to taste"}"""
 
-Before answering, verify that the response is valid JSON and that every object uses exactly the required keys."""
-
-            response = openai_client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {
-                        "role": "user",
-                        "content": f"Parse these ingredients:\n\n{ingredients_text}",
-                    },
-                ],
-                temperature=0.1,
-                max_tokens=1000,
+            reply = _ask_claude(
+                system_prompt,
+                f"Parse these ingredients:\n\n{ingredients_text}",
+                json_schema=_PARSED_INGREDIENTS_SCHEMA,
             )
-
-            content = response.choices[0].message.content.strip()
-            # Tolerate the model wrapping its JSON in a markdown code fence
-            content = re.sub(r"^```(?:json)?\s*|\s*```$", "", content)
-            parsed_ingredients = json.loads(content)
+            parsed_ingredients = json.loads(reply)["ingredients"]
             return [
                 _normalize_ingredient_entry(ingredient)
                 for ingredient in parsed_ingredients
             ]
 
         except Exception as e:
-            logger.error(f"OpenAI ingredient parsing error: {e}", exc_info=True)
+            if not allow_fallback:
+                raise
+            logger.error(f"AI ingredient parsing error: {e}", exc_info=True)
             logger.info("Falling back to simple parsing")
 
             parsed_ingredients = []
@@ -1191,10 +1214,10 @@ Before answering, verify that the response is valid JSON and that every object u
         return recipe
 
     @classmethod
-    def build_ingredients(cls, ingredients_text):
+    def build_ingredients(cls, ingredients_text, allow_fallback=True):
         """Parse ingredient text into RecipeIngredient rows ready to attach to a recipe."""
         ingredients = []
-        for ingredient_data in cls.parse_ingredients(ingredients_text):
+        for ingredient_data in cls.parse_ingredients(ingredients_text, allow_fallback):
             ingredient_name = (ingredient_data.get("ingredient_name") or "").strip()
             if not ingredient_name:
                 continue
@@ -1338,7 +1361,7 @@ class GroceryList(db.Model):
                 )
 
         # Use AI to consolidate similar ingredients (will merge duplicates)
-        consolidated_ingredients = cls.consolidate_ingredients_with_openai(
+        consolidated_ingredients = cls.consolidate_ingredients_with_ai(
             all_ingredients
         )
 
@@ -1728,8 +1751,8 @@ class GroceryList(db.Model):
         return "\n".join(ingredients_list)
 
     @classmethod
-    def consolidate_ingredients_with_openai(cls, ingredients_list):
-        """Consolidate similar ingredients using OpenAI."""
+    def consolidate_ingredients_with_ai(cls, ingredients_list):
+        """Consolidate similar ingredients using Claude."""
         try:
             normalized_inputs = _merge_ingredient_entries(ingredients_list)
 
@@ -1816,20 +1839,9 @@ Output contract:
 
 Before answering, verify that every retained non-water input line is represented either as its own output line or as part of a clearly merged equivalent output line."""
 
-            response = openai_client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {
-                        "role": "user",
-                        "content": f"Consolidate these ingredients:\n\n{ingredients_text}",
-                    },
-                ],
-                temperature=0.1,
-                max_tokens=1000,
+            consolidated_text = _ask_claude(
+                system_prompt, f"Consolidate these ingredients:\n\n{ingredients_text}"
             )
-
-            consolidated_text = response.choices[0].message.content.strip()
 
             consolidated_ingredients = [
                 _parse_consolidated_line(line)
@@ -1840,7 +1852,7 @@ Before answering, verify that every retained non-water input line is represented
             return _merge_ingredient_entries(consolidated_ingredients)
 
         except Exception as e:
-            logger.error(f"OpenAI ingredient consolidation error: {e}", exc_info=True)
+            logger.error(f"AI ingredient consolidation error: {e}", exc_info=True)
             logger.info("Falling back to deterministic consolidation")
             return _merge_ingredient_entries(ingredients_list)
 

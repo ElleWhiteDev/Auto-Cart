@@ -7,7 +7,7 @@ This guide will help you get Auto-Cart running locally on your machine.
 - Python 3.8 or higher
 - PostgreSQL database
 - Kroger Developer Account (for API access)
-- OpenAI API Key
+- Anthropic API Key
 - Gmail account (for email functionality)
 
 ## Step 1: Clone and Navigate to Project
@@ -63,8 +63,8 @@ CLIENT_SECRET=your-kroger-client-secret
 OAUTH2_BASE_URL=https://api.kroger.com/v1
 REDIRECT_URL=http://localhost:5000/kroger/callback
 
-# OpenAI API Configuration
-OPENAI_API_KEY=your-openai-api-key
+# Anthropic (Claude) API Configuration
+ANTHROPIC_API_KEY=your-anthropic-api-key
 
 # Email Configuration (Gmail)
 MAIL_SERVER=smtp.gmail.com
@@ -119,11 +119,11 @@ The app should now be running at: **http://localhost:5000**
 4. Set redirect URL to `http://localhost:5000/kroger/callback`
 5. Add these to your `.env` file
 
-### OpenAI API Setup
+### Anthropic (Claude) API Setup
 
-1. Go to [OpenAI Platform](https://platform.openai.com/)
+1. Go to the [Claude Console](https://platform.claude.com/)
 2. Create an account and generate an API key
-3. Add the key to your `.env` file as `OPENAI_API_KEY`
+3. Add the key to your `.env` file as `ANTHROPIC_API_KEY`
 
 ### Gmail App Password Setup
 

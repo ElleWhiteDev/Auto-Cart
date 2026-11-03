@@ -39,7 +39,7 @@ Auto-Cart is a sophisticated web application that streamlines meal planning and 
 - **Database Design**: Well-normalized PostgreSQL schema with proper relationships and constraints
 - **Security**: Bcrypt password hashing, OAuth 2.0 integration, CSRF protection
 - **Scalability**: Multi-household support with role-based access control
-- **AI Integration**: OpenAI API for intelligent recipe parsing and ingredient standardization
+- **AI Integration**: Claude API for intelligent recipe parsing and ingredient standardization
 - **Production Ready**: Deployed on Heroku with environment-based configuration
 - **Comprehensive Testing**: pytest suite with unit, integration, and service layer tests
 
@@ -137,7 +137,7 @@ Auto-Cart is a sophisticated web application that streamlines meal planning and 
 - **Database**: PostgreSQL with SQLAlchemy ORM
 - **Authentication**: Flask-Bcrypt, OAuth 2.0
 - **Email**: Flask-Mail with SMTP
-- **AI**: OpenAI GPT for recipe parsing
+- **AI**: Anthropic Claude for recipe parsing
 - **Deployment**: Gunicorn on Heroku
 
 **Frontend**
@@ -148,7 +148,7 @@ Auto-Cart is a sophisticated web application that streamlines meal planning and 
 
 **External APIs**
 - Kroger API (Auth, Product Search, Cart, Location, Store)
-- OpenAI API (GPT-4 for recipe intelligence)
+- Anthropic Claude API (recipe intelligence)
 - Amazon Alexa Skills Kit
 
 ### Project Structure
@@ -220,7 +220,7 @@ Auto-Cart/
 - Python 3.9+
 - PostgreSQL (or SQLite for development)
 - Kroger Developer Account (for API keys)
-- OpenAI API Key (for AI features)
+- Anthropic API Key (for AI features)
 
 ### Installation
 
@@ -260,8 +260,8 @@ Auto-Cart/
    OAUTH2_BASE_URL=https://api.kroger.com/v1/connect/oauth2
    LOCAL_REDIRECT_URL=http://localhost:5000/callback
 
-   # OpenAI API
-   OPENAI_API_KEY=your-openai-api-key
+   # Anthropic (Claude) API
+   ANTHROPIC_API_KEY=your-anthropic-api-key
 
    # Email Configuration (optional)
    MAIL_SERVER=smtp.gmail.com
@@ -437,7 +437,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## 🙏 Acknowledgments
 
 - Kroger Developer Program for API access
-- OpenAI for GPT API
+- Anthropic for the Claude API
 - Flask and SQLAlchemy communities
 - All open-source contributors
 

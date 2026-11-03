@@ -169,7 +169,7 @@ The other hourly runs return "Not reminder time, skipped" and send nothing.
 
 To send the reminder right away for testing, whatever the day:
 ```bash
-heroku run python scripts/send_weekly_reminders.py --force -a YOUR_APP_NAME
+heroku run -a YOUR_APP_NAME -- python scripts/send_weekly_reminders.py --force
 ```
 
 Endpoint for external cron services: `POST /meal-plan/send-weekly-reminders` with the `X-Cron-Token` header (add form field `force=1` to skip the time check).

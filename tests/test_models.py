@@ -6,26 +6,27 @@ Tests the core functionality of User, Household, Recipe, and GroceryList models.
 
 import pytest
 from types import SimpleNamespace
+import models
 from models import User, Household, HouseholdMember, Recipe, RecipeIngredient, GroceryList, bcrypt
 
 
-def _mock_openai_response(content):
-    return SimpleNamespace(
-        choices=[SimpleNamespace(message=SimpleNamespace(content=content))]
-    )
+def _mock_claude(monkeypatch, reply):
+    """Make every Claude call return `reply`."""
+    monkeypatch.setattr("models._ask_claude", lambda *args, **kwargs: reply)
 
 
-def _capture_openai_call(monkeypatch, response_content):
+def _capture_claude_call(monkeypatch, reply):
     captured = {}
 
-    def _fake_create(**kwargs):
-        captured.update(kwargs)
-        return _mock_openai_response(response_content)
+    def _fake_ask(system_prompt, user_content, json_schema=None):
+        captured.update(
+            system_prompt=system_prompt,
+            user_content=user_content,
+            json_schema=json_schema,
+        )
+        return reply
 
-    monkeypatch.setattr(
-        "models.openai_client.chat.completions.create",
-        _fake_create,
-    )
+    monkeypatch.setattr("models._ask_claude", _fake_ask)
     return captured
 
 
@@ -146,13 +147,9 @@ class TestRecipeModel:
 
     def test_parse_ingredients_normalizes_oz_tomatoes(self, monkeypatch):
         """Prep descriptors should be removed from parsed tomato ingredients."""
-        response = _mock_openai_response(
-            '[{"quantity":"14.5","measurement":"ounces","ingredient_name":"diced tomatoes"}]'
-        )
-
-        monkeypatch.setattr(
-            "models.openai_client.chat.completions.create",
-            lambda **kwargs: response,
+        _mock_claude(
+            monkeypatch,
+            '{"ingredients":[{"quantity":"14.5","measurement":"ounces","ingredient_name":"diced tomatoes"}]}'
         )
 
         parsed = Recipe.parse_ingredients("14.5 oz diced tomatoes")
@@ -161,27 +158,47 @@ class TestRecipeModel:
             {"quantity": "14.5", "measurement": "oz", "ingredient_name": "tomatoes"}
         ]
 
-    def test_parse_ingredients_accepts_fenced_json(self, monkeypatch):
-        """JSON wrapped in a markdown code fence should still parse."""
-        response = _mock_openai_response(
-            '```json\n[{"quantity":"2","measurement":"cup","ingredient_name":"flour"}]\n```'
-        )
+    def test_ask_claude_requests_json_schema_and_returns_text(self, monkeypatch):
+        """_ask_claude should send the schema as structured output and return the text."""
+        captured = {}
+
+        def _fake_create(**kwargs):
+            captured.update(kwargs)
+            return SimpleNamespace(
+                stop_reason="end_turn",
+                content=[SimpleNamespace(type="text", text=' {"ingredients": []} ')],
+            )
+
+        monkeypatch.setattr(models.ai_client.beta.messages, "create", _fake_create)
+
+        reply = models._ask_claude("system", "user", json_schema={"type": "object"})
+
+        assert reply == '{"ingredients": []}'
+        assert captured["model"] == models.AI_MODEL
+        assert captured["system"] == "system"
+        assert captured["output_config"]["format"] == {
+            "type": "json_schema",
+            "schema": {"type": "object"},
+        }
+
+    def test_ask_claude_raises_on_refusal(self, monkeypatch):
+        """A refusal should raise so callers use their non-AI fallback."""
         monkeypatch.setattr(
-            "models.openai_client.chat.completions.create",
-            lambda **kwargs: response,
+            models.ai_client.beta.messages,
+            "create",
+            lambda **kwargs: SimpleNamespace(stop_reason="refusal", content=[]),
         )
 
-        assert Recipe.parse_ingredients("2 cups flour") == [
-            {"quantity": "2", "measurement": "cup", "ingredient_name": "flour"}
-        ]
+        with pytest.raises(RuntimeError):
+            models._ask_claude("system", "user")
 
     def test_parse_ingredients_fallback_keeps_quantities(self, monkeypatch):
         """If the model call fails, simple parsing should keep explicit quantities."""
 
-        def _fail(**kwargs):
-            raise RuntimeError("OpenAI unavailable")
+        def _fail(*args, **kwargs):
+            raise RuntimeError("Claude unavailable")
 
-        monkeypatch.setattr("models.openai_client.chat.completions.create", _fail)
+        monkeypatch.setattr("models._ask_claude", _fail)
 
         assert Recipe.parse_ingredients("2 1/2 cups flour\n3 large eggs\nsalt") == [
             {"quantity": "2 1/2", "measurement": "cup", "ingredient_name": "flour"},
@@ -191,13 +208,10 @@ class TestRecipeModel:
 
     def test_create_recipe_stores_parsed_ingredients(self, monkeypatch):
         """New recipes should store parsed quantities, not raw lines as names."""
-        response = _mock_openai_response(
-            '[{"quantity":"14.5","measurement":"oz","ingredient_name":"diced tomatoes"},'
-            '{"quantity":"1/2","measurement":"cup","ingredient_name":"a very long ingredient name that exceeds the column"}]'
-        )
-        monkeypatch.setattr(
-            "models.openai_client.chat.completions.create",
-            lambda **kwargs: response,
+        _mock_claude(
+            monkeypatch,
+            '{"ingredients":[{"quantity":"14.5","measurement":"oz","ingredient_name":"diced tomatoes"},'
+            '{"quantity":"1/2","measurement":"cup","ingredient_name":"a very long ingredient name that exceeds the column"}]}'
         )
 
         recipe = Recipe.create_recipe(
@@ -216,11 +230,11 @@ class TestRecipeModel:
         self, monkeypatch
     ):
         """Cleaning prompt should emphasize stable line cleanup without hallucination."""
-        captured = _capture_openai_call(monkeypatch, "1/2 cup sugar")
+        captured = _capture_claude_call(monkeypatch, "1/2 cup sugar")
 
-        Recipe.clean_ingredients_with_openai("½ cup sugar")
+        Recipe.clean_ingredients_with_ai("½ cup sugar")
 
-        system_prompt = captured["messages"][0]["content"]
+        system_prompt = captured["system_prompt"]
         assert (
             "Preserve the original ingredient order of retained lines." in system_prompt
         )
@@ -231,15 +245,16 @@ class TestRecipeModel:
 
     def test_parse_prompt_mentions_json_contract_and_prep_removal(self, monkeypatch):
         """Parsing prompt should enforce strict JSON and shopping-safe normalization."""
-        captured = _capture_openai_call(
+        captured = _capture_claude_call(
             monkeypatch,
-            '[{"quantity":"1","measurement":"cup","ingredient_name":"yellow onion"}]',
+            '{"ingredients":[{"quantity":"1","measurement":"cup","ingredient_name":"yellow onion"}]}',
         )
 
         Recipe.parse_ingredients("1 cup yellow onion, diced")
 
-        system_prompt = captured["messages"][0]["content"]
-        assert "Return ONLY a valid JSON array." in system_prompt
+        system_prompt = captured["system_prompt"]
+        assert '"ingredients" array' in system_prompt
+        assert captured["json_schema"] is models._PARSED_INGREDIENTS_SCHEMA
         assert "Remove prep-only descriptors wherever they appear" in system_prompt
         assert (
             "Never merge, deduplicate, summarize, or omit any meaningful ingredient line."
@@ -248,13 +263,9 @@ class TestRecipeModel:
 
     def test_parse_ingredients_strips_prep_but_keeps_variant(self, monkeypatch):
         """Post-processing should keep shoppable variants while removing prep-only wording."""
-        response = _mock_openai_response(
-            '[{"quantity":"1","measurement":"cup","ingredient_name":"yellow onion diced"}]'
-        )
-
-        monkeypatch.setattr(
-            "models.openai_client.chat.completions.create",
-            lambda **kwargs: response,
+        _mock_claude(
+            monkeypatch,
+            '{"ingredients":[{"quantity":"1","measurement":"cup","ingredient_name":"yellow onion diced"}]}'
         )
 
         parsed = Recipe.parse_ingredients("1 cup yellow onion, diced")
@@ -265,13 +276,9 @@ class TestRecipeModel:
 
     def test_parse_ingredients_removes_note_only_phrases(self, monkeypatch):
         """Structured output should drop non-purchase notes while keeping the ingredient."""
-        response = _mock_openai_response(
-            '[{"quantity":"2","measurement":"tbsp","ingredient_name":"parsley divided"}]'
-        )
-
-        monkeypatch.setattr(
-            "models.openai_client.chat.completions.create",
-            lambda **kwargs: response,
+        _mock_claude(
+            monkeypatch,
+            '{"ingredients":[{"quantity":"2","measurement":"tbsp","ingredient_name":"parsley divided"}]}'
         )
 
         parsed = Recipe.parse_ingredients("2 tbsp parsley, divided")
@@ -307,14 +314,9 @@ class TestGroceryListModel:
 
     def test_consolidate_merges_prep_variants(self, monkeypatch):
         """Prep-only wording differences should collapse into one grocery line."""
-        response = _mock_openai_response("1 unit chopped onion\n1 unit minced onion")
+        _mock_claude(monkeypatch, "1 unit chopped onion\n1 unit minced onion")
 
-        monkeypatch.setattr(
-            "models.openai_client.chat.completions.create",
-            lambda **kwargs: response,
-        )
-
-        consolidated = GroceryList.consolidate_ingredients_with_openai(
+        consolidated = GroceryList.consolidate_ingredients_with_ai(
             [
                 {
                     "quantity": "1",
@@ -335,14 +337,9 @@ class TestGroceryListModel:
 
     def test_consolidate_keeps_chicken_cuts_separate(self, monkeypatch):
         """Purchase-critical chicken cut differences should remain distinct."""
-        response = _mock_openai_response("1 lb chicken breast\n1 lb chicken thighs")
+        _mock_claude(monkeypatch, "1 lb chicken breast\n1 lb chicken thighs")
 
-        monkeypatch.setattr(
-            "models.openai_client.chat.completions.create",
-            lambda **kwargs: response,
-        )
-
-        consolidated = GroceryList.consolidate_ingredients_with_openai(
+        consolidated = GroceryList.consolidate_ingredients_with_ai(
             [
                 {
                     "quantity": "1",
@@ -364,14 +361,9 @@ class TestGroceryListModel:
 
     def test_consolidate_combines_weighted_and_plain_tomatoes(self, monkeypatch):
         """Explicitly sized canned tomatoes should absorb plain unit tomato lines."""
-        response = _mock_openai_response("14.5 oz diced tomatoes\n1 unit tomatoes")
+        _mock_claude(monkeypatch, "14.5 oz diced tomatoes\n1 unit tomatoes")
 
-        monkeypatch.setattr(
-            "models.openai_client.chat.completions.create",
-            lambda **kwargs: response,
-        )
-
-        consolidated = GroceryList.consolidate_ingredients_with_openai(
+        consolidated = GroceryList.consolidate_ingredients_with_ai(
             [
                 {
                     "quantity": "14.5",
@@ -388,14 +380,9 @@ class TestGroceryListModel:
 
     def test_consolidate_keeps_tomatoes_and_sauce_separate(self, monkeypatch):
         """Tomatoes should not collapse into tomato sauce products."""
-        response = _mock_openai_response("1 unit tomatoes\n1 unit tomato sauce")
+        _mock_claude(monkeypatch, "1 unit tomatoes\n1 unit tomato sauce")
 
-        monkeypatch.setattr(
-            "models.openai_client.chat.completions.create",
-            lambda **kwargs: response,
-        )
-
-        consolidated = GroceryList.consolidate_ingredients_with_openai(
+        consolidated = GroceryList.consolidate_ingredients_with_ai(
             [
                 {"quantity": "1", "measurement": "unit", "ingredient_name": "tomatoes"},
                 {
@@ -415,13 +402,13 @@ class TestGroceryListModel:
         self, monkeypatch
     ):
         """Consolidation prompt should prefer safe merges and stable ordering."""
-        captured = _capture_openai_call(monkeypatch, "1 unit onion")
+        captured = _capture_claude_call(monkeypatch, "1 unit onion")
 
-        GroceryList.consolidate_ingredients_with_openai(
+        GroceryList.consolidate_ingredients_with_ai(
             [{"quantity": "1", "measurement": "unit", "ingredient_name": "onion"}]
         )
 
-        system_prompt = captured["messages"][0]["content"]
+        system_prompt = captured["system_prompt"]
         assert (
             "If there is any reasonable doubt, keep the items separate."
             in system_prompt
@@ -433,15 +420,12 @@ class TestGroceryListModel:
         self, monkeypatch
     ):
         """A "unit" line folds into the real measurement once, not once per line."""
-        response = _mock_openai_response(
+        _mock_claude(
+            monkeypatch,
             "1 lb ground beef\n1 lb ground beef\n1 unit ground beef"
         )
-        monkeypatch.setattr(
-            "models.openai_client.chat.completions.create",
-            lambda **kwargs: response,
-        )
 
-        consolidated = GroceryList.consolidate_ingredients_with_openai(
+        consolidated = GroceryList.consolidate_ingredients_with_ai(
             [{"quantity": "1", "measurement": "lb", "ingredient_name": "ground beef"}]
         )
 
@@ -453,15 +437,12 @@ class TestGroceryListModel:
         self, monkeypatch
     ):
         """A "unit" line is kept rather than dropped when it can't be folded."""
-        response = _mock_openai_response(
+        _mock_claude(
+            monkeypatch,
             "1 unit butter\n1 tbsp butter\n1 cup butter"
         )
-        monkeypatch.setattr(
-            "models.openai_client.chat.completions.create",
-            lambda **kwargs: response,
-        )
 
-        consolidated = GroceryList.consolidate_ingredients_with_openai(
+        consolidated = GroceryList.consolidate_ingredients_with_ai(
             [{"quantity": "1", "measurement": "unit", "ingredient_name": "butter"}]
         )
 
@@ -473,13 +454,9 @@ class TestGroceryListModel:
 
     def test_consolidate_unit_line_counts_as_known_package_size(self, monkeypatch):
         """Any ingredient with one known package size treats a unit as one package."""
-        response = _mock_openai_response("15 oz black beans\n1 unit black beans")
-        monkeypatch.setattr(
-            "models.openai_client.chat.completions.create",
-            lambda **kwargs: response,
-        )
+        _mock_claude(monkeypatch, "15 oz black beans\n1 unit black beans")
 
-        consolidated = GroceryList.consolidate_ingredients_with_openai(
+        consolidated = GroceryList.consolidate_ingredients_with_ai(
             [{"quantity": "15", "measurement": "oz", "ingredient_name": "black beans"}]
         )
 
@@ -489,13 +466,9 @@ class TestGroceryListModel:
 
     def test_consolidate_sums_mixed_number_quantities(self, monkeypatch):
         """Mixed numbers like "2 1/2" from the model are summed, not dropped."""
-        response = _mock_openai_response("2 1/2 cup flour\n1 cup flour")
-        monkeypatch.setattr(
-            "models.openai_client.chat.completions.create",
-            lambda **kwargs: response,
-        )
+        _mock_claude(monkeypatch, "2 1/2 cup flour\n1 cup flour")
 
-        consolidated = GroceryList.consolidate_ingredients_with_openai(
+        consolidated = GroceryList.consolidate_ingredients_with_ai(
             [{"quantity": "1", "measurement": "cup", "ingredient_name": "flour"}]
         )
 

@@ -458,7 +458,7 @@ def _handle_add_item_request(alexa_request):
             "All ingredients before consolidation (Alexa): %s", all_ingredients
         )
 
-        consolidated_ingredients = GroceryList.consolidate_ingredients_with_openai(
+        consolidated_ingredients = GroceryList.consolidate_ingredients_with_ai(
             all_ingredients
         )
 

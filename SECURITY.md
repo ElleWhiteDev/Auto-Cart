@@ -92,7 +92,7 @@ Include the following information:
 Never commit the following to version control:
 
 - `SECRET_KEY` - Generate with `python -c "import secrets; print(secrets.token_hex(32))"`
-- `OPENAI_API_KEY` - Your OpenAI API key
+- `ANTHROPIC_API_KEY` - Your Anthropic (Claude) API key
 - `CLIENT_ID` / `CLIENT_SECRET` - Kroger API credentials
 - `MAIL_PASSWORD` - Email account password
 - Database connection strings

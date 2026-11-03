@@ -202,7 +202,7 @@ class TestAlexaRoutes:
             ],
         )
         monkeypatch.setattr(
-            "alexa_api.GroceryList.consolidate_ingredients_with_openai",
+            "alexa_api.GroceryList.consolidate_ingredients_with_ai",
             lambda ingredients: ingredients,
         )
 

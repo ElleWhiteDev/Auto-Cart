@@ -7,9 +7,13 @@ This re-parses those recipes from the stored lines.
 A recipe is only touched when every ingredient is "1 unit" and at least one line
 starts with a number, i.e. there is a quantity hidden in the name to recover.
 
+Stops at the first AI error (e.g. out of credits) rather than quietly
+storing the weaker regex fallback; pass --allow-fallback to accept that instead.
+
 Usage:
     python scripts/reparse_recipe_ingredients.py          # dry run, prints changes
     python scripts/reparse_recipe_ingredients.py --apply  # write changes
+    python scripts/reparse_recipe_ingredients.py --apply --allow-fallback
 """
 
 import os
@@ -27,6 +31,8 @@ from models import db, Recipe, GroceryListItem, RecipeIngredient
 from utils import format_quantity
 
 _STARTS_WITH_QUANTITY = re.compile(r"^\s*[\d½¼¾⅓⅔⅛]")
+# Some lines were re-saved through the edit form as "1.0 unit 2 tbsp butter"
+_SAVED_UNIT_PREFIX = re.compile(r"^\s*1(?:\.0)? unit\s+(?=\S)")
 
 
 def _needs_reparse(recipe):
@@ -53,7 +59,7 @@ def _describe(ingredient):
     return f"{format_quantity(ingredient.quantity)} {ingredient.measurement} {ingredient.ingredient_name}"
 
 
-def reparse(apply=False):
+def reparse(apply=False, allow_fallback=False):
     with app.app_context():
         recipes = [r for r in Recipe.query.order_by(Recipe.id).all() if _needs_reparse(r)]
         print(f"{len(recipes)} recipe(s) look unparsed\n")
@@ -67,7 +73,13 @@ def reparse(apply=False):
                 continue
 
             lines = [i.ingredient_name for i in recipe.recipe_ingredients]
-            new_ingredients = Recipe.build_ingredients("\n".join(lines))
+            text = "\n".join(_SAVED_UNIT_PREFIX.sub("", line) for line in lines)
+            try:
+                new_ingredients = Recipe.build_ingredients(text, allow_fallback)
+            except Exception as error:
+                print(f"\nStopping: AI parsing failed ({error})")
+                print("Fix the API issue, or re-run with --allow-fallback to use simple parsing.")
+                break
             if not new_ingredients:
                 print("  skipped: parsing returned nothing\n")
                 skipped += 1
@@ -91,4 +103,4 @@ def reparse(apply=False):
 
 
 if __name__ == "__main__":
-    reparse(apply="--apply" in sys.argv)
+    reparse(apply="--apply" in sys.argv, allow_fallback="--allow-fallback" in sys.argv)

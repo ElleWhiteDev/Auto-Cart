@@ -50,7 +50,7 @@ Custom decorators for cross-cutting concerns:
 ```
 User Input → Form Validation → RecipeService.create_recipe()
                                         ↓
-                                Parse Ingredients (OpenAI)
+                                Parse Ingredients (Claude)
                                         ↓
                                 Create Recipe Model
                                         ↓
@@ -125,7 +125,7 @@ User ←→ HouseholdMember ←→ Household
 - User-friendly error messages
 - Logging for debugging
 
-### OpenAI API
+### Anthropic Claude API
 
 **Use Cases:**
 1. Recipe extraction from URLs
