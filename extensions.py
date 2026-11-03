@@ -64,16 +64,25 @@ def init_extensions(app):
                     "'self'",
                     "'unsafe-inline'",  # Required for inline scripts
                     "cdn.jsdelivr.net",
-                    "cdnjs.cloudflare.com"
+                    "cdnjs.cloudflare.com",
+                    "hcaptcha.com",
+                    "*.hcaptcha.com"
                 ],
                 'style-src': [
                     "'self'",
                     "'unsafe-inline'",  # Required for inline styles
                     "cdn.jsdelivr.net",
-                    "cdnjs.cloudflare.com"
+                    "cdnjs.cloudflare.com",
+                    "unpkg.com",
+                    "fonts.googleapis.com",
+                    "hcaptcha.com",
+                    "*.hcaptcha.com"
                 ],
                 'img-src': ["'self'", "data:", "https:"],
-                'font-src': ["'self'", "cdn.jsdelivr.net", "cdnjs.cloudflare.com"],
+                'font-src': ["'self'", "cdn.jsdelivr.net", "cdnjs.cloudflare.com", "fonts.gstatic.com"],
+                # hCaptcha renders in an iframe and calls its own API
+                'frame-src': ["hcaptcha.com", "*.hcaptcha.com"],
+                'connect-src': ["'self'", "hcaptcha.com", "*.hcaptcha.com"],
             },
             force_https=True,
             strict_transport_security=True,
