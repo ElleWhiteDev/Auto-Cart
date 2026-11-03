@@ -567,6 +567,56 @@ def toggle_chef_assignment_emails() -> Tuple[Dict[str, Any], int]:
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+@main_bp.route("/household/toggle-weekly-reminder-emails", methods=["POST"])
+@require_login
+def toggle_weekly_reminder_emails() -> Tuple[Dict[str, Any], int]:
+    """
+    Toggle the Sunday evening meal plan reminder email for a household member.
+
+    Returns:
+        JSON response with success status or error message
+    """
+    try:
+        data = request.get_json()
+        member_id = data.get("member_id")
+        enabled = data.get("enabled")
+
+        if member_id is None or enabled is None:
+            return jsonify({"success": False, "error": "Missing required fields"}), 400
+
+        # Get the household member record
+        member = HouseholdMember.query.get(member_id)
+
+        if not member:
+            return jsonify({"success": False, "error": "Member not found"}), 404
+
+        # Verify the current user is updating their own preference
+        if member.user_id != g.user.id:
+            return jsonify(
+                {
+                    "success": False,
+                    "error": "You can only update your own email preferences",
+                }
+            ), 403
+
+        # Update preference
+        member.receive_weekly_reminder_emails = enabled
+        db.session.commit()
+
+        logger.info(
+            f"User {g.user.username} {'enabled' if enabled else 'disabled'} weekly reminder emails"
+        )
+
+        return jsonify({"success": True}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(
+            f"Error toggling weekly reminder email preference: {e}", exc_info=True
+        )
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @main_bp.route("/submit-feedback", methods=["POST"])
 @require_login
 def submit_feedback() -> Response:

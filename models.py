@@ -338,6 +338,7 @@ class HouseholdMember(db.Model):
     joined_at = db.Column(db.DateTime, nullable=False, default=get_est_now)
     receive_meal_plan_emails = db.Column(db.Boolean, nullable=False, default=True)
     receive_chef_assignment_emails = db.Column(db.Boolean, nullable=False, default=True)
+    receive_weekly_reminder_emails = db.Column(db.Boolean, nullable=False, default=True)
 
     user = db.relationship("User", backref="household_memberships")
 

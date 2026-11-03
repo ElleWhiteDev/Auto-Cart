@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Weekly Sunday 7 PM (Eastern) email reminding household members to build next week's meal plan, with an opt-out toggle in Household Settings and the admin dashboard
 - Comprehensive test suite with pytest
   - Unit tests for database models
   - Integration tests for HTTP routes

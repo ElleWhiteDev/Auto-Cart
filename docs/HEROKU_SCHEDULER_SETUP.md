@@ -154,6 +154,26 @@ For example, if your users are in EST (UTC-5):
 
 **Note**: Heroku Scheduler runs in UTC timezone, so convert your desired local time to UTC.
 
+## Weekly Meal Planning Reminder (Sunday 7 PM Eastern)
+
+Members who leave **Weekly Planning Reminder** on in Household Settings get an email every Sunday at 7 PM Eastern, prompting them to build next week's meal plan.
+
+Heroku Scheduler can't run weekly jobs and works only in UTC. To get around that, run the job **hourly**. The app checks the current Eastern time and only sends during the Sunday 7 PM hour, so daylight saving time is handled automatically.
+
+1. In Heroku Scheduler, click **Create job**
+2. **Frequency**: Every hour at :00
+3. **Run Command**: `python scripts/send_weekly_reminders.py`
+4. Click **Save**
+
+The other hourly runs return "Not reminder time, skipped" and send nothing.
+
+To send the reminder right away for testing, whatever the day:
+```bash
+heroku run python scripts/send_weekly_reminders.py --force -a YOUR_APP_NAME
+```
+
+Endpoint for external cron services: `POST /meal-plan/send-weekly-reminders` with the `X-Cron-Token` header (add form field `force=1` to skip the time check).
+
 ## Monitoring
 
 ### View Scheduler History:

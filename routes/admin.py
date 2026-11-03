@@ -85,6 +85,9 @@ def admin_dashboard() -> str:
         chef_email_enabled_count = sum(
             1 for m in members if m.receive_chef_assignment_emails
         )
+        weekly_reminder_enabled_count = sum(
+            1 for m in members if m.receive_weekly_reminder_emails
+        )
 
         household_stats.append(
             {
@@ -93,6 +96,7 @@ def admin_dashboard() -> str:
                 "members_count": len(members),
                 "email_enabled_count": email_enabled_count,
                 "chef_email_enabled_count": chef_email_enabled_count,
+                "weekly_reminder_enabled_count": weekly_reminder_enabled_count,
                 "recipes_count": recipes_count,
                 "lists_count": lists_count,
                 "meals_count": meals_count,
@@ -230,6 +234,7 @@ def admin_get_household_members(household_id: int) -> Tuple[Dict[str, Any], int]
                     "role": member.role,
                     "receive_meal_plan_emails": member.receive_meal_plan_emails,
                     "receive_chef_assignment_emails": member.receive_chef_assignment_emails,
+                    "receive_weekly_reminder_emails": member.receive_weekly_reminder_emails,
                     "joined_at": member.joined_at.strftime("%Y-%m-%d")
                     if member.joined_at
                     else None,
@@ -254,7 +259,7 @@ def admin_toggle_member_email() -> Tuple[Dict[str, Any], int]:
     try:
         data = request.get_json()
         member_id = data.get("member_id")
-        email_type = data.get("email_type")  # 'meal_plan' or 'chef'
+        email_type = data.get("email_type")  # 'meal_plan', 'chef' or 'weekly_reminder'
         enabled = data.get("enabled")
 
         if member_id is None or email_type is None or enabled is None:
@@ -273,6 +278,9 @@ def admin_toggle_member_email() -> Tuple[Dict[str, Any], int]:
         elif email_type == "chef":
             member.receive_chef_assignment_emails = enabled
             email_type_name = "chef assignment"
+        elif email_type == "weekly_reminder":
+            member.receive_weekly_reminder_emails = enabled
+            email_type_name = "weekly reminder"
         else:
             return jsonify({"success": False, "error": "Invalid email type"}), 400
 

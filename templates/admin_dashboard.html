@@ -314,6 +314,9 @@
 							{% if stat.chef_email_enabled_count is defined %}
 							<br><small style="color: var(--gray-600); font-size: var(--text-xs);">{{ stat.chef_email_enabled_count }} chef emails</small>
 							{% endif %}
+							{% if stat.weekly_reminder_enabled_count is defined %}
+							<br><small style="color: var(--gray-600); font-size: var(--text-xs);">{{ stat.weekly_reminder_enabled_count }} weekly reminders</small>
+							{% endif %}
 						</td>
 						<td style="padding: var(--space-4);">
 							<span class="badge badge-success">{{ stat.recipes_count }}</span>
@@ -475,6 +478,7 @@
 								<th style="padding: var(--space-4); font-weight: var(--font-semibold); color: var(--gray-700);">Role</th>
 								<th style="padding: var(--space-4); font-weight: var(--font-semibold); color: var(--gray-700); text-align: center;">Meal Plan Emails</th>
 								<th style="padding: var(--space-4); font-weight: var(--font-semibold); color: var(--gray-700); text-align: center;">Chef Emails</th>
+								<th style="padding: var(--space-4); font-weight: var(--font-semibold); color: var(--gray-700); text-align: center;">Weekly Reminder</th>
 							</tr>
 						</thead>
 						<tbody id="membersTableBody">
@@ -596,13 +600,26 @@ function displayMembers(members) {
 					>
 				</div>
 			</td>
+			<td style="padding: var(--space-4); text-align: center;">
+				<div class="form-check form-switch" style="display: inline-block;">
+					<input
+						class="form-check-input"
+						type="checkbox"
+						id="weeklyReminderEmail_${member.member_id}"
+						${member.receive_weekly_reminder_emails ? 'checked' : ''}
+						onchange="toggleMemberEmail(${member.member_id}, 'weekly_reminder', this.checked, '${escapeHtml(member.username)}')"
+						style="cursor: pointer;"
+					>
+				</div>
+			</td>
 		`;
 		tbody.appendChild(row);
 	});
 }
 
 function toggleMemberEmail(memberId, emailType, enabled, username) {
-	const checkbox = document.getElementById(`${emailType === 'meal_plan' ? 'mealPlanEmail' : 'chefEmail'}_${memberId}`);
+	const checkboxPrefixes = { meal_plan: 'mealPlanEmail', chef: 'chefEmail', weekly_reminder: 'weeklyReminderEmail' };
+	const checkbox = document.getElementById(`${checkboxPrefixes[emailType]}_${memberId}`);
 
 	fetch('/admin/toggle-member-email', {
 		method: 'POST',
@@ -619,7 +636,8 @@ function toggleMemberEmail(memberId, emailType, enabled, username) {
 	.then(data => {
 		if (data.success) {
 			// Show success feedback
-			const emailTypeName = emailType === 'meal_plan' ? 'meal plan' : 'chef assignment';
+			const emailTypeNames = { meal_plan: 'meal plan', chef: 'chef assignment', weekly_reminder: 'weekly reminder' };
+			const emailTypeName = emailTypeNames[emailType];
 			console.log(`${emailTypeName} emails ${enabled ? 'enabled' : 'disabled'} for ${username}`);
 		} else {
 			// Revert checkbox on error

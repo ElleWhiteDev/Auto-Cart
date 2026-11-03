@@ -1385,13 +1385,16 @@ function createRecipeAccordionItem(recipe, index, weekOffset, householdUsers) {
 					${recipe.ingredients.map(ing => {
 						const icon = ing.matched
 							? '<i class="fas fa-check-circle" style="color: var(--accent-orange); margin-right: 0.5rem;" title="Already on shopping list"></i>'
-							: '<i class="far fa-circle" style="color: var(--gray-500); margin-right: 0.5rem;"></i>';
+							: ing.partial
+								? '<i class="fas fa-adjust" style="color: var(--accent-orange); margin-right: 0.5rem;" title="Similar to something on your shopping list"></i>'
+								: '<i class="far fa-circle" style="color: var(--gray-500); margin-right: 0.5rem;"></i>';
 						const style = ing.matched ? 'color: var(--accent-orange); font-weight: 500;' : '';
 						return `<li style="${style}">${icon}${ing.text}</li>`;
 					}).join('')}
 				</ul>
 				<small style="color: var(--gray-500); display: block; margin-top: 0.5rem;">
 					<i class="fas fa-check-circle" style="color: var(--accent-orange);"></i> = Already on your shopping list
+					&nbsp;<i class="fas fa-adjust" style="color: var(--accent-orange);"></i> = Similar item on your list
 				</small>
 			</div>`
 		: '';
@@ -1407,7 +1410,7 @@ function createRecipeAccordionItem(recipe, index, weekOffset, householdUsers) {
 				<div style="flex-grow: 1;">
 					<strong>${recipe.name}</strong>
 					<span style="background: var(--accent-orange); color: white; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.875rem; margin-left: 0.5rem;">${recipe.match_percentage}% match</span>
-					<small style="color: var(--gray-500); margin-left: 0.5rem;">(${recipe.ingredient_count} ingredients)</small>
+					<small style="color: var(--gray-500); margin-left: 0.5rem;">(${recipe.new_item_count === 0 ? 'nothing new to buy' : `${recipe.new_item_count} new item${recipe.new_item_count === 1 ? '' : 's'} to buy`})</small>
 				</div>
 				<i class="fas fa-chevron-down" id="chevron${index}" style="transition: transform 0.3s;"></i>
 			</div>

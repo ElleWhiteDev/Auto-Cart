@@ -650,6 +650,115 @@ class TestMealPlanRoutes:
         ).all()
         assert [change.emailed for change in refreshed_changes] == [True, True]
 
+    def test_weekly_reminder_requires_cron_token(self, client, monkeypatch):
+        """Weekly reminders should reject requests without the cron token."""
+        monkeypatch.setenv("CRON_SECRET_TOKEN", "test-cron-token")
+
+        response = client.post("/meal-plan/send-weekly-reminders")
+
+        assert response.status_code == 401
+
+    def test_weekly_reminder_skipped_outside_sunday_evening(
+        self, client, monkeypatch, sample_household
+    ):
+        """Hourly scheduler runs outside Sunday 7pm Eastern should send nothing."""
+        monkeypatch.setenv("CRON_SECRET_TOKEN", "test-cron-token")
+        # Saturday 7pm
+        monkeypatch.setattr(
+            "routes.meal_plan.get_est_now", lambda: datetime(2026, 11, 7, 19, 0, 0)
+        )
+        sent = []
+        monkeypatch.setattr(
+            "routes.meal_plan._send_weekly_reminder_email",
+            lambda **kwargs: sent.append(kwargs),
+        )
+
+        response = client.post(
+            "/meal-plan/send-weekly-reminders",
+            headers={"X-Cron-Token": "test-cron-token"},
+        )
+
+        assert response.status_code == 200
+        assert response.get_json()["message"] == "Not reminder time, skipped"
+        assert sent == []
+
+    def test_weekly_reminder_sends_to_opted_in_members_on_sunday_evening(
+        self, client, db_session, monkeypatch, sample_household, sample_user
+    ):
+        """Sunday 7pm Eastern run should email opted-in members about next week."""
+        monkeypatch.setenv("CRON_SECRET_TOKEN", "test-cron-token")
+        # Sunday 7:02pm
+        monkeypatch.setattr(
+            "routes.meal_plan.get_est_now", lambda: datetime(2026, 11, 8, 19, 2, 0)
+        )
+
+        opted_out_user = User.signup(
+            username="optedout",
+            email="optedout@example.com",
+            password="password123",
+        )
+        db_session.flush()
+        db_session.add(
+            HouseholdMember(
+                household_id=sample_household.id,
+                user_id=opted_out_user.id,
+                role="member",
+                receive_weekly_reminder_emails=False,
+            )
+        )
+        db_session.add_all(
+            [
+                MealPlanEntry(
+                    household_id=sample_household.id,
+                    custom_meal_name="Next Monday Dinner",
+                    date=date(2026, 11, 9),
+                    meal_type="dinner",
+                ),
+                MealPlanEntry(
+                    household_id=sample_household.id,
+                    custom_meal_name="This Sunday Dinner",
+                    date=date(2026, 11, 8),
+                    meal_type="dinner",
+                ),
+            ]
+        )
+        db_session.commit()
+
+        sent = []
+        monkeypatch.setattr(
+            "routes.meal_plan._send_weekly_reminder_email",
+            lambda **kwargs: sent.append(kwargs),
+        )
+
+        response = client.post(
+            "/meal-plan/send-weekly-reminders",
+            headers={"X-Cron-Token": "test-cron-token"},
+        )
+
+        assert response.status_code == 200
+        assert response.get_json()["emails_sent"] == 1
+        assert [s["recipient_email"] for s in sent] == [sample_user.email]
+        assert sent[0]["week_start"] == date(2026, 11, 9)
+        assert sent[0]["planned_count"] == 1
+
+    def test_toggle_weekly_reminder_emails(
+        self, authenticated_client, db_session, sample_household, sample_user
+    ):
+        """Users can turn their own weekly reminder emails off."""
+        member = HouseholdMember.query.filter_by(
+            household_id=sample_household.id, user_id=sample_user.id
+        ).first()
+        assert member.receive_weekly_reminder_emails is True
+
+        response = authenticated_client.post(
+            "/household/toggle-weekly-reminder-emails",
+            json={"member_id": member.id, "enabled": False},
+        )
+
+        assert response.status_code == 200
+        db_session.refresh(member)
+        assert member.receive_weekly_reminder_emails is False
+
 
 @pytest.mark.integration
 class TestKrogerRoutes:

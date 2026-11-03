@@ -29,8 +29,10 @@ from models import (
     MealPlanChange,
     HouseholdMember,
     Household,
+    PantryStaple,
 )
-from utils import require_login, CURR_GROCERY_LIST_KEY, get_est_date
+from sqlalchemy.orm import selectinload
+from utils import require_login, CURR_GROCERY_LIST_KEY, get_est_date, get_est_now
 from logging_config import logger
 from typing import Union, Dict, Any, Tuple, Optional
 
@@ -872,93 +874,195 @@ def update_meal_plan_entry(entry_id: int) -> Response:
     return redirect(url_for("meal_plan.meal_plan") + f"?week={week_offset}")
 
 
+# Shelf-stable items most kitchens already have. Fresh herbs are deliberately
+# absent: they spoil fast, so sharing them across meals is worth rewarding.
 _PANTRY_STAPLES = {
     "salt", "pepper", "black pepper", "white pepper", "sea salt", "kosher salt",
     "flour", "all purpose flour", "bread flour", "whole wheat flour",
     "sugar", "brown sugar", "powdered sugar", "white sugar", "granulated sugar",
     "water", "cold water", "warm water", "hot water",
     "milk", "whole milk", "skim milk",
-    "oil", "olive oil", "vegetable oil", "canola oil", "cooking oil",
+    "oil", "olive oil", "extra virgin olive oil", "vegetable oil", "canola oil", "cooking oil",
     "butter", "unsalted butter", "salted butter",
     "baking soda", "baking powder", "cornstarch",
     "vanilla", "vanilla extract",
-    "basil", "oregano", "thyme", "rosemary", "parsley", "cilantro",
+    "oregano", "thyme", "rosemary",
     "cumin", "paprika", "chili powder", "cayenne", "cayenne pepper",
     "garlic powder", "onion powder", "cinnamon", "nutmeg",
-    "dried basil", "dried oregano", "dried thyme", "dried parsley", "dried rosemary",
-    "ground cumin", "ground cinnamon", "ground nutmeg", "smoked paprika",
+    "dried basil", "dried oregano", "dried thyme", "dried parsley", "dried rosemary", "dried cilantro",
+    "ground cumin", "ground cinnamon", "ground nutmeg", "ground black pepper", "smoked paprika",
     "red pepper flakes", "italian seasoning",
     "vinegar", "white vinegar", "apple cider vinegar",
     "lemon juice", "lime juice",
     "nonstick spray", "cooking spray",
 }
 
+# Words stripped before matching: quantities, units, prep notes and filler.
+_IGNORED_INGREDIENT_WORDS = {
+    "cup", "tbsp", "tsp", "tablespoon", "teaspoon", "oz", "ounce", "lb", "lbs", "pound",
+    "g", "gram", "kg", "ml", "l", "liter", "quart", "pint", "pinch", "dash",
+    "can", "jar", "package", "pkg", "bag", "bunch", "handful", "stick",
+    "chopped", "diced", "minced", "sliced", "grated", "shredded", "crushed",
+    "peeled", "cubed", "halved", "quartered", "trimmed", "rinsed", "drained",
+    "softened", "melted", "packed", "beaten", "finely", "roughly", "thinly",
+    "coarsely", "freshly", "large", "medium", "small", "boneless", "skinless",
+    "about", "plus", "more", "divided", "optional", "taste", "and", "or", "to",
+    "of", "for", "a", "an", "the", "into", "piece", "inch",
+}
+
+# Descriptive words that don't identify an ingredient on their own, so sharing
+# only one of these (e.g. "green onion" / "green bean") is not a partial match.
+_MODIFIER_WORDS = {
+    "red", "green", "yellow", "white", "black", "orange", "purple", "sweet",
+    "hot", "mild", "sour", "fresh", "frozen", "dried", "ground", "whole",
+    "light", "dark", "low", "fat", "free", "sodium", "raw", "cooked", "baby",
+    "extra", "virgin", "lean", "plain", "unsalted", "salted", "organic",
+}
+
+_PARTIAL_MATCH_SCORE = 0.5
+_MIN_MATCH_PERCENTAGE = 25
+_MIN_MATCHED_INGREDIENTS = 2
+
+
+def _singularize(word: str) -> str:
+    """Cheap plural-to-singular conversion; only needs to be consistent, not correct English."""
+    if len(word) <= 3:
+        return word
+    if word.endswith("ies"):
+        return word[:-3] + "y"
+    if word.endswith("oes") or word.endswith(("ches", "shes", "xes", "sses")):
+        return word[:-2]
+    if word.endswith("s") and not word.endswith(("ss", "us", "is")):
+        return word[:-1]
+    return word
+
 
 def _normalize_ingredient_name(name: str) -> str:
-    """Normalize ingredient text for lightweight overlap matching."""
+    """
+    Reduce ingredient text to a comparable core name.
+
+    "2 cups chopped Yellow Onions" -> "yellow onion"
+    """
     normalized = "".join(ch.lower() if ch.isalnum() or ch.isspace() else " " for ch in (name or ""))
-    return " ".join(normalized.split())
+    words = [_singularize(w) for w in normalized.split() if not any(ch.isdigit() for ch in w)]
+    core = [w for w in words if w not in _IGNORED_INGREDIENT_WORDS]
+    return " ".join(core or words)
 
 
-def _is_pantry_staple(normalized_name: str) -> bool:
-    """Return True if the ingredient is a common pantry staple to exclude from similarity scoring."""
-    if normalized_name in _PANTRY_STAPLES:
+_CANONICAL_STAPLES = frozenset(_normalize_ingredient_name(s) for s in _PANTRY_STAPLES)
+_SINGLE_WORD_STAPLES = frozenset(s for s in _CANONICAL_STAPLES if " " not in s)
+
+
+def _get_staples(household_id: Optional[int]) -> frozenset:
+    """Return the global staple list plus the household's own pantry staples, normalized."""
+    if not household_id:
+        return _CANONICAL_STAPLES
+    household_staples = {
+        _normalize_ingredient_name(s.ingredient_name)
+        for s in PantryStaple.query.filter_by(household_id=household_id).all()
+    }
+    return _CANONICAL_STAPLES | household_staples
+
+
+def _is_pantry_staple(normalized_name: str, staples: frozenset = _CANONICAL_STAPLES) -> bool:
+    """
+    Return True if the ingredient is a pantry staple to exclude from similarity scoring.
+
+    Matches whole names only, so "bell pepper" and "coconut milk" are not staples,
+    but combined lines like "salt and pepper" are.
+    """
+    if normalized_name in staples:
         return True
-    for staple in _PANTRY_STAPLES:
-        if staple in normalized_name and len(staple) >= 4:
-            return True
-    return False
+    words = normalized_name.split()
+    return len(words) > 1 and all(w in _SINGLE_WORD_STAPLES for w in words)
 
 
-def _build_week_ingredient_set(meal_entries: list) -> set:
+def _build_week_ingredient_set(meal_entries: list, staples: frozenset = _CANONICAL_STAPLES) -> set:
     """Return normalized non-staple ingredient names from a list of meal plan entries."""
     result = set()
     for entry in meal_entries:
         if entry.recipe and entry.recipe.recipe_ingredients:
             for ingredient in entry.recipe.recipe_ingredients:
                 normalized = _normalize_ingredient_name(ingredient.ingredient_name)
-                if normalized and not _is_pantry_staple(normalized):
+                if normalized and not _is_pantry_staple(normalized, staples):
                     result.add(normalized)
     return result
 
 
-def _score_recipe_match(recipe: Any, ingredient_set: set) -> Optional[dict]:
+def _ingredient_match_score(normalized_name: str, ingredient_set: set) -> float:
     """
-    Score a recipe against a set of ingredient names.
+    Score how well one ingredient is covered by what's already being bought.
 
-    Returns a match dict if the recipe meets the 25% threshold, otherwise None.
-    Staple ingredients are excluded from scoring but included in the display payload.
+    1.0 for the same ingredient, including when one name is a more specific
+    version of the other ("onion" / "yellow onion"); 0.5 when they share an
+    identifying word but differ in cut or variety ("chicken thigh" / "chicken breast").
+    """
+    if normalized_name in ingredient_set:
+        return 1.0
+    words = set(normalized_name.split())
+    key_words = words - _MODIFIER_WORDS
+    best = 0.0
+    for other in ingredient_set:
+        other_words = set(other.split())
+        if words <= other_words or other_words <= words:
+            if key_words & other_words:
+                return 1.0
+        elif key_words & other_words:
+            best = _PARTIAL_MATCH_SCORE
+    return best
+
+
+def _score_recipe_match(recipe: Any, ingredient_set: set, staples: frozenset = _CANONICAL_STAPLES) -> Optional[dict]:
+    """
+    Score how much of a recipe is covered by ingredients already being bought this week.
+
+    Returns a match dict if at least 25% of the recipe's non-staple ingredients are
+    covered and at least two of them overlap, otherwise None. Staple ingredients are
+    excluded from scoring but included in the display payload.
     """
     ingredient_payload = []
+    matched_score = 0.0
     matched_count = 0
     scored_count = 0
+    new_item_count = 0
 
     for ingredient in recipe.recipe_ingredients:
         ingredient_name = ingredient.ingredient_name or ""
         normalized = _normalize_ingredient_name(ingredient_name)
-        is_staple = _is_pantry_staple(normalized) if normalized else False
-        is_matched = (not is_staple and normalized in ingredient_set) if normalized else False
+        is_staple = _is_pantry_staple(normalized, staples) if normalized else False
+        score = _ingredient_match_score(normalized, ingredient_set) if normalized and not is_staple else 0.0
 
-        if not is_staple:
+        if normalized and not is_staple:
             scored_count += 1
-            if is_matched:
+            matched_score += score
+            if score > 0:
                 matched_count += 1
+            if score < 1:
+                new_item_count += 1
 
         quantity_str = str(ingredient.quantity).rstrip("0").rstrip(".") if ingredient.quantity else ""
         display_text = " ".join(p for p in [quantity_str, ingredient.measurement or "", ingredient_name] if p).strip()
-        ingredient_payload.append({"text": display_text or ingredient_name or "Unknown ingredient", "matched": is_matched})
+        ingredient_payload.append(
+            {
+                "text": display_text or ingredient_name or "Unknown ingredient",
+                "matched": score == 1,
+                "partial": 0 < score < 1,
+            }
+        )
 
-    if scored_count == 0:
+    if scored_count == 0 or matched_count < _MIN_MATCHED_INGREDIENTS:
         return None
 
-    match_percentage = int(round((matched_count / scored_count) * 100))
-    if match_percentage < 25:
+    match_percentage = int(round((matched_score / scored_count) * 100))
+    if match_percentage < _MIN_MATCH_PERCENTAGE:
         return None
 
     return {
         "id": recipe.id,
         "name": recipe.name,
         "match_percentage": match_percentage,
+        "matched_count": matched_count,
+        "new_item_count": new_item_count,
         "ingredient_count": len(recipe.recipe_ingredients),
         "ingredients": ingredient_payload,
     }
@@ -968,10 +1072,10 @@ def _score_recipe_match(recipe: Any, ingredient_set: set) -> Optional[dict]:
 @require_login
 def find_similar_recipes() -> Any:
     """
-    Find recipes with ingredient overlap against the current week's planned meals.
+    Find recipes that reuse ingredients already being bought for the current week's meals.
 
     Returns:
-        JSON payload of matched recipes
+        JSON payload of matched recipes, best coverage first
     """
     if not g.household:
         return jsonify({"success": False, "error": "Please create or join a household first"}), 400
@@ -988,25 +1092,30 @@ def find_similar_recipes() -> Any:
         MealPlanEntry.recipe_id.isnot(None),
     ).all()
 
+    staples = _get_staples(g.household.id)
     meal_plan_recipe_ids = {entry.recipe_id for entry in meal_entries if entry.recipe_id}
-    shopping_ingredient_set = _build_week_ingredient_set(meal_entries)
+    shopping_ingredient_set = _build_week_ingredient_set(meal_entries, staples)
 
     if not shopping_ingredient_set:
         return jsonify({"success": True, "matched_recipes": []})
 
-    candidate_recipes = Recipe.query.filter(
-        ((Recipe.household_id == g.household.id) | ((Recipe.user_id == g.user.id) & (Recipe.household_id.is_(None))))
-    ).all()
+    candidate_recipes = (
+        Recipe.query.options(selectinload(Recipe.recipe_ingredients))
+        .filter(
+            (Recipe.household_id == g.household.id) | ((Recipe.user_id == g.user.id) & (Recipe.household_id.is_(None)))
+        )
+        .all()
+    )
 
     matched_recipes = []
     for recipe in candidate_recipes:
         if recipe.id in meal_plan_recipe_ids or not recipe.recipe_ingredients:
             continue
-        match = _score_recipe_match(recipe, shopping_ingredient_set)
+        match = _score_recipe_match(recipe, shopping_ingredient_set, staples)
         if match:
             matched_recipes.append(match)
 
-    matched_recipes.sort(key=lambda r: r["match_percentage"], reverse=True)
+    matched_recipes.sort(key=lambda r: (-r["match_percentage"], -r["matched_count"], r["new_item_count"]))
     return jsonify({"success": True, "matched_recipes": matched_recipes})
 
 
@@ -1409,3 +1518,177 @@ For support: {admin_email}
 
     mail.send(msg)
     logger.info(f"Meal plan summary email sent to {recipient_email}")
+
+
+# Weekly planning reminder goes out Sunday at 7pm Eastern
+WEEKLY_REMINDER_WEEKDAY = 6
+WEEKLY_REMINDER_HOUR = 19
+
+
+@meal_plan_bp.route("/meal-plan/send-weekly-reminders", methods=["POST"])
+def send_weekly_meal_plan_reminders() -> Tuple[Dict[str, Any], int]:
+    """
+    Send the weekly "plan your meals" reminder to opted-in household members.
+
+    Intended to be called hourly by a scheduler (Heroku Scheduler can't run
+    weekly); emails only go out during the Sunday 7pm Eastern hour unless
+    ``force`` is passed. Requires the cron secret token.
+
+    Returns:
+        JSON response with results
+    """
+    auth_token = request.headers.get("X-Cron-Token") or request.form.get("cron_token")
+    expected_token = os.environ.get("CRON_SECRET_TOKEN")
+
+    if not expected_token or auth_token != expected_token:
+        logger.warning("Unauthorized attempt to send weekly meal plan reminders")
+        return jsonify({"error": "Unauthorized"}), 401
+
+    now = get_est_now()
+    force = request.form.get("force") == "1"
+    if not force and (
+        now.weekday() != WEEKLY_REMINDER_WEEKDAY or now.hour != WEEKLY_REMINDER_HOUR
+    ):
+        return jsonify({"message": "Not reminder time, skipped"}), 200
+
+    # The meal plan week runs Monday-Sunday, so plan for the week after today
+    days_until_monday = 7 - now.weekday()
+    week_start = now.date() + timedelta(days=days_until_monday)
+    week_end = week_start + timedelta(days=6)
+
+    members = (
+        HouseholdMember.query.filter_by(receive_weekly_reminder_emails=True)
+        .options(selectinload(HouseholdMember.user))
+        .all()
+    )
+
+    planned_counts: Dict[int, int] = {}
+    sent_count = 0
+    failed_count = 0
+    for member in members:
+        if not member.user.email:
+            continue
+
+        household_id = member.household_id
+        if household_id not in planned_counts:
+            planned_counts[household_id] = MealPlanEntry.query.filter(
+                MealPlanEntry.household_id == household_id,
+                MealPlanEntry.date >= week_start,
+                MealPlanEntry.date <= week_end,
+            ).count()
+
+        household = Household.query.get(household_id)
+        try:
+            _send_weekly_reminder_email(
+                recipient_email=member.user.email,
+                recipient_name=member.user.username,
+                household_name=household.name if household else "your household",
+                week_start=week_start,
+                planned_count=planned_counts[household_id],
+            )
+            sent_count += 1
+        except Exception as e:
+            failed_count += 1
+            logger.error(
+                f"Failed to send weekly reminder to {member.user.email}: {e}"
+            )
+
+    logger.info(
+        f"Weekly meal plan reminders sent: {sent_count}, failed: {failed_count}"
+    )
+    return jsonify(
+        {
+            "message": "Reminders sent",
+            "emails_sent": sent_count,
+            "emails_failed": failed_count,
+        }
+    ), 200
+
+
+def _send_weekly_reminder_email(
+    recipient_email: str,
+    recipient_name: str,
+    household_name: str,
+    week_start: Any,
+    planned_count: int,
+) -> None:
+    """Send the Sunday evening reminder to build next week's meal plan"""
+    admin_email = mail.default_sender or "support@autocart.com"
+
+    base_url = request.url_root.rstrip("/")
+    meal_plan_url = f"{base_url}/meal-plan?week=1"
+    settings_url = f"{base_url}/household/settings"
+
+    week_label = f"{week_start:%B} {week_start.day}"
+    subject = f"Time to plan your meals for the week of {week_label}"
+
+    if planned_count == 0:
+        status_line = "Nothing is on the meal plan yet for the coming week."
+    elif planned_count == 1:
+        status_line = "There's 1 meal planned so far for the coming week."
+    else:
+        status_line = (
+            f"There are {planned_count} meals planned so far for the coming week."
+        )
+
+    html_body = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+        .header {{ background-color: #004c91; color: white; padding: 20px; text-align: center; }}
+        .content {{ background-color: #f9f9f9; padding: 20px; }}
+        .button {{ display: inline-block; padding: 12px 24px; background-color: #004c91; color: white !important; text-decoration: none; border-radius: 4px; margin: 15px 0; }}
+        .footer {{ text-align: center; padding: 20px; color: #666; font-size: 12px; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🗓️ Plan Your Week</h1>
+        </div>
+        <div class="content">
+            <p>Hi {recipient_name},</p>
+
+            <p>A new week starts tomorrow. Take a few minutes to build the
+            <strong>{household_name}</strong> meal plan for the week of {week_label}.</p>
+
+            <p>{status_line}</p>
+
+            <a href="{meal_plan_url}" class="button">Build My Meal Plan</a>
+        </div>
+        <div class="footer">
+            <p>Don't want these reminders? Turn them off in your <a href="{settings_url}">household settings</a>.</p>
+            <p>Auto-Cart - Smart Household Grocery Management</p>
+            <p>For support: {admin_email}</p>
+        </div>
+    </div>
+</body>
+</html>
+    """
+
+    text_body = f"""
+Plan Your Week
+
+Hi {recipient_name},
+
+A new week starts tomorrow. Take a few minutes to build the {household_name} meal plan for the week of {week_label}.
+
+{status_line}
+
+Build your meal plan: {meal_plan_url}
+
+---
+Don't want these reminders? Turn them off in your household settings: {settings_url}
+Auto-Cart - Smart Household Grocery Management
+For support: {admin_email}
+    """
+
+    msg = Message(
+        subject=subject, recipients=[recipient_email], body=text_body, html=html_body
+    )
+
+    mail.send(msg)
+    logger.info(f"Weekly meal plan reminder sent to {recipient_email}")
